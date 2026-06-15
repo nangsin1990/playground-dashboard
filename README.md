@@ -1,7 +1,3 @@
-![Uploading image.png…]()
-
-
-
 # 🏠 หุ้นการบ้าน — Stock Homework Dashboard
 
 Quantitative Market Breadth + Confluence Scanner  
