@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Market | หุ้นการบ้าน</title>
+<style>
+:root{
+  --bg:#0b0f19;--panel:#111827;--border:#2a3344;--text:#e5e7eb;
+  --muted:#6b7280;--muted2:#9ca3af;--green:#10b981;--red:#ef4444;
+  --orange:#f59e0b;--indigo:#6366f1;--teal:#2dd4bf;--blue:#3b82f6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI','Noto Sans Thai',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);font-size:13px;-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+
+/* NAV */
+.topnav{
+  display:flex;align-items:center;gap:0;
+  background:var(--panel);border-bottom:1px solid var(--border);
+  padding:0 20px;height:52px;position:sticky;top:0;z-index:100;
+}
+.brand{display:flex;align-items:center;gap:10px;margin-right:28px}
+.brand-icon{width:30px;height:30px;border-radius:7px;
+  background:linear-gradient(135deg,var(--indigo),#312e81);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff}
+.brand-text{font-weight:700;font-size:13px;white-space:nowrap}
+.nav-links{display:flex;gap:2px;flex:1;overflow-x:auto}
+.nav-link{
+  padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:600;
+  color:var(--muted2);white-space:nowrap;cursor:pointer;border:1px solid transparent;transition:.12s;
+}
+.nav-link:hover{color:var(--text);background:#161c2b}
+.nav-link.active{color:#c7d2fe;background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.3)}
+.nav-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
+.update-time{font-size:11px;color:var(--muted);white-space:nowrap}
+.refresh-btn{
+  padding:6px 14px;border-radius:7px;border:1px solid var(--border);
+  background:#161b22;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;
+}
+.refresh-btn:hover{border-color:#4b5563}
+.refresh-btn:disabled{opacity:.5;cursor:default}
+
+/* LAYOUT */
+.page{padding:18px 20px;max-width:1600px}
+.section-title{
+  font-size:13px;font-weight:700;color:var(--muted2);
+  letter-spacing:.08em;text-transform:uppercase;
+  margin:20px 0 10px;display:flex;align-items:center;gap:8px;
+}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* SESSION CLOCK */
+.sessions-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.session-pill{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 14px;border-radius:10px;
+  background:var(--panel);border:1px solid var(--border);
+  min-width:160px;flex:1;
+}
+.session-pill.open{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.05)}
+.session-pill.closed{opacity:.6}
+.sess-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sess-dot.open{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite}
+.sess-dot.closed{background:var(--muted)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sess-info{flex:1;min-width:0}
+.sess-name{font-size:12.5px;font-weight:700}
+.sess-tz{font-size:10px;color:var(--muted);margin-left:4px}
+.sess-label{font-size:10.5px;color:var(--muted2);margin-top:1px}
+
+/* CARDS GRID */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.card-title-sm{font-size:12px;font-weight:700;color:var(--muted2);display:flex;align-items:center;gap:6px}
+
+/* TICKER ROWS */
+.ticker-row{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 0;border-bottom:1px solid #1c2533;
+}
+.ticker-row:last-child{border-bottom:none}
+.ticker-icon{font-size:16px;flex-shrink:0;width:22px;text-align:center}
+.ticker-name{flex:1;min-width:0}
+.ticker-name .name{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ticker-name .sym{font-size:10px;color:var(--muted)}
+.ticker-price{text-align:right;flex-shrink:0}
+.ticker-price .price{font-size:13px;font-weight:700}
+.ticker-price .chg{font-size:11px;font-weight:700;margin-top:1px}
+.up{color:var(--green)}.down{color:var(--red)}
+
+/* VIX GAUGE */
+.vix-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.vix-header{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}
+.vix-val{font-size:36px;font-weight:700;line-height:1}
+.vix-label{font-size:14px;font-weight:700}
+.vix-bar-track{height:10px;border-radius:10px;overflow:hidden;margin-bottom:8px;
+  background:linear-gradient(to right,#10b981 0%,#10b981 20%,#f59e0b 20%,#f59e0b 40%,#ef4444 40%,#ef4444 100%)}
+.vix-bar-marker{position:relative;height:10px}
+.vix-marker{position:absolute;top:-2px;width:4px;height:14px;background:#fff;border-radius:2px;transform:translateX(-50%)}
+.vix-zones{display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);margin-top:2px}
+
+/* YIELD CURVE */
+.yc-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.yc-bars{display:flex;align-items:flex-end;gap:8px;height:80px;margin:10px 0 6px}
+.yc-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.yc-bar{width:100%;border-radius:4px 4px 0 0;min-height:4px;transition:.3s}
+.yc-bar.pos{background:var(--blue)}
+.yc-bar.neg{background:var(--red)}
+.yc-bar-label{font-size:9.5px;color:var(--muted)}
+.yc-bar-val{font-size:10px;font-weight:700}
+.yc-signal{font-size:12px;font-weight:700;margin-top:6px;padding:6px 10px;border-radius:7px;text-align:center}
+.yc-signal.normal{background:rgba(16,185,129,.12);color:var(--green);border:1px solid rgba(16,185,129,.25)}
+.yc-signal.inverted{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.25)}
+
+/* 2-COL GRID */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+/* INDICES HEATMAP-STYLE TABLE */
+.indices-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.index-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;transition:.15s;
+}
+.index-card:hover{transform:translateY(-1px);border-color:#374151}
+.index-card.up-card{border-left:3px solid var(--green)}
+.index-card.down-card{border-left:3px solid var(--red)}
+.idx-flag{font-size:16px;margin-bottom:6px}
+.idx-name{font-size:11.5px;font-weight:700;color:var(--muted2);margin-bottom:4px}
+.idx-price{font-size:18px;font-weight:700;line-height:1}
+.idx-chg{font-size:12px;font-weight:700;margin-top:3px}
+.sparkwrap{height:28px;margin-top:6px}
+
+/* LOADING */
+#loading{
+  position:fixed;inset:0;background:rgba(11,15,25,.85);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200;
+}
+.spinner{width:32px;height:32px;border:3px solid #2a3344;border-top-color:var(--indigo);
+  border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-msg{font-size:13px;color:var(--muted2)}
+#errBanner{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;
+  border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;display:none}
+
+@media(max-width:700px){.two-col,.three-col{grid-template-columns:1fr}.sessions-grid{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="brand">
+    <div class="brand-icon">หบ</div>
+    <div class="brand-text">หุ้นการบ้าน</div>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link" href="/">📊 Overview</a>
+    <a class="nav-link active" href="/global.html">🌐 Global Market</a>
+    <a class="nav-link" href="#" style="opacity:.4;cursor:default">📈 Interactive Chart</a>
+    <a class="nav-link" href="#" style="opacity:.4;cursor:default">🔍 Quant Scanner</a>
+    <a class="nav-link" href="#" style="opacity:.4;cursor:default">🗂 Thematic Matrix</a>
+    <a class="nav-link" href="#" style="opacity:.4;cursor:default">📦 ETF Board</a>
+    <a class="nav-link" href="#" style="opacity:.4;cursor:default">🇹🇭 DR Universe</a>
+  </div>
+  <div class="nav-right">
+    <span class="update-time" id="updateTime">–</span>
+    <button class="refresh-btn" id="btnRefresh">🔄 Refresh</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div id="loading"><div class="spinner"></div><div class="load-msg">กำลังโหลดข้อมูลตลาดโลก...</div></div>
+  <div id="errBanner"></div>
+
+  <!-- SESSION CLOCK -->
+  <div class="section-title">🕐 Market Sessions</div>
+  <div class="sessions-grid" id="sessions"></div>
+
+  <!-- WORLD INDICES -->
+  <div class="section-title">🌍 World Indices</div>
+  <div class="indices-grid" id="indices"></div>
+
+  <!-- FUTURES + FEAR/GREED -->
+  <div class="section-title">⚡ Futures & Sentiment</div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title-sm">📉 Futures (Pre-market)</div>
+      <div id="futures" style="margin-top:8px"></div>
+    </div>
+    <div class="vix-card" id="vixCard">
+      <div class="card-title-sm">😨 Fear & Greed — VIX</div>
+      <div style="margin-top:10px" id="vixContent"></div>
+    </div>
+  </div>
+
+  <!-- CURRENCIES + COMMODITIES -->
+  <div class="section-title">💱 Currencies & Commodities</div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title-sm">💵 Currencies & FX</div>
+      <div id="currencies" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title-sm">🥇 Commodities</div>
+      <div id="commodities" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- BONDS + YIELD CURVE -->
+  <div class="section-title">📋 Bond Yields & Yield Curve</div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title-sm">🏦 US Treasury Yields</div>
+      <div id="bonds" style="margin-top:8px"></div>
+    </div>
+    <div class="yc-card">
+      <div class="card-title-sm">📐 Yield Curve</div>
+      <div id="yieldCurve" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <div style="height:30px"></div>
+</div>
+
+<script>
+const fmtPrice = (v, sym) => {
+  if (!v) return "–";
+  if (sym && (sym.includes("=X") || sym.includes("DX-Y"))) return v.toFixed(4);
+  if (v > 1000) return v.toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2});
+  return v.toFixed(2);
+};
+const fmtChg = v => (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
+const esc = s => (s||"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function tickerRows(items, showUnit=false) {
+  return items.map(r => `
+    <div class="ticker-row">
+      <div class="ticker-icon">${r.icon||""}</div>
+      <div class="ticker-name">
+        <div class="name">${esc(r.name)}</div>
+        <div class="sym">${esc(r.unit||r.symbol)}</div>
+      </div>
+      <div class="ticker-price">
+        <div class="price">${fmtPrice(r.price, r.symbol)}</div>
+        <div class="chg ${r.direction}">${fmtChg(r.chg_pct)}</div>
+      </div>
+    </div>`).join("");
+}
+
+function renderSessions(data) {
+  document.getElementById("sessions").innerHTML = data.map(s => `
+    <div class="session-pill ${s.is_open ? "open" : "closed"}">
+      <div class="sess-dot ${s.is_open ? "open" : "closed"}"></div>
+      <div class="sess-info">
+        <div class="sess-name">${s.flag} ${s.name} <span class="sess-tz">${s.tz}</span></div>
+        <div class="sess-label">${s.is_open ? "🟢 เปิดอยู่" : "🔴 ปิดแล้ว"} · ${s.label}</div>
+      </div>
+    </div>`).join("");
+}
+
+function renderIndices(data) {
+  document.getElementById("indices").innerHTML = data.map(r => `
+    <div class="index-card ${r.direction === "up" ? "up-card" : "down-card"}">
+      <div class="idx-flag">${r.icon}</div>
+      <div class="idx-name">${esc(r.name)}</div>
+      <div class="idx-price">${fmtPrice(r.price, r.symbol)}</div>
+      <div class="idx-chg ${r.direction}">${fmtChg(r.chg_pct)}</div>
+    </div>`).join("");
+}
+
+function renderVix(fg) {
+  const pct = Math.min(Math.max((fg.vix - 10) / 50 * 100, 0), 100);
+  document.getElementById("vixContent").innerHTML = `
+    <div class="vix-header">
+      <div class="vix-val" style="color:${fg.color}">${fg.vix.toFixed(2)}</div>
+      <div class="vix-label" style="color:${fg.color}">${fg.label}</div>
+    </div>
+    <div class="vix-bar-track"></div>
+    <div class="vix-bar-marker"><div class="vix-marker" style="left:${pct}%"></div></div>
+    <div class="vix-zones"><span>Greed &lt;15</span><span>Neutral 20</span><span>Fear 30</span><span>Extreme 40+</span></div>
+    <div style="margin-top:12px">${tickerRows(fg.items)}</div>`;
+}
+
+function renderYieldCurve(bonds, yc) {
+  // Draw bars for each bond
+  const maxY = Math.max(...bonds.map(b => Math.abs(b.price)), 0.01);
+  const bars = bonds.map(b => {
+    const h = Math.round(Math.abs(b.price) / maxY * 60);
+    const cls = b.price >= 0 ? "pos" : "neg";
+    return `<div class="yc-bar-wrap">
+      <div class="yc-bar-val ${cls}">${b.price.toFixed(2)}%</div>
+      <div class="yc-bar ${cls}" style="height:${h}px"></div>
+      <div class="yc-bar-label">${b.name.replace("US ","").replace(" Yield","")}</div>
+    </div>`;
+  }).join("");
+
+  const sigCls = yc.inverted ? "inverted" : "normal";
+  document.getElementById("yieldCurve").innerHTML = `
+    <div class="yc-bars">${bars}</div>
+    <div class="yc-signal ${sigCls}">${yc.signal}</div>
+    ${yc.spread_10y_5y !== null ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">10Y − 5Y spread: ${yc.spread_10y_5y > 0 ? "+" : ""}${yc.spread_10y_5y}%</div>` : ""}`;
+}
+
+async function load(refresh=false) {
+  document.getElementById("loading").style.display = "flex";
+  document.getElementById("errBanner").style.display = "none";
+  document.getElementById("btnRefresh").disabled = true;
+  try {
+    const res = await fetch(`/api/global${refresh ? "?refresh=1" : ""}`);
+    const d = await res.json();
+    if (!d.ok) throw new Error(d.error || "API error");
+
+    document.getElementById("updateTime").textContent = "Updated: " + d.updated;
+    renderSessions(d.sessions);
+    renderIndices(d.indices);
+    document.getElementById("futures").innerHTML = tickerRows(d.futures);
+    document.getElementById("currencies").innerHTML = tickerRows(d.currencies);
+    document.getElementById("commodities").innerHTML = tickerRows(d.commodities);
+    document.getElementById("bonds").innerHTML = tickerRows(d.bonds);
+    renderVix(d.fear_greed);
+    renderYieldCurve(d.bonds, d.yield_curve);
+
+    // Auto-refresh every 10 min
+    setTimeout(() => load(false), 10 * 60 * 1000);
+  } catch(e) {
+    document.getElementById("errBanner").textContent = "⚠️ " + e.message;
+    document.getElementById("errBanner").style.display = "block";
+  } finally {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("btnRefresh").disabled = false;
+  }
+}
+
+document.getElementById("btnRefresh").addEventListener("click", () => load(true));
+load();
+</script>
+</body>
+</html>

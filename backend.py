@@ -33,6 +33,7 @@ from fastapi.staticfiles import StaticFiles
 
 import data_io
 import pipeline
+import global_market as gm
 
 app = FastAPI(title="Stock Homework Dashboard API", version="2.0")
 
@@ -108,6 +109,16 @@ def search(
     ]
     return JSONResponse({"ok": True, "query": q, "results": hits, "total": len(hits)})
 
+
+
+
+@app.get("/api/global")
+def global_market(refresh: bool = Query(False)):
+    """Return global market data: indices, futures, FX, commodities, bonds, VIX."""
+    if refresh:
+        gm.fetch_global_market.cache_clear()
+    result = gm.fetch_global_market()
+    return JSONResponse(result, status_code=200 if result.get("ok") else 503)
 
 # Static frontend — must be mounted LAST so /api/* routes take precedence.
 STATIC_DIR = Path(__file__).parent / "static"
