@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leadership Board | หุ้นการบ้าน</title>
+<style>
+:root{
+  --bg:#0b0f19;--panel:#111827;--border:#2a3344;--text:#e5e7eb;
+  --muted:#6b7280;--muted2:#9ca3af;--green:#10b981;--red:#ef4444;
+  --orange:#f59e0b;--indigo:#6366f1;--teal:#2dd4bf;--blue:#3b82f6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI','Noto Sans Thai',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);font-size:13px;-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+
+/* ── TOP NAV ── */
+.topnav{display:flex;align-items:center;background:var(--panel);border-bottom:1px solid var(--border);
+  padding:0 20px;height:52px;position:sticky;top:0;z-index:100}
+.brand{display:flex;align-items:center;gap:10px;margin-right:22px}
+.brand-icon{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--indigo),#312e81);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff}
+.brand-text{font-weight:700;font-size:13px;white-space:nowrap}
+.nav-links{display:flex;gap:2px;flex:1;overflow-x:auto}
+.nav-link{padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;color:var(--muted2);
+  white-space:nowrap;cursor:pointer;border:1px solid transparent;transition:.12s}
+.nav-link:hover{color:var(--text);background:#161c2b}
+.nav-link.active{color:#c7d2fe;background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.3)}
+.nav-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
+.upd{font-size:11px;color:var(--muted);white-space:nowrap}
+.refresh-btn{padding:6px 14px;border-radius:7px;border:1px solid var(--border);background:#161b22;
+  color:var(--text);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.refresh-btn:hover{border-color:#4b5563}
+.refresh-btn:disabled{opacity:.5;cursor:default}
+
+/* ── PAGE ── */
+.page{padding:18px 20px;max-width:1600px}
+.page-header{margin-bottom:18px}
+.page-title{font-size:22px;font-weight:800;line-height:1.1;margin-bottom:4px}
+.page-sub{font-size:12.5px;color:var(--muted);line-height:1.6}
+
+/* ── STAT STRIP ── */
+.stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.stat-chip{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.stat-chip-label{font-size:10.5px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px}
+.stat-chip-val{font-size:22px;font-weight:800;line-height:1}
+.stat-chip-sub{font-size:10.5px;color:var(--muted2);margin-top:3px}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:8px 16px;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;
+  border:1px solid var(--border);background:var(--panel);color:var(--muted2);transition:.12s;white-space:nowrap}
+.tab:hover{color:var(--text);border-color:#374151}
+.tab.active{color:#c7d2fe;background:rgba(99,102,241,.14);border-color:rgba(99,102,241,.4)}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-wrap input{width:100%;padding:8px 10px 8px 32px;border-radius:8px;
+  border:1px solid var(--border);background:#161b22;color:var(--text);font-size:12.5px;outline:none}
+.search-wrap input:focus{border-color:var(--indigo)}
+.search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--muted)}
+.mode-toggle{display:flex;gap:4px}
+.mode-btn{padding:7px 12px;border-radius:7px;border:1px solid var(--border);background:#161b22;
+  color:var(--muted2);font-size:12px;font-weight:700;cursor:pointer;transition:.12s}
+.mode-btn.active{color:#c7d2fe;background:rgba(99,102,241,.14);border-color:rgba(99,102,241,.4)}
+.result-count{font-size:11.5px;color:var(--muted);margin-left:auto}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);background:var(--panel)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead th{text-align:left;font-size:11px;font-weight:700;color:var(--muted);
+  padding:11px 12px;border-bottom:1px solid var(--border);white-space:nowrap;
+  cursor:pointer;user-select:none;background:rgba(255,255,255,.02)}
+thead th:hover{color:var(--text)}
+thead th.num{text-align:right}
+thead th.sort-asc::after{content:" ▲"}
+thead th.sort-desc::after{content:" ▼"}
+thead th.sort-active{color:var(--indigo)}
+tbody td{padding:11px 12px;border-bottom:1px solid #1a2236;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.025)}
+
+/* ── CELL TYPES ── */
+.rank{font-size:13px;font-weight:800;color:var(--muted);min-width:28px}
+.rank.gold{color:#fbbf24}.rank.silver{color:#94a3b8}.rank.bronze{color:#b87333}
+
+.sym-cell{display:flex;align-items:center;gap:10px;min-width:180px}
+.mkt-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sym-text .sym{font-weight:800;font-size:13.5px}
+.sym-text .ex-tag{font-size:9px;font-weight:700;color:var(--muted);background:#1c2533;
+  padding:1px 5px;border-radius:4px;margin-left:5px}
+.sym-text .full{font-size:10.5px;color:var(--muted);margin-top:1px;max-width:170px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.ls-bar-cell{min-width:120px}
+.ls-bar-wrap{display:flex;align-items:center;gap:6px}
+.ls-bar-track{flex:1;height:6px;background:#1f2937;border-radius:3px;overflow:hidden}
+.ls-bar-fill{height:100%;border-radius:3px}
+.ls-val{font-size:12px;font-weight:800;min-width:30px;text-align:right}
+
+.rs-pill{display:inline-block;min-width:32px;text-align:center;padding:3px 8px;
+  border-radius:6px;font-weight:800;font-size:12px}
+.rs-90{background:rgba(16,185,129,.2);color:#34d399}
+.rs-80{background:rgba(16,185,129,.15);color:#6ee7b7}
+.rs-70{background:rgba(245,158,11,.2);color:#fbbf24}
+.rs-low{background:rgba(107,114,128,.15);color:#9ca3af}
+
+.num{text-align:right}
+.up{color:var(--green);font-weight:700}
+.down{color:var(--red);font-weight:700}
+.na{color:var(--muted)}
+
+.trend-dots{display:flex;gap:3px}
+.dot-cond{width:9px;height:9px;border-radius:50%}
+.dot-cond.pass{background:var(--green)}
+.dot-cond.fail{background:#1f2937;border:1px solid var(--border)}
+
+.sig-tags{display:flex;gap:3px;flex-wrap:wrap}
+.sig-tag{padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;white-space:nowrap}
+.sig-vdu{background:rgba(245,158,11,.15);color:var(--orange)}
+.sig-ppbp{background:rgba(16,185,129,.15);color:var(--green)}
+.sig-bgu{background:rgba(99,102,241,.15);color:#a5b4fc}
+.sig-52w{background:rgba(45,212,191,.15);color:var(--teal)}
+
+.accum-bar{width:60px;height:6px;background:#1f2937;border-radius:3px;overflow:hidden;display:inline-block}
+.accum-fill{height:100%;border-radius:3px;background:var(--green)}
+.accum-neg{background:var(--red)}
+
+.ud-val{font-size:12px;font-weight:700}
+
+/* ── TAB DESCRIPTION CARD ── */
+.tab-desc{background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);
+  border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:12.5px;color:var(--muted2);line-height:1.6}
+.tab-desc strong{color:var(--text)}
+
+/* ── LOADING ── */
+#loading{position:fixed;inset:0;background:rgba(11,15,25,.88);display:flex;
+  align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200}
+.spinner{width:32px;height:32px;border:3px solid #2a3344;border-top-color:var(--indigo);
+  border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-msg{font-size:13px;color:var(--muted2);text-align:center;max-width:300px;line-height:1.6}
+#errBanner{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;
+  border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;display:none}
+.empty{text-align:center;padding:40px;color:var(--muted);font-size:13px}
+
+@media(max-width:800px){
+  .stat-strip{grid-template-columns:repeat(2,1fr)}
+  .tabs{gap:3px}
+  .tab{padding:6px 10px;font-size:11.5px}
+}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="brand">
+    <div class="brand-icon">หบ</div>
+    <div class="brand-text">หุ้นการบ้าน</div>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link" href="/">📊 Overview</a>
+    <a class="nav-link" href="/global.html">🌐 Global</a>
+    <a class="nav-link" href="/etf.html">📦 ETF</a>
+    <a class="nav-link active" href="/leaders.html">🏆 Leadership</a>
+    <a class="nav-link" href="#" style="opacity:.35;cursor:default">📈 Chart</a>
+    <a class="nav-link" href="#" style="opacity:.35;cursor:default">🔍 Scanner</a>
+    <a class="nav-link" href="#" style="opacity:.35;cursor:default">🔄 Rotation</a>
+    <a class="nav-link" href="#" style="opacity:.35;cursor:default">💼 Portfolio</a>
+  </div>
+  <div class="nav-right">
+    <span class="upd" id="updTime">–</span>
+    <button class="refresh-btn" id="btnRefresh">🔄 Refresh</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div id="loading">
+    <div class="spinner"></div>
+    <div class="load-msg">กำลังคำนวณ Leadership Board...<br><small style="opacity:.6">วิเคราะห์ RS · Trend · Accumulation · Volume สำหรับทุกหุ้นใน Universe</small></div>
+  </div>
+  <div id="errBanner"></div>
+
+  <div class="page-header">
+    <div class="page-title">🏆 Institutional Leadership Board</div>
+    <div class="page-sub">
+      จัดอันดับหุ้นที่ <strong>กองทุนและสถาบันการเงินกำลังสะสม</strong> ด้วย Leadership Score คำนวณจาก RS Rating + Trend Template + Accumulation/Distribution + Volume Surge + Base Tightness<br>
+      วิธีการอ้างอิงจาก <em>William O'Neil (IBD 50), Mark Minervini (Trend Template), Stan Weinstein (Stage Analysis)</em>
+    </div>
+  </div>
+
+  <!-- Stat Strip -->
+  <div class="stat-strip" id="statStrip">
+    <div class="stat-chip"><div class="stat-chip-label">Total Universe</div><div class="stat-chip-val" id="statTotal">–</div><div class="stat-chip-sub">tickers loaded</div></div>
+    <div class="stat-chip"><div class="stat-chip-label">RS ≥ 90</div><div class="stat-chip-val" id="statRS90" style="color:var(--green)">–</div><div class="stat-chip-sub">elite performers</div></div>
+    <div class="stat-chip"><div class="stat-chip-label">Trend Template ✅</div><div class="stat-chip-val" id="statTT" style="color:var(--indigo)">–</div><div class="stat-chip-sub">4/4 conditions passed</div></div>
+    <div class="stat-chip"><div class="stat-chip-label">Near 52W High</div><div class="stat-chip-val" id="statHigh" style="color:var(--teal)">–</div><div class="stat-chip-sub">within 5% of high</div></div>
+  </div>
+
+  <!-- Mode toggle -->
+  <div class="toolbar" style="margin-bottom:14px">
+    <div class="mode-toggle">
+      <div class="mode-btn active" id="btnCore" onclick="setMode('core')">Core (~126)</div>
+      <div class="mode-btn" id="btnFull" onclick="setMode('full')">Full (~913)</div>
+    </div>
+    <div style="font-size:11.5px;color:var(--muted)">Full mode: ครบ S&P500 + Nasdaq100 + SET100 + HSI + Nikkei225 + KOSPI200 + CSI300</div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tabBar">
+    <div class="tab active" data-tab="overall">🏆 Overall Leaders</div>
+    <div class="tab" data-tab="top_rs">⭐ Top RS Rating</div>
+    <div class="tab" data-tab="top_momentum">⚡ Top Momentum</div>
+    <div class="tab" data-tab="near_breakout">🚀 Near Breakout</div>
+    <div class="tab" data-tab="institutional">🏦 Institutional Buying</div>
+    <div class="tab" data-tab="volume_surge">🔥 Volume Surge</div>
+    <div class="tab" data-tab="trend_template">✅ Trend Template</div>
+  </div>
+
+  <!-- Tab descriptions -->
+  <div id="tabDesc" class="tab-desc"></div>
+
+  <!-- Screener toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchBox" placeholder="ค้นหา Symbol / บริษัท / Theme / ตลาด...">
+    </div>
+    <span class="result-count" id="resultCount"></span>
+  </div>
+
+  <!-- Table -->
+  <div class="tbl-wrap">
+    <table>
+      <thead id="tableHead"></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <div style="height:30px"></div>
+</div>
+
+<script>
+/* ── STATE ── */
+let data     = null;
+let activeTab = "overall";
+let searchQ   = "";
+let mode      = "core";
+let sortKey   = null;
+let sortDir   = -1;
+
+const esc = s => (s||"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtPct = (v,d=2) => v==null ? '<span class="na">–</span>'
+  : `<span class="${v>=0?'up':'down'}">${v>=0?'+':''}${Number(v).toFixed(d)}%</span>`;
+const fmtNum = (v,d=2) => v==null ? '–' : Number(v).toFixed(d);
+
+const MKT_COLORS = {US:"#6366f1",TH:"#10b981",HK:"#f59e0b",JP:"#3b82f6",KR:"#8b5cf6",CN:"#ef4444"};
+const EXCH = [[".BK","SET"],[".HK","HKEX"],[".T","TSE"],[".KS","KRX"],[".SS","SSE"],[".SZ","SZSE"]];
+function exchLabel(t){for(const [s,l] of EXCH) if(t.endsWith(s)) return l; return "NYSE/NQ";}
+
+const TAB_DEFS = {
+  overall:      {icon:"🏆", label:"Overall Leaders",      desc:"<strong>Leadership Score รวม (0-100)</strong> — คำนวณจาก RS Rating 25% + Trend Template 20% + Accumulation 15% + Proximity to 52W High 15% + Base Tightness 10% + dRS7D 8% + Volume 7% — เรียงจากสูงสุด เหมาะใช้เป็น Starting Point ทุกวัน"},
+  top_rs:       {icon:"⭐", label:"Top RS Rating",        desc:"<strong>Relative Strength Rating (1-99)</strong> — จัดอันดับ return แบบ blended (40%×3M + 20%×6M + 20%×9M + 20%×12M) เทียบกับหุ้นทั้งหมดใน universe หุ้น RS ≥ 90 = top 10% ของตลาด — IBD ใช้เป็นตัวกรองหลัก"},
+  top_momentum: {icon:"⚡", label:"Top Momentum (dRS 7D)",desc:"<strong>RS Momentum Acceleration</strong> — หุ้นที่ RS Rating เพิ่มขึ้นเร็วที่สุดใน 7 วันทำการ (dRS 7D) — บ่งชี้ว่ากองทุนกำลังเข้าสะสมอย่างรุนแรง เหมาะหาหุ้นที่ 'เพิ่งเริ่มแรง' ก่อนที่คนอื่นจะเห็น"},
+  near_breakout:{icon:"🚀", label:"Near Breakout",        desc:"<strong>ราคาอยู่ใกล้ 52W High ≤5% + Trend Template ≥3/4</strong> — หุ้นที่กำลังจะ breakout ออกจากฐาน เงื่อนไขคือ trend สวยบวก coiling ใกล้ resistance — โอกาส entry ก่อน breakout"},
+  institutional:{icon:"🏦", label:"Institutional Buying", desc:"<strong>Accumulation Score ≥ 0.2 + U/D Volume Ratio ≥ 1.3</strong> — วัด 'รอยมือ' ของกองทุน: วันขึ้นมี volume สูง vs วันลงมี volume ต่ำ = สัญญาณสะสมเงียบ (Stealth Accumulation) แบบที่ Stan Weinstein เรียก Stage 1→2 transition"},
+  volume_surge: {icon:"🔥", label:"Volume Surge",         desc:"<strong>Volume วันนี้ ≥ 1.5x ค่าเฉลี่ย 50 วัน</strong> — เงินผิดปกติเข้ามาในหุ้นนี้วันนี้ ถ้า volume สูงพร้อมราคาขึ้น = institutional accumulation ถ้าราคาลง = distribution ต้องดูบริบท"},
+  trend_template:{icon:"✅", label:"Trend Template 4/4",  desc:"<strong>Minervini Trend Template ครบ 4 เงื่อนไข</strong>: (1) Price > SMA50, (2) Price > SMA150, (3) Price > SMA200, (4) SMA200 slope ขึ้น — หุ้นที่ผ่านทุกข้อคือหุ้นที่ 'อยู่ในขาขึ้นที่แท้จริง' ตาม Minervini's criteria"},
+};
+
+const HEADERS = {
+  overall:      ["#","Symbol","LS Score","RS","dRS7","Trend","Accum","Base","52W%","Signals","Market"],
+  top_rs:       ["#","Symbol","RS Rating","dRS7","LS Score","Trend","1M%","3M%","52W%","Signals","Market"],
+  top_momentum: ["#","Symbol","dRS 7D","RS","LS Score","Vol Surge","Accum","Trend","1M%","Signals","Market"],
+  near_breakout:["#","Symbol","52W High%","Trend","Base Tight","LS Score","RS","Vol","1M%","Signals","Market"],
+  institutional:["#","Symbol","Accum","U/D Ratio","RS","LS Score","Trend","Vol Surge","1M%","Signals","Market"],
+  volume_surge: ["#","Symbol","Vol Surge","RS","LS Score","Accum","Trend","1D%","1M%","Signals","Market"],
+  trend_template:["#","Symbol","Trend","RS","LS Score","Accum","Base","52W%","1M%","Signals","Market"],
+};
+
+/* ── RENDER HELPERS ── */
+function rsClass(v){ return v>=90?"rs-90":v>=80?"rs-80":v>=70?"rs-70":"rs-low"; }
+
+function lsBar(v){
+  const col = v>=70?"var(--green)":v>=50?"var(--orange)":"var(--red)";
+  return `<div class="ls-bar-cell"><div class="ls-bar-wrap">
+    <div class="ls-bar-track"><div class="ls-bar-fill" style="width:${v}%;background:${col}"></div></div>
+    <div class="ls-val" style="color:${col}">${v}</div></div></div>`;
+}
+
+function trendDots(r){
+  return `<div class="trend-dots">
+    ${[r.trend_c1,r.trend_c2,r.trend_c3,r.trend_c4].map(c=>`<div class="dot-cond ${c?'pass':'fail'}"></div>`).join("")}
+    <span style="font-size:10.5px;font-weight:700;color:${r.trend_score>=3?"var(--green)":r.trend_score>=2?"var(--orange)":"var(--muted)"};margin-left:3px">${r.trend_score}/4</span>
+  </div>`;
+}
+
+function sigTags(r){
+  const tags = [];
+  if(r.is_vdu)  tags.push(`<span class="sig-tag sig-vdu">VDU</span>`);
+  if(r.is_pocket) tags.push(`<span class="sig-tag sig-ppbp">PPBP</span>`);
+  if(r.is_bgu)  tags.push(`<span class="sig-tag sig-bgu">BGU</span>`);
+  if(r.is_near_52w) tags.push(`<span class="sig-tag sig-52w">52W</span>`);
+  return `<div class="sig-tags">${tags.join("")||'<span style="color:var(--muted);font-size:10.5px">–</span>'}</div>`;
+}
+
+function accumBar(v){
+  const pct = Math.min(Math.max((v+1)/2*100,0),100);
+  const cls  = v>=0 ? "" : " accum-neg";
+  return `<div style="display:flex;align-items:center;gap:6px">
+    <div class="accum-bar"><div class="accum-fill${cls}" style="width:${pct}%"></div></div>
+    <span class="ud-val" style="color:${v>0.1?"var(--green)":v<-0.1?"var(--red)":"var(--muted)"}">${v>0?'+':''}${v.toFixed(2)}</span>
+  </div>`;
+}
+
+function symCell(r){
+  const col = MKT_COLORS[r.market]||"#6b7280";
+  const exch = exchLabel(r.ticker);
+  return `<div class="sym-cell">
+    <div class="mkt-dot" style="background:${col}"></div>
+    <div class="sym-text">
+      <div><span class="sym">${esc(r.symbol)}</span><span class="ex-tag">${exch}</span></div>
+      <div class="full" title="${esc(r.name)}">${esc(r.name)}</div>
+    </div>
+  </div>`;
+}
+
+function rowCells(r, tab){
+  const rank = (i) => {
+    const cls = i===1?"gold":i===2?"silver":i===3?"bronze":"";
+    const m = i===1?"🥇":i===2?"🥈":i===3?"🥉":i;
+    return `<td><div class="rank ${cls}">${m}</div></td>`;
+  };
+  const mkt = `<td><span style="font-size:11px;font-weight:700;color:${MKT_COLORS[r.market]||"#6b7280"}">${r.market}</span></td>`;
+  const vol  = `<td class="num"><span style="color:${r.vol_ratio>=2?"var(--red)":r.vol_ratio>=1.5?"var(--orange)":"var(--muted)"};font-weight:700">${r.vol_ratio.toFixed(1)}x</span></td>`;
+  const prox52 = `<td class="num"><span class="${r.prox_52w<=2?"up":r.prox_52w<=5?"":"down"}">${r.prox_52w.toFixed(1)}%</span></td>`;
+
+  switch(tab){
+    case "overall":       return `${symCell(r)}${lsBar(r.ls)}<td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td><td class="num ${r.drs7>=0?"up":"down"}">${r.drs7>=0?"+":""}${r.drs7}</td><td>${trendDots(r)}</td><td>${accumBar(r.accum_score)}</td><td class="num" style="color:var(--muted)">${r.base_tight.toFixed(1)}%</td>${prox52}<td>${sigTags(r)}</td>${mkt}`;
+    case "top_rs":        return `${symCell(r)}<td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td><td class="num ${r.drs7>=0?"up":"down"}">${r.drs7>=0?"+":""}${r.drs7}</td>${lsBar(r.ls)}<td>${trendDots(r)}</td><td class="num">${fmtPct(r.r1m)}</td><td class="num">${fmtPct(r.r3m)}</td>${prox52}<td>${sigTags(r)}</td>${mkt}`;
+    case "top_momentum":  return `${symCell(r)}<td class="num ${r.drs7>=0?"up":"down"}" style="font-size:16px;font-weight:800">${r.drs7>=0?"+":""}${r.drs7}</td><td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td>${lsBar(r.ls)}${vol}<td>${accumBar(r.accum_score)}</td><td>${trendDots(r)}</td><td class="num">${fmtPct(r.r1m)}</td><td>${sigTags(r)}</td>${mkt}`;
+    case "near_breakout": return `${symCell(r)}${prox52}<td>${trendDots(r)}</td><td class="num" style="color:${r.base_tight<=8?"var(--green)":r.base_tight<=15?"var(--orange)":"var(--muted)"}">${r.base_tight.toFixed(1)}%</td>${lsBar(r.ls)}<td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td>${vol}<td class="num">${fmtPct(r.r1m)}</td><td>${sigTags(r)}</td>${mkt}`;
+    case "institutional": return `${symCell(r)}<td>${accumBar(r.accum_score)}</td><td class="num ud-val" style="color:${r.ud_ratio>=1.5?"var(--green)":r.ud_ratio<=0.8?"var(--red)":"var(--muted2)"}">${r.ud_ratio.toFixed(2)}x</td><td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td>${lsBar(r.ls)}<td>${trendDots(r)}</td>${vol}<td class="num">${fmtPct(r.r1m)}</td><td>${sigTags(r)}</td>${mkt}`;
+    case "volume_surge":  return `${symCell(r)}${vol}<td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td>${lsBar(r.ls)}<td>${accumBar(r.accum_score)}</td><td>${trendDots(r)}</td><td class="num">${fmtPct(r.r1d)}</td><td class="num">${fmtPct(r.r1m)}</td><td>${sigTags(r)}</td>${mkt}`;
+    case "trend_template":return `${symCell(r)}<td>${trendDots(r)}</td><td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td>${lsBar(r.ls)}<td>${accumBar(r.accum_score)}</td><td class="num" style="color:var(--muted)">${r.base_tight.toFixed(1)}%</td>${prox52}<td class="num">${fmtPct(r.r1m)}</td><td>${sigTags(r)}</td>${mkt}`;
+    default: return "";
+  }
+}
+
+/* ── RENDER TABLE ── */
+function renderTable(){
+  if(!data) return;
+  const rows = data[activeTab] || [];
+  const td = TAB_DEFS[activeTab];
+
+  // Tab description
+  document.getElementById("tabDesc").innerHTML = `<strong>${td.icon} ${td.label}:</strong> ${td.desc}`;
+
+  // Headers
+  const hdrs = HEADERS[activeTab];
+  document.getElementById("tableHead").innerHTML = `<tr>${hdrs.map((h,i)=>`<th class="${i>1?"num":""}">${h}</th>`).join("")}</tr>`;
+
+  // Filter
+  const q = searchQ.toLowerCase();
+  const filtered = rows.filter(r =>
+    !q || r.symbol.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)
+       || r.theme.toLowerCase().includes(q) || r.market.toLowerCase().includes(q)
+  );
+
+  document.getElementById("resultCount").textContent = `แสดง ${filtered.length} / ${rows.length} ตัว`;
+
+  if(!filtered.length){
+    document.getElementById("tableBody").innerHTML = `<tr><td colspan="${hdrs.length}"><div class="empty">ไม่พบหุ้นที่ตรงกับเงื่อนไข</div></td></tr>`;
+    return;
+  }
+
+  document.getElementById("tableBody").innerHTML = filtered.map((r,i)=>{
+    const rk = i===0?1:i===1?2:i===2?3:i+1;
+    const rkCell = `<td><div class="rank ${rk===1?"gold":rk===2?"silver":rk===3?"bronze":""}">${rk===1?"🥇":rk===2?"🥈":rk===3?"🥉":rk}</div></td>`;
+    return `<tr>${rkCell}${rowCells(r,activeTab)}</tr>`;
+  }).join("");
+}
+
+/* ── STATS ── */
+function renderStats(){
+  if(!data) return;
+  const all = data.overall || [];
+  document.getElementById("statTotal").textContent  = data.total || 0;
+  document.getElementById("statRS90").textContent   = all.filter(r=>r.rs>=90).length;
+  document.getElementById("statTT").textContent     = (data.trend_template||[]).length;
+  document.getElementById("statHigh").textContent   = (data.near_breakout||[]).length;
+}
+
+/* ── TABS ── */
+document.getElementById("tabBar").querySelectorAll(".tab").forEach(el=>{
+  el.addEventListener("click",()=>{
+    activeTab = el.dataset.tab;
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    el.classList.add("active");
+    renderTable();
+  });
+});
+
+/* ── MODE ── */
+function setMode(m){
+  if(m === mode && data) return;
+  mode = m;
+  document.getElementById("btnCore").classList.toggle("active",m==="core");
+  document.getElementById("btnFull").classList.toggle("active",m==="full");
+  data = null;
+  load();
+}
+
+/* ── SEARCH ── */
+let searchTimer;
+document.getElementById("searchBox").addEventListener("input",e=>{
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(()=>{ searchQ = e.target.value.trim(); renderTable(); }, 200);
+});
+
+/* ── LOAD ── */
+async function load(){
+  document.getElementById("loading").style.display = "flex";
+  document.getElementById("errBanner").style.display = "none";
+  document.getElementById("btnRefresh").disabled = true;
+  try{
+    const res  = await fetch(`/api/leadership?mode=${mode}`);
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.error||"API error");
+    data = json;
+    document.getElementById("updTime").textContent = "Updated: " + json.updated;
+    renderStats();
+    renderTable();
+    setTimeout(()=>load(), 15*60*1000);
+  }catch(e){
+    document.getElementById("errBanner").textContent = "⚠️ "+e.message;
+    document.getElementById("errBanner").style.display = "block";
+  }finally{
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("btnRefresh").disabled = false;
+  }
+}
+
+document.getElementById("btnRefresh").addEventListener("click", load);
+load();
+</script>
+</body>
+</html>

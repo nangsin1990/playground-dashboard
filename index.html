@@ -173,6 +173,38 @@ table.wl tr:hover{background:#161c2b}
   border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12.5px;display:none}
 
 @media(max-width:1100px){.topgrid,.bottomgrid{grid-template-columns:1fr}.statgrid{grid-template-columns:repeat(2,1fr)}.sidebar{display:none}}
+
+/* ── MARKET REGIME WIDGET ── */
+#regimeWidget{
+  margin-bottom:16px;border-radius:12px;border:1px solid var(--border);
+  padding:16px 20px;transition:.3s;
+}
+.regime-grid{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:20px;flex-wrap:wrap}
+.regime-label{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--muted2);text-transform:uppercase;margin-bottom:4px}
+.regime-value{font-size:22px;font-weight:800;line-height:1.1}
+.regime-conf{font-size:11.5px;color:var(--muted2);margin-top:3px}
+.regime-score-wrap{text-align:center;min-width:80px}
+.regime-score-label{font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+.regime-score-val{font-size:24px;font-weight:700;line-height:1}
+.conf-bar-track{height:6px;background:#1f2937;border-radius:6px;overflow:hidden;margin-top:6px;width:120px}
+.conf-bar-fill{height:100%;border-radius:6px;transition:.6s}
+.exposure-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-width:200px}
+.exp-card{background:rgba(255,255,255,.04);border-radius:8px;padding:10px 14px;text-align:center}
+.exp-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+.exp-val{font-size:22px;font-weight:800;line-height:1}
+.regime-desc{grid-column:1/-1;font-size:12px;color:var(--muted2);line-height:1.6;padding-top:10px;border-top:1px solid var(--border);margin-top:4px}
+.regime-signals{margin-top:12px}
+.sig-title{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.sig-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px}
+.sig-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px}
+.sig-icon{font-size:14px;flex-shrink:0;width:20px;text-align:center}
+.sig-info{flex:1;min-width:0}
+.sig-label{font-size:11.5px;font-weight:600}
+.sig-val{font-size:10.5px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sig-score{font-size:12px;font-weight:700;flex-shrink:0;min-width:36px;text-align:right}
+.sig-score.pos{color:var(--green)}.sig-score.neg{color:var(--red)}.sig-score.neutral{color:var(--muted)}
+.sig-wt{font-size:10px;color:var(--muted);flex-shrink:0;min-width:30px;text-align:right}
+@media(max-width:900px){.regime-grid{grid-template-columns:1fr 1fr}.exposure-grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -193,6 +225,14 @@ table.wl tr:hover{background:#161c2b}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
       Global Market
     </a>
+    <a href="/etf.html" class="nav-item" style="text-decoration:none;color:inherit">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      ETF Board
+    </a>
+    <a href="/leaders.html" class="nav-item" style="text-decoration:none;color:inherit">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      Leadership Board
+    </a>
     <div class="nav-item" style="opacity:.4;cursor:default">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
       Interactive Chart
@@ -204,6 +244,14 @@ table.wl tr:hover{background:#161c2b}
     <div class="nav-item" style="opacity:.4;cursor:default">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 2 3 7l9.5 5 9.5-5z"/><path d="M3 12l9.5 5 9.5-5"/><path d="M3 17l9.5 5 9.5-5"/></svg>
       Thematic Matrix
+    </div>
+    <div class="nav-item" style="opacity:.4;cursor:default">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v9h-9"/></svg>
+      Rotation Chart
+    </div>
+    <div class="nav-item" style="opacity:.4;cursor:default">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Portfolio
     </div>
   </nav>
   <div class="nav-divider"></div>
@@ -228,6 +276,42 @@ table.wl tr:hover{background:#161c2b}
   <div id="loading"><div class="spinner"></div><div class="load-msg" id="loadMsg">กำลังดึงข้อมูลจาก Yahoo Finance...</div></div>
   <div id="errBanner"></div>
   <div id="bearBanner"><div class="bear-title">⚠️ BEAR MARKET OVERRIDE</div><div class="bear-body" id="bearBody"></div></div>
+
+  <!-- ── MARKET REGIME ── -->
+  <div id="regimeWidget" style="display:none">
+    <div class="regime-grid">
+      <div>
+        <div class="regime-label">🧠 Market Regime</div>
+        <div class="regime-value" id="regimeValue">–</div>
+        <div class="regime-conf" id="regimeConf">–</div>
+      </div>
+      <div>
+        <div class="conf-bar-track"><div class="conf-bar-fill" id="confBar"></div></div>
+        <div style="margin-top:6px;font-size:10.5px;color:var(--muted)" id="regimeVix"></div>
+      </div>
+      <div class="regime-score-wrap">
+        <div class="regime-score-label">Composite Score</div>
+        <div class="regime-score-val" id="regimeScore">–</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">-100 to +100</div>
+      </div>
+      <div class="exposure-grid">
+        <div class="exp-card">
+          <div class="exp-label">📊 Exposure</div>
+          <div class="exp-val" id="expPct" style="color:var(--green)">–</div>
+        </div>
+        <div class="exp-card">
+          <div class="exp-label">💵 Cash</div>
+          <div class="exp-val" id="cashPct" style="color:var(--orange)">–</div>
+        </div>
+      </div>
+      <div class="regime-desc" id="regimeDesc"></div>
+    </div>
+    <!-- Signal breakdown (collapsible) -->
+    <div class="regime-signals">
+      <div class="sig-title" onclick="toggleSigs()" style="cursor:pointer">📡 Signal Breakdown (คลิกเพื่อ expand) <span id="sigToggle">▼</span></div>
+      <div id="sigGrid" class="sig-grid" style="display:none"></div>
+    </div>
+  </div>
 
   <!-- Row 1 -->
   <div class="topgrid">
@@ -519,6 +603,48 @@ function renderRsMovers(rows){
   }).join("");
 }
 
+
+/* ── MARKET REGIME ── */
+let sigsExpanded = false;
+function toggleSigs(){
+  sigsExpanded = !sigsExpanded;
+  document.getElementById("sigGrid").style.display = sigsExpanded ? "grid" : "none";
+  document.getElementById("sigToggle").textContent = sigsExpanded ? "▲" : "▼";
+}
+
+function renderRegime(d){
+  const w = document.getElementById("regimeWidget");
+  w.style.display = "block";
+  w.style.background = d.bg;
+  w.style.borderColor = d.color + "55";
+  $("regimeValue").textContent = d.regime;
+  $("regimeValue").style.color = d.color;
+  $("regimeConf").textContent = `Confidence: ${d.confidence}%`;
+  $("regimeScore").textContent = (d.score >= 0 ? "+" : "") + d.score;
+  $("regimeScore").style.color = d.score >= 0 ? "var(--green)" : "var(--red)";
+  $("regimeVix").textContent = `VIX: ${d.vix}  |  S&P500 vs MA200: ${d.sp500_vs_200 >= 0 ? "+" : ""}${d.sp500_vs_200}%`;
+  $("expPct").textContent = d.exposure_pct + "%";
+  $("cashPct").textContent = d.cash_pct + "%";
+  $("regimeDesc").textContent = d.description;
+  $("confBar").style.width = d.confidence + "%";
+  $("confBar").style.background = d.color;
+
+  const CAT_ICONS = {
+    "Trend":"📈","Breadth":"📊","Momentum":"⚡","Volatility":"😨",
+    "Credit":"💰","Yield Curve":"📋","Risk Assets":"🥇"
+  };
+  $("sigGrid").innerHTML = (d.signal_table || []).map(s => `
+    <div class="sig-row">
+      <div class="sig-icon">${CAT_ICONS[s.category] || "•"}</div>
+      <div class="sig-info">
+        <div class="sig-label">${esc(s.label)}</div>
+        <div class="sig-val">${esc(s.value)}</div>
+      </div>
+      <div class="sig-wt">${s.weight}%</div>
+      <div class="sig-score ${s.score > 0 ? 'pos' : s.score < 0 ? 'neg' : 'neutral'}">${s.score > 0 ? '+' : ''}${s.score}</div>
+    </div>`).join("");
+}
+
 /* ===== LOAD DATA ===== */
 async function load(mode=currentMode, refresh=false){
   if(loading)return;
@@ -546,6 +672,15 @@ async function load(mode=currentMode, refresh=false){
     }
     renderSync(data.sync,true);
     renderBearOverride(data.bear_override,data);
+    // Fetch regime in parallel (uses breadth data from overview)
+    const usBreadth = data.breadth.find(b=>b.code==="US");
+    const rParams = usBreadth
+      ? `?breadth_us_ma50=${usBreadth.ma50}&breadth_us_ma200=${usBreadth.ma200}`
+      : "";
+    fetch(`/api/regime${rParams}`)
+      .then(r=>r.json())
+      .then(rd=>{ if(rd.ok) renderRegime(rd); })
+      .catch(()=>{});
     renderBreadth(data.breadth);
     renderHistTabs(MARKETS.filter(m=>data.breadth_history_all&&data.breadth_history_all[m]));
     renderHistChart();

@@ -34,6 +34,9 @@ from fastapi.staticfiles import StaticFiles
 import data_io
 import pipeline
 import global_market as gm
+import etf_board as eb
+import market_regime as mr
+import leadership as lb
 
 app = FastAPI(title="Stock Homework Dashboard API", version="2.0")
 
@@ -118,6 +121,61 @@ def global_market(refresh: bool = Query(False)):
     if refresh:
         gm.fetch_global_market.cache_clear()
     result = gm.fetch_global_market()
+    return JSONResponse(result, status_code=200 if result.get("ok") else 503)
+
+
+@app.get("/api/etf")
+def etf_board(refresh: bool = Query(False)):
+    """Return ETF Board: screener, movers, volume surge, sector rotation, category summary."""
+    if refresh:
+        eb.fetch_etf_board.cache_clear()
+    result = eb.fetch_etf_board()
+    return JSONResponse(result, status_code=200 if result.get("ok") else 503)
+
+
+@app.get("/api/regime")
+def regime(
+    breadth_us_ma50:  float = Query(None),
+    breadth_us_ma200: float = Query(None),
+    refresh: bool = Query(False),
+):
+    """Market Regime classification: Bull/Bear/Risk-On/Risk-Off/Correction/High-Vol."""
+    if refresh:
+        mr.compute_market_regime.cache_clear()
+    result = mr.compute_market_regime(breadth_us_ma50, breadth_us_ma200)
+    return JSONResponse(result, status_code=200 if result.get("ok") else 503)
+
+
+@app.get("/api/leadership")
+def leadership_board(
+    mode: str = Query("core", pattern="^(core|full)$"),
+    refresh: bool = Query(False),
+):
+    """Leadership Board: Overall · Top RS · Top Momentum · Near Breakout · Institutional · Volume · Trend Template."""
+    import pipeline
+    active = pipeline.active_universe(mode)
+    combined, ticker_meta, _ = pipeline.fetch_universe(active)
+    if not combined:
+        return JSONResponse({"ok": False, "error": "No data"}, status_code=503)
+
+    import data_engine as eng
+    import pandas as pd
+    blended = pd.Series({t: eng.blended_return(d["Close"]) for t, d in combined.items()})
+    rs_now  = eng.rs_rating_table(blended)
+    blended7= pd.Series({t: eng.blended_return(d["Close"].iloc[:-7]) for t, d in combined.items() if len(d) > 7})
+    rs_7    = eng.rs_rating_table(blended7).reindex(rs_now.index).fillna(rs_now)
+
+    ticker_signal = {}
+    for t, d in combined.items():
+        sig = eng.run_scanners(d)
+        rolled, conf, count = eng.confluence_flags(sig)
+        ticker_signal[t] = {
+            "count":      int(count.iloc[-1]),
+            "confluence": bool(conf.iloc[-1]),
+            "rolled":     {k: bool(v.iloc[-1]) for k, v in rolled.items()},
+        }
+
+    result = lb.build_leadership_board(combined, ticker_meta, rs_now, rs_7, ticker_signal)
     return JSONResponse(result, status_code=200 if result.get("ok") else 503)
 
 # Static frontend — must be mounted LAST so /api/* routes take precedence.
