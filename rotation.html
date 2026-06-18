@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rotation Chart | สนามเด็กเล่น Playground</title>
+<style>
+:root{
+  --bg:#0b0f19;--panel:#111827;--border:#2a3344;--text:#e5e7eb;
+  --muted:#6b7280;--muted2:#9ca3af;--green:#10b981;--red:#ef4444;
+  --orange:#f59e0b;--indigo:#6366f1;--teal:#2dd4bf;--blue:#3b82f6;
+  --purple:#a855f7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI','Noto Sans Thai',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);font-size:13px;-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+
+/* ── TOP NAV ── */
+.topnav{display:flex;align-items:center;background:var(--panel);border-bottom:1px solid var(--border);
+  padding:0 20px;height:52px;position:sticky;top:0;z-index:100}
+.brand{display:flex;align-items:center;gap:10px;margin-right:22px}
+.brand-icon{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--indigo),#312e81);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff}
+.brand-text{font-weight:700;font-size:13px;white-space:nowrap}
+.nav-links{display:flex;gap:2px;flex:1;overflow-x:auto}
+.nav-link{padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;color:var(--muted2);
+  white-space:nowrap;cursor:pointer;border:1px solid transparent;transition:.12s}
+.nav-link:hover{color:var(--text);background:#161c2b}
+.nav-link.active{color:#c7d2fe;background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.3)}
+.nav-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
+.badge-mode{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;
+  background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.3)}
+.btn-refresh{background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;
+  padding:5px 12px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;transition:.12s}
+.btn-refresh:hover{background:rgba(99,102,241,.22)}
+
+/* ── LAYOUT ── */
+.main{padding:20px 24px;max-width:1600px;margin:0 auto}
+.page-header{margin-bottom:20px}
+.page-title{font-size:20px;font-weight:700;margin-bottom:4px}
+.page-sub{color:var(--muted2);font-size:12px}
+
+/* ── CONTROLS ── */
+.controls{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.filter-group{display:flex;gap:4px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:3px}
+.filter-btn{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;
+  background:transparent;color:var(--muted2);transition:.12s}
+.filter-btn.active{background:rgba(99,102,241,.2);color:#c7d2fe}
+.filter-btn:hover:not(.active){background:rgba(255,255,255,.04);color:var(--text)}
+
+/* ── LOADING ── */
+.loader{text-align:center;padding:80px 20px;color:var(--muted2)}
+.loader-spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--indigo);
+  border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-box{background:#1a0c0c;border:1px solid #7f1d1d;border-radius:10px;padding:20px;color:#fca5a5;text-align:center}
+
+/* ── TWO COLUMN ── */
+.layout2col{display:grid;grid-template-columns:1fr 380px;gap:16px}
+@media(max-width:1100px){.layout2col{grid-template-columns:1fr}}
+
+/* ── RRG CANVAS PANEL ── */
+.rrg-panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px}
+.rrg-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.rrg-canvas-wrap{position:relative;width:100%;aspect-ratio:1;max-height:580px}
+#rrgCanvas{width:100%;height:100%;border-radius:8px;cursor:crosshair}
+
+/* ── QUADRANT LEGEND ── */
+.quad-legend{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.quad-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid var(--border)}
+.quad-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.quad-name{font-size:11px;font-weight:600}
+.quad-desc{font-size:10px;color:var(--muted2)}
+
+/* ── RIGHT PANEL ── */
+.right-col{display:flex;flex-direction:column;gap:12px}
+
+/* ── TABLE ── */
+.table-panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.table-head{padding:12px 14px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700}
+.rrg-table{width:100%;border-collapse:collapse;font-size:11px}
+.rrg-table th{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted2);
+  font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.04em;text-align:left}
+.rrg-table td{padding:8px 10px;border-bottom:1px solid rgba(42,51,68,.4);vertical-align:middle}
+.rrg-table tr:last-child td{border-bottom:none}
+.rrg-table tr{cursor:pointer;transition:.1s}
+.rrg-table tr:hover td{background:rgba(255,255,255,.025)}
+.quad-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700}
+.quad-leading{background:rgba(16,185,129,.15);color:var(--green)}
+.quad-weakening{background:rgba(245,158,11,.15);color:var(--orange)}
+.quad-lagging{background:rgba(239,68,68,.15);color:var(--red)}
+.quad-improving{background:rgba(99,102,241,.15);color:#a5b4fc}
+
+/* ── INFO PANEL ── */
+.info-panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
+.info-title{font-size:11px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(42,51,68,.4);font-size:11px}
+.info-row:last-child{border-bottom:none}
+.info-label{color:var(--muted2)}
+.info-val{font-weight:600}
+
+/* ── TOOLTIP ── */
+.rrg-tooltip{position:fixed;background:#1e2535;border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;font-size:11px;pointer-events:none;z-index:200;display:none;min-width:160px;
+  box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.tt-name{font-weight:700;margin-bottom:4px}
+.tt-row{display:flex;justify-content:space-between;gap:16px;color:var(--muted2);margin-top:2px}
+.tt-val{color:var(--text);font-weight:600}
+
+/* ── STATUS ── */
+.status-bar{display:flex;align-items:center;gap:12px;font-size:10px;color:var(--muted2);
+  padding:10px 0;border-top:1px solid var(--border);margin-top:16px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── TAIL TOGGLE ── */
+.tail-toggle{display:flex;gap:4px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:3px}
+.tail-btn{padding:4px 10px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;border:none;
+  background:transparent;color:var(--muted2);transition:.12s}
+.tail-btn.active{background:rgba(99,102,241,.2);color:#c7d2fe}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<div class="topnav">
+  <div class="brand">
+    <div class="brand-icon">🛝</div>
+    <div class="brand-text">สนามเด็กเล่น Playground</div>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link" href="/">📊 Overview</a>
+    <a class="nav-link" href="/global.html">🌐 Global</a>
+    <a class="nav-link" href="/etf.html">📦 ETF</a>
+    <a class="nav-link" href="/leaders.html">🏆 Leadership</a>
+    <a class="nav-link" href="/thematic.html">🧩 Thematic</a>
+    <a class="nav-link active" href="/rotation.html">🔄 Rotation</a>
+    <a class="nav-link" href="/calendar.html">📅 Calendar</a>
+    <a class="nav-link" href="#" style="opacity:.35;cursor:default">💼 Portfolio</a>
+  </div>
+  <div class="nav-right">
+    <span class="badge-mode" id="modeLabel">CORE</span>
+    <button class="btn-refresh" onclick="loadData(true)">⟳ Refresh</button>
+  </div>
+</div>
+
+<!-- TOOLTIP -->
+<div class="rrg-tooltip" id="tooltip">
+  <div class="tt-name" id="ttName"></div>
+  <div class="tt-row"><span class="info-label">RS Ratio</span><span class="tt-val" id="ttRatio"></span></div>
+  <div class="tt-row"><span class="info-label">RS Momentum</span><span class="tt-val" id="ttMomentum"></span></div>
+  <div class="tt-row"><span class="info-label">Quadrant</span><span class="tt-val" id="ttQuad"></span></div>
+  <div class="tt-row"><span class="info-label">RS Rating</span><span class="tt-val" id="ttRS"></span></div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="page-header">
+    <div class="page-title">🔄 Relative Rotation Graph (RRG)</div>
+    <div class="page-sub">RS Ratio (x) vs RS Momentum (y) — sector & theme rotation vs benchmark</div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="filter-group" id="marketFilter">
+      <button class="filter-btn active" data-mkt="US" onclick="setMarket('US',this)">🇺🇸 US Sectors</button>
+      <button class="filter-btn" data-mkt="TH" onclick="setMarket('TH',this)">🇹🇭 TH Sectors</button>
+      <button class="filter-btn" data-mkt="GLOBAL" onclick="setMarket('GLOBAL',this)">🌐 Global</button>
+      <button class="filter-btn" data-mkt="ETF" onclick="setMarket('ETF',this)">📦 ETF</button>
+    </div>
+    <div class="tail-toggle">
+      <button class="tail-btn active" onclick="setTail(4,this)">4W tail</button>
+      <button class="tail-btn" onclick="setTail(8,this)">8W tail</button>
+      <button class="tail-btn" onclick="setTail(12,this)">12W tail</button>
+    </div>
+    <div class="filter-group">
+      <button class="filter-btn active" onclick="setView('theme',this)">By Theme</button>
+      <button class="filter-btn" onclick="setView('ticker',this)">By Ticker</button>
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div class="loader" id="loader">
+    <div class="loader-spin"></div>
+    <div>Computing RS Ratio & Momentum…</div>
+    <div style="font-size:11px;margin-top:6px;color:var(--muted)">Calculating relative rotation from Yahoo Finance data</div>
+  </div>
+  <div class="error-box" id="errorBox" style="display:none">
+    <div style="font-size:24px;margin-bottom:8px">⚠️</div>
+    <div id="errorMsg">Failed to load data</div>
+  </div>
+
+  <div id="mainContent" style="display:none">
+    <div class="layout2col">
+      <!-- RRG CHART -->
+      <div class="rrg-panel">
+        <div class="rrg-title">
+          <span>Relative Rotation Graph</span>
+          <span style="font-size:10px;color:var(--muted2)" id="benchmarkLabel">vs SPY benchmark</span>
+        </div>
+        <div class="rrg-canvas-wrap">
+          <canvas id="rrgCanvas"></canvas>
+        </div>
+        <div class="quad-legend">
+          <div class="quad-item"><div class="quad-dot" style="background:#10b981"></div><div><div class="quad-name">Leading 💚</div><div class="quad-desc">High RS, gaining momentum</div></div></div>
+          <div class="quad-item"><div class="quad-dot" style="background:#f59e0b"></div><div><div class="quad-name">Weakening 🟡</div><div class="quad-desc">High RS, losing momentum</div></div></div>
+          <div class="quad-item"><div class="quad-dot" style="background:#6366f1"></div><div><div class="quad-name">Improving 💜</div><div class="quad-desc">Low RS, gaining momentum</div></div></div>
+          <div class="quad-item"><div class="quad-dot" style="background:#ef4444"></div><div><div class="quad-name">Lagging 🔴</div><div class="quad-desc">Low RS, losing momentum</div></div></div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="right-col">
+        <!-- TABLE -->
+        <div class="table-panel">
+          <div class="table-head">📋 Quadrant Rankings</div>
+          <table class="rrg-table">
+            <thead><tr>
+              <th>Theme/Sector</th>
+              <th>Quadrant</th>
+              <th>RS Ratio</th>
+              <th>Momentum</th>
+            </tr></thead>
+            <tbody id="rrgTable"></tbody>
+          </table>
+        </div>
+
+        <!-- INFO -->
+        <div class="info-panel">
+          <div class="info-title">How to Read RRG</div>
+          <div class="info-row"><span class="info-label">X-axis (RS Ratio)</span><span class="info-val">Relative Strength vs benchmark</span></div>
+          <div class="info-row"><span class="info-label">Y-axis (RS Momentum)</span><span class="info-val">Rate of change in RS Ratio</span></div>
+          <div class="info-row"><span class="info-label">Center = 100</span><span class="info-val">= Benchmark performance</span></div>
+          <div class="info-row"><span class="info-label">Tail direction</span><span class="info-val">Arrow shows recent trajectory</span></div>
+          <div class="info-row"><span class="info-label">Rotation</span><span class="info-val">Clockwise is typical cycle</span></div>
+        </div>
+
+        <!-- STATS -->
+        <div class="info-panel">
+          <div class="info-title">Quadrant Summary</div>
+          <div class="info-row"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#10b981"></div><span class="info-label">Leading</span></div><span class="info-val" id="countLeading">—</span></div>
+          <div class="info-row"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></div><span class="info-label">Weakening</span></div><span class="info-val" id="countWeakening">—</span></div>
+          <div class="info-row"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#ef4444"></div><span class="info-label">Lagging</span></div><span class="info-val" id="countLagging">—</span></div>
+          <div class="info-row"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#6366f1"></div><span class="info-label">Improving</span></div><span class="info-val" id="countImproving">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <span class="status-dot"></span>
+      <span id="statusText">—</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const mode = new URLSearchParams(location.search).get('mode') || 'core';
+document.getElementById('modeLabel').textContent = mode.toUpperCase();
+
+let rrgData = [];
+let tailWeeks = 4;
+let currentMarket = 'US';
+let currentView = 'theme';
+let hoveredIdx = -1;
+let canvas, ctx, W, H;
+
+const QUAD_COLORS = {
+  Leading:   '#10b981',
+  Weakening: '#f59e0b',
+  Lagging:   '#ef4444',
+  Improving: '#6366f1',
+};
+
+const THEME_ICONS = {
+  'Information Technology':'💻','Financials':'🏦','Health Care':'⚕️',
+  'Consumer Discretionary':'🛍️','Consumer Staples':'🛒','Industrials':'⚙️',
+  'Communication Services':'📡','Energy':'⚡','Materials':'⛏️',
+  'Real Estate':'🏢','Utilities':'💡','Semiconductors':'🔬',
+  'Electronic Technology':'🔌','Finance':'💹','Technology':'💻',
+  'ETF - Broad Market':'📊','ETF - Sector Equity':'🏷️',
+  'ETF - Fixed Income':'🔒','ETF - Commodity':'🥇',
+  'ETF - International/EM':'🌍','ETF - Leveraged/Inverse':'⚠️',
+  'ETF - Volatility':'📈','ETF - Crypto':'₿','ETF - Currency':'💱',
+};
+
+function setMarket(mkt, btn) {
+  currentMarket = mkt;
+  document.querySelectorAll('#marketFilter .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRRG();
+  renderTable();
+}
+
+function setTail(w, btn) {
+  tailWeeks = w;
+  document.querySelectorAll('.tail-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRRG();
+}
+
+function setView(v, btn) {
+  currentView = v;
+  document.querySelectorAll('.filter-btn').forEach(b=>{
+    if(b.textContent==='By Theme'||b.textContent==='By Ticker') b.classList.remove('active');
+  });
+  btn.classList.add('active');
+  renderRRG();
+  renderTable();
+}
+
+// ── Fetch ──
+async function loadData(forceRefresh=false) {
+  document.getElementById('loader').style.display='block';
+  document.getElementById('mainContent').style.display='none';
+  document.getElementById('errorBox').style.display='none';
+
+  try {
+    const url = `/api/rotation?mode=${mode}${forceRefresh?'&refresh=1':''}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'API error');
+
+    rrgData = data.rrg;
+    document.getElementById('statusText').textContent =
+      `อัปเดต ${data.updated} · ${data.universe_loaded} stocks · benchmark: ${data.benchmark}`;
+    document.getElementById('benchmarkLabel').textContent = `vs ${data.benchmark}`;
+
+    document.getElementById('loader').style.display='none';
+    document.getElementById('mainContent').style.display='block';
+
+    initCanvas();
+    renderRRG();
+    renderTable();
+  } catch(e) {
+    document.getElementById('loader').style.display='none';
+    document.getElementById('errorBox').style.display='block';
+    document.getElementById('errorMsg').textContent = `Error: ${e.message}`;
+  }
+}
+
+// ── Filter data ──
+function filteredData() {
+  return rrgData.filter(d => {
+    if(currentMarket === 'US') return d.market==='US' && !d.theme.startsWith('ETF');
+    if(currentMarket === 'ETF') return d.theme.startsWith('ETF');
+    if(currentMarket === 'TH') return d.market==='TH';
+    if(currentMarket === 'GLOBAL') return ['US','TH','HK','JP','KR','CN'].includes(d.market);
+    return true;
+  });
+}
+
+// ── Canvas init ──
+function initCanvas() {
+  canvas = document.getElementById('rrgCanvas');
+  const wrap = canvas.parentElement;
+  const size = Math.min(wrap.offsetWidth, 580);
+  canvas.width = size;
+  canvas.height = size;
+  W = H = size;
+  ctx = canvas.getContext('2d');
+
+  canvas.addEventListener('mousemove', onMouseMove);
+  canvas.addEventListener('mouseleave', ()=>{
+    hoveredIdx=-1;
+    document.getElementById('tooltip').style.display='none';
+    renderRRG();
+  });
+  canvas.addEventListener('click', onClick);
+}
+
+// ── Coord helpers ──
+const PAD = 50;
+function toCanvasX(rx) { return PAD + ((rx-95)/(115-95))*(W-2*PAD); }
+function toCanvasY(ry) { return (H-PAD) - ((ry-95)/(115-95))*(H-2*PAD); }
+const CX = ()=>toCanvasX(100);
+const CY = ()=>toCanvasY(100);
+
+// ── Draw ──
+function renderRRG() {
+  if(!ctx) return;
+  ctx.clearRect(0,0,W,H);
+
+  // Background quadrants
+  const cx=CX(), cy=CY();
+  ctx.globalAlpha=0.04;
+  ctx.fillStyle='#10b981'; ctx.fillRect(cx,PAD,W-PAD-cx,cy-PAD);       // Leading (top-right)
+  ctx.fillStyle='#f59e0b'; ctx.fillRect(cx,cy,W-PAD-cx,H-PAD-cy);      // Weakening (bot-right)
+  ctx.fillStyle='#ef4444'; ctx.fillRect(PAD,cy,cx-PAD,H-PAD-cy);       // Lagging (bot-left)
+  ctx.fillStyle='#6366f1'; ctx.fillRect(PAD,PAD,cx-PAD,cy-PAD);        // Improving (top-left)
+  ctx.globalAlpha=1;
+
+  // Quadrant labels
+  ctx.font='10px Segoe UI';
+  ctx.globalAlpha=0.35;
+  ctx.fillStyle='#10b981'; ctx.fillText('Leading ↗',cx+8,PAD+14);
+  ctx.fillStyle='#f59e0b'; ctx.fillText('Weakening ↘',cx+8,H-PAD-6);
+  ctx.fillStyle='#ef4444'; ctx.fillText('Lagging ↙',PAD+4,H-PAD-6);
+  ctx.fillStyle='#6366f1'; ctx.fillText('Improving ↖',PAD+4,PAD+14);
+  ctx.globalAlpha=1;
+
+  // Grid lines
+  ctx.strokeStyle='rgba(42,51,68,.6)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(PAD,cy);ctx.lineTo(W-PAD,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,PAD);ctx.lineTo(cx,H-PAD);ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle='#6b7280';ctx.font='9px Segoe UI';ctx.textAlign='center';
+  ctx.fillText('RS Ratio',W/2,H-8);
+  ctx.save();ctx.translate(10,H/2);ctx.rotate(-Math.PI/2);ctx.fillText('RS Momentum',0,0);ctx.restore();
+  ctx.fillText('100',cx,H-PAD+14);
+  ctx.textAlign='right';ctx.fillText('100',PAD-4,cy+4);
+  ctx.textAlign='left';
+
+  // Tick marks
+  ctx.strokeStyle='rgba(42,51,68,.4)';ctx.lineWidth=1;
+  [95,97,103,105,110,115].forEach(v=>{
+    const x=toCanvasX(v);
+    ctx.beginPath();ctx.moveTo(x,H-PAD);ctx.lineTo(x,H-PAD+4);ctx.stroke();
+    ctx.fillStyle='#4b5563';ctx.font='8px Segoe UI';ctx.textAlign='center';
+    ctx.fillText(v,x,H-PAD+12);
+  });
+
+  const fd = filteredData();
+
+  // Draw tails + dots
+  fd.forEach((d,i)=>{
+    const tail = (d.tail||[]).slice(-tailWeeks);
+    if(tail.length < 2) return;
+
+    const color = QUAD_COLORS[d.quadrant]||'#6b7280';
+    const isHov = i===hoveredIdx;
+
+    // Tail lines (fading)
+    for(let t=1;t<tail.length;t++){
+      const px=toCanvasX(tail[t-1][0]), py=toCanvasY(tail[t-1][1]);
+      const nx=toCanvasX(tail[t][0]),   ny=toCanvasY(tail[t][1]);
+      ctx.globalAlpha = 0.15 + (t/tail.length)*0.3;
+      ctx.strokeStyle=color;ctx.lineWidth=isHov?2.5:1.5;
+      ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(nx,ny);ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+
+    // Arrowhead at current position
+    const n=tail.length;
+    if(n>=2){
+      const px=toCanvasX(tail[n-2][0]), py=toCanvasY(tail[n-2][1]);
+      const nx=toCanvasX(tail[n-1][0]), ny=toCanvasY(tail[n-1][1]);
+      const angle=Math.atan2(ny-py,nx-px);
+      const aLen=7;
+      ctx.strokeStyle=color;ctx.lineWidth=2;ctx.globalAlpha=0.8;
+      ctx.beginPath();
+      ctx.moveTo(nx-aLen*Math.cos(angle-0.4),ny-aLen*Math.sin(angle-0.4));
+      ctx.lineTo(nx,ny);
+      ctx.lineTo(nx-aLen*Math.cos(angle+0.4),ny-aLen*Math.sin(angle+0.4));
+      ctx.stroke();
+      ctx.globalAlpha=1;
+    }
+
+    // Current dot
+    const x=toCanvasX(d.rs_ratio), y=toCanvasY(d.rs_momentum);
+    const r = isHov ? 9 : 7;
+
+    // Glow on hover
+    if(isHov){
+      ctx.shadowColor=color;ctx.shadowBlur=16;
+    }
+    ctx.fillStyle=color;
+    ctx.globalAlpha=isHov?1:0.85;
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;ctx.globalAlpha=1;
+
+    // Dot border
+    ctx.strokeStyle=isHov?'#fff':'rgba(255,255,255,.3)';ctx.lineWidth=isHov?2:1;
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();
+
+    // Label
+    const icon = THEME_ICONS[d.theme]||'';
+    const label = d.short||d.theme.split(' ')[0];
+    ctx.fillStyle=isHov?'#fff':'rgba(229,231,235,.8)';
+    ctx.font=isHov?'bold 11px Segoe UI':'10px Segoe UI';
+    ctx.textAlign='left';
+    const lx = x+r+3, ly=y+4;
+    if(lx+label.length*6 > W-PAD){ ctx.textAlign='right'; ctx.fillText(label,x-r-3,ly); }
+    else ctx.fillText(label,lx,ly);
+    ctx.textAlign='left';
+  });
+}
+
+// ── Mouse events ──
+function onMouseMove(e) {
+  const rect=canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)*(W/rect.width);
+  const my=(e.clientY-rect.top)*(H/rect.height);
+  const fd=filteredData();
+  let found=-1, minD=18;
+  fd.forEach((d,i)=>{
+    const x=toCanvasX(d.rs_ratio), y=toCanvasY(d.rs_momentum);
+    const dist=Math.sqrt((mx-x)**2+(my-y)**2);
+    if(dist<minD){minD=dist;found=i;}
+  });
+  hoveredIdx=found;
+  renderRRG();
+
+  const tt=document.getElementById('tooltip');
+  if(found>=0){
+    const d=fd[found];
+    document.getElementById('ttName').textContent=`${THEME_ICONS[d.theme]||''} ${d.theme}`;
+    document.getElementById('ttRatio').textContent=d.rs_ratio.toFixed(2);
+    document.getElementById('ttMomentum').textContent=d.rs_momentum.toFixed(2);
+    document.getElementById('ttQuad').textContent=d.quadrant;
+    document.getElementById('ttRS').textContent=d.avg_rs||'—';
+    tt.style.display='block';
+    tt.style.left=(e.clientX+14)+'px';
+    tt.style.top=(e.clientY-20)+'px';
+  } else {
+    tt.style.display='none';
+  }
+}
+
+function onClick(e) {
+  // future: open detail panel
+}
+
+// ── Table ──
+function renderTable() {
+  const fd=filteredData().sort((a,b)=>{
+    const qOrder={Leading:0,Improving:1,Weakening:2,Lagging:3};
+    const qa=qOrder[a.quadrant]??4, qb=qOrder[b.quadrant]??4;
+    if(qa!==qb) return qa-qb;
+    return b.rs_ratio-a.rs_ratio;
+  });
+
+  const counts={Leading:0,Weakening:0,Lagging:0,Improving:0};
+  fd.forEach(d=>{ if(counts[d.quadrant]!==undefined) counts[d.quadrant]++; });
+  document.getElementById('countLeading').textContent=counts.Leading;
+  document.getElementById('countWeakening').textContent=counts.Weakening;
+  document.getElementById('countLagging').textContent=counts.Lagging;
+  document.getElementById('countImproving').textContent=counts.Improving;
+
+  const tbody=document.getElementById('rrgTable');
+  tbody.innerHTML=fd.map(d=>{
+    const icon=THEME_ICONS[d.theme]||'';
+    const qcls='quad-'+d.quadrant.toLowerCase();
+    const mSign=d.rs_momentum>=100?'+':'';
+    return `<tr>
+      <td><span style="margin-right:4px">${icon}</span>${d.short||d.theme}</td>
+      <td><span class="quad-badge ${qcls}">${d.quadrant}</span></td>
+      <td style="font-weight:600">${d.rs_ratio.toFixed(1)}</td>
+      <td style="color:${d.rs_momentum>=100?'var(--green)':'var(--red)'}">
+        ${mSign}${(d.rs_momentum-100).toFixed(1)}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Init ──
+loadData();
+window.addEventListener('resize', ()=>{
+  if(canvas){ initCanvas(); renderRRG(); }
+});
+</script>
+</body>
+</html>

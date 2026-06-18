@@ -1,5 +1,5 @@
 """
-Playground -- FastAPI backend
+Stock Homework -- FastAPI backend
 ==================================
 Run:   uvicorn backend:app --host 0.0.0.0 --port 8000
 Share: ngrok http 8000
@@ -37,8 +37,11 @@ import global_market as gm
 import etf_board as eb
 import market_regime as mr
 import leadership as lb
+import thematic_matrix as tm
+import rotation_rrg as rrg
+import economic_calendar as ec
 
-app = FastAPI(title="Playground Dashboard API", version="2.0")
+app = FastAPI(title="Stock Homework Dashboard API", version="2.0")
 
 # Allow any origin so ngrok public URL works with the local frontend
 app.add_middleware(
@@ -56,7 +59,7 @@ def status():
     """Lightweight health check / uptime ping for ngrok monitoring."""
     return JSONResponse({
         "status": "ok",
-        "server": "Playground Dashboard API v2.0",
+        "server": "Stock Homework Dashboard API v2.0",
         "booted": _boot_time,
         "now": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
     })
@@ -177,6 +180,39 @@ def leadership_board(
 
     result = lb.build_leadership_board(combined, ticker_meta, rs_now, rs_7, ticker_signal)
     return JSONResponse(result, status_code=200 if result.get("ok") else 503)
+
+@app.get("/api/thematic")
+def thematic(
+    mode: str = Query("core", pattern="^(core|full)$"),
+    refresh: bool = Query(False),
+):
+    """Thematic Matrix: equal-weight 1D/1M/3M return per theme/sector with member list."""
+    if refresh:
+        tm.fetch_thematic.cache_clear()
+    result = tm.fetch_thematic(mode)
+    return JSONResponse(result, status_code=200 if result.get("ok") else 503)
+
+
+@app.get("/api/rotation")
+def rotation(
+    mode: str = Query("core", pattern="^(core|full)$"),
+    refresh: bool = Query(False),
+):
+    """Relative Rotation Graph (RRG): JdK RS-Ratio & RS-Momentum per theme vs benchmark."""
+    if refresh:
+        rrg.fetch_rotation.cache_clear()
+    result = rrg.fetch_rotation(mode)
+    return JSONResponse(result, status_code=200 if result.get("ok") else 503)
+
+
+@app.get("/api/calendar")
+def economic_calendar(refresh: bool = Query(False)):
+    """Economic Calendar: FOMC · CPI · NFP · GDP · PCE · Earnings (next 90 days)."""
+    if refresh:
+        ec.fetch_economic_calendar.cache_clear()
+    result = ec.fetch_economic_calendar()
+    return JSONResponse(result, status_code=200 if result.get("ok") else 503)
+
 
 # Static frontend — must be mounted LAST so /api/* routes take precedence.
 STATIC_DIR = Path(__file__).parent / "static"

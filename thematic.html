@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thematic Matrix | สนามเด็กเล่น Playground</title>
+<style>
+:root{
+  --bg:#0b0f19;--panel:#111827;--border:#2a3344;--text:#e5e7eb;
+  --muted:#6b7280;--muted2:#9ca3af;--green:#10b981;--red:#ef4444;
+  --orange:#f59e0b;--indigo:#6366f1;--teal:#2dd4bf;--blue:#3b82f6;
+  --purple:#a855f7;--pink:#ec4899;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI','Noto Sans Thai',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);font-size:13px;-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+
+/* ── TOP NAV ── */
+.topnav{display:flex;align-items:center;background:var(--panel);border-bottom:1px solid var(--border);
+  padding:0 20px;height:52px;position:sticky;top:0;z-index:100}
+.brand{display:flex;align-items:center;gap:10px;margin-right:22px}
+.brand-icon{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--indigo),#312e81);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff}
+.brand-text{font-weight:700;font-size:13px;white-space:nowrap}
+.nav-links{display:flex;gap:2px;flex:1;overflow-x:auto}
+.nav-link{padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;color:var(--muted2);
+  white-space:nowrap;cursor:pointer;border:1px solid transparent;transition:.12s}
+.nav-link:hover{color:var(--text);background:#161c2b}
+.nav-link.active{color:#c7d2fe;background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.3)}
+.nav-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
+.badge-mode{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;
+  background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.3)}
+.btn-refresh{background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;
+  padding:5px 12px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;transition:.12s}
+.btn-refresh:hover{background:rgba(99,102,241,.22)}
+
+/* ── LAYOUT ── */
+.main{padding:20px 24px;max-width:1600px;margin:0 auto}
+.page-header{margin-bottom:20px}
+.page-title{font-size:20px;font-weight:700;margin-bottom:4px}
+.page-sub{color:var(--muted2);font-size:12px}
+
+/* ── CONTROLS ── */
+.controls{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.filter-group{display:flex;gap:4px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:3px}
+.filter-btn{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;
+  background:transparent;color:var(--muted2);transition:.12s}
+.filter-btn.active{background:rgba(99,102,241,.2);color:#c7d2fe}
+.filter-btn:hover:not(.active){background:rgba(255,255,255,.04);color:var(--text)}
+.search-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;
+  padding:6px 12px;color:var(--text);font-size:12px;outline:none;width:200px}
+.search-box:focus{border-color:var(--indigo)}
+.view-toggle{display:flex;gap:4px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:3px}
+.view-btn{padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;border:none;
+  background:transparent;color:var(--muted2);transition:.12s}
+.view-btn.active{background:rgba(99,102,241,.2);color:#c7d2fe}
+
+/* ── LOADING/ERROR ── */
+.loader{text-align:center;padding:80px 20px;color:var(--muted2)}
+.loader-spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--indigo);
+  border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-box{background:#1a0c0c;border:1px solid #7f1d1d;border-radius:10px;padding:20px;color:#fca5a5;text-align:center}
+
+/* ── SUMMARY ROW ── */
+.summary-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.sum-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.sum-label{font-size:10px;color:var(--muted2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.sum-val{font-size:22px;font-weight:700}
+.sum-sub{font-size:10px;color:var(--muted2);margin-top:2px}
+
+/* ── MATRIX GRID VIEW ── */
+.matrix-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.theme-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px;cursor:pointer;transition:.15s;position:relative;overflow:hidden}
+.theme-card:hover{border-color:rgba(99,102,241,.4);background:#141824}
+.theme-card.selected{border-color:var(--indigo);background:rgba(99,102,241,.06)}
+.theme-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent,var(--indigo))}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.theme-name{font-size:12px;font-weight:700;line-height:1.3;flex:1;padding-right:8px}
+.theme-icon{font-size:18px;flex-shrink:0}
+.card-returns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.ret-cell{text-align:center;background:rgba(255,255,255,.03);border-radius:6px;padding:5px 4px}
+.ret-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.ret-val{font-size:13px;font-weight:700}
+.ret-val.pos{color:var(--green)}
+.ret-val.neg{color:var(--red)}
+.ret-val.neu{color:var(--muted2)}
+.card-bar{height:3px;background:var(--border);border-radius:2px;margin-bottom:10px;overflow:hidden}
+.card-bar-fill{height:100%;border-radius:2px;transition:.4s}
+.card-tickers{display:flex;gap:5px;flex-wrap:wrap}
+.ticker-chip{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;
+  background:rgba(99,102,241,.1);color:#a5b4fc;border:1px solid rgba(99,102,241,.2)}
+.card-rs{font-size:10px;color:var(--muted2);margin-top:8px;display:flex;gap:8px;align-items:center}
+.rs-pill{font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;background:rgba(16,185,129,.12);color:var(--green)}
+.rs-pill.mid{background:rgba(245,158,11,.12);color:var(--orange)}
+.rs-pill.low{background:rgba(239,68,68,.12);color:var(--red)}
+
+/* ── HEATMAP VIEW ── */
+.heatmap-wrap{overflow-x:auto}
+.heatmap-table{width:100%;border-collapse:collapse;font-size:11px}
+.heatmap-table th{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);
+  color:var(--muted2);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.heatmap-table td{padding:10px 12px;border-bottom:1px solid rgba(42,51,68,.5);vertical-align:middle}
+.heatmap-table tr:hover td{background:rgba(255,255,255,.02)}
+.heat-cell{display:inline-flex;align-items:center;justify-content:center;min-width:60px;
+  padding:4px 8px;border-radius:5px;font-weight:700;font-size:12px}
+.momentum-bar{display:flex;align-items:center;gap:6px}
+.mbar{height:4px;border-radius:2px;flex-shrink:0}
+.rank-badge{width:24px;height:24px;border-radius:50%;background:rgba(99,102,241,.12);
+  color:#a5b4fc;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.rank-badge.top{background:rgba(245,158,11,.15);color:var(--orange)}
+
+/* ── DETAIL PANEL ── */
+.detail-panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:16px;margin-bottom:20px;display:none}
+.detail-panel.open{display:block}
+.detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.detail-title{font-size:14px;font-weight:700}
+.detail-close{cursor:pointer;color:var(--muted2);font-size:18px;line-height:1;padding:2px 6px}
+.detail-close:hover{color:var(--text)}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.member-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;
+  background:rgba(255,255,255,.03);border-radius:7px;border:1px solid var(--border)}
+.member-info{flex:1}
+.member-ticker{font-size:11px;font-weight:700;color:#a5b4fc}
+.member-name{font-size:10px;color:var(--muted2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.member-ret{font-size:11px;font-weight:600;text-align:right}
+
+/* ── SECTOR MINI-CHART ── */
+.sparkline{display:flex;align-items:flex-end;gap:1px;height:24px}
+.spark-bar{width:4px;border-radius:1px;background:var(--indigo);opacity:.7;transition:.2s}
+
+/* ── STATUS ── */
+.status-bar{display:flex;align-items:center;gap:12px;font-size:10px;color:var(--muted2);
+  padding:10px 0;border-top:1px solid var(--border);margin-top:20px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── MOMENTUM SCORE BAR ── */
+.score-track{display:flex;align-items:center;gap:8px}
+.score-bar-wrap{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;max-width:80px}
+.score-bar-fill{height:100%;border-radius:2px}
+.score-num{font-size:11px;font-weight:600;min-width:28px;text-align:right}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<div class="topnav">
+  <div class="brand">
+    <div class="brand-icon">🛝</div>
+    <div class="brand-text">สนามเด็กเล่น Playground</div>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link" href="/">📊 Overview</a>
+    <a class="nav-link" href="/global.html">🌐 Global</a>
+    <a class="nav-link" href="/etf.html">📦 ETF</a>
+    <a class="nav-link" href="/leaders.html">🏆 Leadership</a>
+    <a class="nav-link active" href="/thematic.html">🧩 Thematic</a>
+    <a class="nav-link" href="/rotation.html">🔄 Rotation</a>
+    <a class="nav-link" href="/calendar.html">📅 Calendar</a>
+    <a class="nav-link" href="#" style="opacity:.35;cursor:default">💼 Portfolio</a>
+  </div>
+  <div class="nav-right">
+    <span class="badge-mode" id="modeLabel">CORE</span>
+    <button class="btn-refresh" onclick="loadData(true)">⟳ Refresh</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="page-header">
+    <div class="page-title">🧩 Thematic Matrix</div>
+    <div class="page-sub">Sector & Theme rotation heatmap — equal-weight avg return across universe</div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="filter-group" id="marketFilter">
+      <button class="filter-btn active" data-mkt="ALL" onclick="setMarket('ALL',this)">🌐 All</button>
+      <button class="filter-btn" data-mkt="US" onclick="setMarket('US',this)">🇺🇸 US</button>
+      <button class="filter-btn" data-mkt="TH" onclick="setMarket('TH',this)">🇹🇭 TH</button>
+      <button class="filter-btn" data-mkt="HK" onclick="setMarket('HK',this)">🇭🇰 HK</button>
+      <button class="filter-btn" data-mkt="JP" onclick="setMarket('JP',this)">🇯🇵 JP</button>
+      <button class="filter-btn" data-mkt="KR" onclick="setMarket('KR',this)">🇰🇷 KR</button>
+    </div>
+    <div class="filter-group" id="sortFilter">
+      <button class="filter-btn active" data-sort="1m3m" onclick="setSort('1m3m',this)">Score</button>
+      <button class="filter-btn" data-sort="1d" onclick="setSort('1d',this)">1D</button>
+      <button class="filter-btn" data-sort="1m" onclick="setSort('1m',this)">1M</button>
+      <button class="filter-btn" data-sort="3m" onclick="setSort('3m',this)">3M</button>
+      <button class="filter-btn" data-sort="members" onclick="setSort('members',this)"># Stocks</button>
+    </div>
+    <input class="search-box" id="searchBox" placeholder="🔍 Search theme..." oninput="applyFilters()">
+    <div class="view-toggle">
+      <button class="view-btn active" onclick="setView('grid',this)" title="Card view">▦ Grid</button>
+      <button class="view-btn" onclick="setView('table',this)" title="Table view">☰ Table</button>
+    </div>
+  </div>
+
+  <!-- SUMMARY ROW -->
+  <div class="summary-row" id="summaryRow" style="display:none">
+    <div class="sum-card"><div class="sum-label">Total Themes</div><div class="sum-val" id="sumThemes">—</div><div class="sum-sub">across markets</div></div>
+    <div class="sum-card"><div class="sum-label">Best 1D</div><div class="sum-val" id="sumBest1d" style="color:var(--green)">—</div><div class="sum-sub" id="sumBest1dName">—</div></div>
+    <div class="sum-card"><div class="sum-label">Best 1M</div><div class="sum-val" id="sumBest1m" style="color:var(--green)">—</div><div class="sum-sub" id="sumBest1mName">—</div></div>
+    <div class="sum-card"><div class="sum-label">Worst 1M</div><div class="sum-val" id="sumWorst1m" style="color:var(--red)">—</div><div class="sum-sub" id="sumWorst1mName">—</div></div>
+    <div class="sum-card"><div class="sum-label">Best 3M</div><div class="sum-val" id="sumBest3m" style="color:var(--green)">—</div><div class="sum-sub" id="sumBest3mName">—</div></div>
+    <div class="sum-card"><div class="sum-label">Universe</div><div class="sum-val" id="sumUniverse">—</div><div class="sum-sub">stocks loaded</div></div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-header">
+      <div class="detail-title" id="detailTitle">Theme Detail</div>
+      <div class="detail-close" onclick="closeDetail()">✕</div>
+    </div>
+    <div class="detail-grid" id="detailGrid"></div>
+  </div>
+
+  <!-- LOADER -->
+  <div class="loader" id="loader">
+    <div class="loader-spin"></div>
+    <div>Loading thematic data…</div>
+    <div style="font-size:11px;margin-top:6px;color:var(--muted)">Fetching returns from Yahoo Finance</div>
+  </div>
+
+  <!-- ERROR -->
+  <div class="error-box" id="errorBox" style="display:none">
+    <div style="font-size:24px;margin-bottom:8px">⚠️</div>
+    <div id="errorMsg">Failed to load data</div>
+  </div>
+
+  <!-- GRID VIEW -->
+  <div class="matrix-grid" id="matrixGrid" style="display:none"></div>
+
+  <!-- TABLE VIEW -->
+  <div id="tableView" style="display:none">
+    <div class="heatmap-wrap">
+      <table class="heatmap-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Theme / Sector</th>
+            <th>Stocks</th>
+            <th>1D Ret</th>
+            <th>1M Ret</th>
+            <th>3M Ret</th>
+            <th>Momentum Score</th>
+            <th>Top Tickers</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar" style="display:none">
+    <span class="status-dot"></span>
+    <span id="statusText">—</span>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let allThemes = [];
+let tickerMeta = {};
+let currentMarket = 'ALL';
+let currentSort = '1m3m';
+let currentView = 'grid';
+let selectedTheme = null;
+let updateTime = '';
+let universeCount = 0;
+let mode = new URLSearchParams(location.search).get('mode') || 'core';
+
+document.getElementById('modeLabel').textContent = mode.toUpperCase();
+
+// ── Theme config: icon + accent color + GICS group ──
+const THEME_CONFIG = {
+  'Information Technology': {icon:'💻', accent:'#6366f1', group:'Sector'},
+  'Financials':             {icon:'🏦', accent:'#3b82f6', group:'Sector'},
+  'Health Care':            {icon:'⚕️',  accent:'#10b981', group:'Sector'},
+  'Consumer Discretionary': {icon:'🛍️', accent:'#f59e0b', group:'Sector'},
+  'Consumer Staples':       {icon:'🛒', accent:'#84cc16', group:'Sector'},
+  'Industrials':            {icon:'⚙️', accent:'#64748b', group:'Sector'},
+  'Communication Services': {icon:'📡', accent:'#a855f7', group:'Sector'},
+  'Energy':                 {icon:'⚡', accent:'#f97316', group:'Sector'},
+  'Materials':              {icon:'⛏️', accent:'#78716c', group:'Sector'},
+  'Real Estate':            {icon:'🏢', accent:'#06b6d4', group:'Sector'},
+  'Utilities':              {icon:'💡', accent:'#eab308', group:'Sector'},
+  'Semiconductors':         {icon:'🔬', accent:'#7c3aed', group:'Sector'},
+  'Electronic Technology':  {icon:'🔌', accent:'#0ea5e9', group:'Sector'},
+  'Finance':                {icon:'💹', accent:'#3b82f6', group:'Sector'},
+  'Technology':             {icon:'💻', accent:'#6366f1', group:'Sector'},
+  'ETF - Broad Market':     {icon:'📊', accent:'#6366f1', group:'ETF'},
+  'ETF - Sector Equity':    {icon:'🏷️', accent:'#3b82f6', group:'ETF'},
+  'ETF - Fixed Income':     {icon:'🔒', accent:'#10b981', group:'ETF'},
+  'ETF - Commodity':        {icon:'🥇', accent:'#f59e0b', group:'ETF'},
+  'ETF - International/EM': {icon:'🌍', accent:'#06b6d4', group:'ETF'},
+  'ETF - Leveraged/Inverse':{icon:'⚠️', accent:'#ef4444', group:'ETF'},
+  'ETF - Volatility':       {icon:'📈', accent:'#f97316', group:'ETF'},
+  'ETF - Crypto':           {icon:'₿',  accent:'#f59e0b', group:'ETF'},
+  'ETF - Currency':         {icon:'💱', accent:'#84cc16', group:'ETF'},
+};
+const DEFAULT_CFG = {icon:'📌', accent:'#6b7280', group:'Other'};
+
+function getCfg(name) {
+  return THEME_CONFIG[name] || DEFAULT_CFG;
+}
+
+// ── Fetch & parse ──
+async function loadData(forceRefresh=false) {
+  document.getElementById('loader').style.display='block';
+  document.getElementById('matrixGrid').style.display='none';
+  document.getElementById('tableView').style.display='none';
+  document.getElementById('errorBox').style.display='none';
+  document.getElementById('summaryRow').style.display='none';
+  document.getElementById('statusBar').style.display='none';
+
+  try {
+    const url = `/api/thematic?mode=${mode}${forceRefresh?'&refresh=1':''}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'API error');
+
+    allThemes = data.themes;
+    tickerMeta = data.ticker_meta || {};
+    updateTime = data.updated || '';
+    universeCount = data.universe_loaded || 0;
+
+    renderSummary(data);
+    applyFilters();
+
+    document.getElementById('loader').style.display='none';
+    document.getElementById('summaryRow').style.display='grid';
+    document.getElementById('statusBar').style.display='flex';
+    document.getElementById('statusText').textContent =
+      `อัปเดต ${updateTime} · ${universeCount} stocks · mode=${mode}`;
+  } catch(e) {
+    document.getElementById('loader').style.display='none';
+    document.getElementById('errorBox').style.display='block';
+    document.getElementById('errorMsg').textContent = `Error: ${e.message}`;
+  }
+}
+
+// ── Summary ──
+function renderSummary(data) {
+  const themes = data.themes;
+  document.getElementById('sumThemes').textContent = themes.length;
+  document.getElementById('sumUniverse').textContent = universeCount;
+
+  const sorted1d = [...themes].sort((a,b)=>b.d1-a.d1);
+  const sorted1m = [...themes].sort((a,b)=>b.m1-a.m1);
+  const sorted3m = [...themes].sort((a,b)=>b.m3-a.m3);
+
+  const fmt = v => (v>=0?'+':'')+v.toFixed(2)+'%';
+  if(sorted1d.length){
+    document.getElementById('sumBest1d').textContent = fmt(sorted1d[0].d1);
+    document.getElementById('sumBest1dName').textContent = sorted1d[0].theme;
+  }
+  if(sorted1m.length){
+    document.getElementById('sumBest1m').textContent = fmt(sorted1m[0].m1);
+    document.getElementById('sumBest1mName').textContent = sorted1m[0].theme;
+    document.getElementById('sumWorst1m').textContent = fmt(sorted1m[sorted1m.length-1].m1);
+    document.getElementById('sumWorst1mName').textContent = sorted1m[sorted1m.length-1].theme;
+  }
+  if(sorted3m.length){
+    document.getElementById('sumBest3m').textContent = fmt(sorted3m[0].m3);
+    document.getElementById('sumBest3mName').textContent = sorted3m[0].theme;
+  }
+}
+
+// ── Filters & sort ──
+function setMarket(mkt, btn) {
+  currentMarket = mkt;
+  document.querySelectorAll('#marketFilter .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function setSort(s, btn) {
+  currentSort = s;
+  document.querySelectorAll('#sortFilter .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function setView(v, btn) {
+  currentView = v;
+  document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function applyFilters() {
+  const q = document.getElementById('searchBox').value.toLowerCase();
+  let data = allThemes.filter(t => {
+    if(currentMarket!=='ALL' && t.market && t.market!==currentMarket) return false;
+    if(q && !t.theme.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  data.sort((a,b)=>{
+    if(currentSort==='1d') return b.d1-a.d1;
+    if(currentSort==='1m') return b.m1-a.m1;
+    if(currentSort==='3m') return b.m3-a.m3;
+    if(currentSort==='members') return b.count-a.count;
+    return (b.m1+b.m3)-(a.m1+a.m3); // score
+  });
+
+  if(currentView==='grid') renderGrid(data);
+  else renderTable(data);
+}
+
+// ── Color helpers ──
+function retColor(v) {
+  if(v>=2) return '#10b981';
+  if(v>=0.5) return '#34d399';
+  if(v>=-0.5) return '#9ca3af';
+  if(v>=-2) return '#f87171';
+  return '#ef4444';
+}
+function heatBg(v) {
+  if(v>=5) return 'rgba(16,185,129,.25)';
+  if(v>=2) return 'rgba(16,185,129,.15)';
+  if(v>=0.5) return 'rgba(16,185,129,.07)';
+  if(v>=-0.5) return 'rgba(156,163,175,.05)';
+  if(v>=-2) return 'rgba(239,68,68,.07)';
+  if(v>=-5) return 'rgba(239,68,68,.15)';
+  return 'rgba(239,68,68,.25)';
+}
+function fmt(v) { return (v>=0?'+':'')+v.toFixed(2)+'%'; }
+function scoreWidth(score, allScores) {
+  const mx = Math.max(...allScores.map(Math.abs), 1);
+  return Math.min(100, Math.abs(score)/mx*100);
+}
+
+// ── Grid render ──
+function renderGrid(data) {
+  document.getElementById('matrixGrid').style.display='grid';
+  document.getElementById('tableView').style.display='none';
+
+  const allScores = data.map(t=>t.m1+t.m3);
+  const maxScore = Math.max(...allScores.map(Math.abs), 1);
+
+  const grid = document.getElementById('matrixGrid');
+  grid.innerHTML = data.map((t,i)=>{
+    const cfg = getCfg(t.theme);
+    const score = t.m1+t.m3;
+    const barW = Math.min(100, Math.abs(score)/maxScore*100);
+    const barColor = score>=0?'var(--green)':'var(--red)';
+    const chips = (t.tickers||[]).map(tk=>`<span class="ticker-chip">${tk}</span>`).join('');
+    const rs = t.avg_rs||0;
+    const rsCls = rs>=70?'':'rs-pill '+(rs>=40?'mid':'low');
+    return `
+    <div class="theme-card" style="--accent:${cfg.accent}" onclick="showDetail('${t.theme.replace(/'/g,"\\'")}')">
+      <div class="card-header">
+        <div class="theme-name">${t.theme}</div>
+        <div class="theme-icon">${cfg.icon}</div>
+      </div>
+      <div class="card-returns">
+        <div class="ret-cell"><div class="ret-label">1D</div><div class="ret-val ${t.d1>=0?'pos':'neg'}">${fmt(t.d1)}</div></div>
+        <div class="ret-cell"><div class="ret-label">1M</div><div class="ret-val ${t.m1>=0?'pos':'neg'}">${fmt(t.m1)}</div></div>
+        <div class="ret-cell"><div class="ret-label">3M</div><div class="ret-val ${t.m3>=0?'pos':'neg'}">${fmt(t.m3)}</div></div>
+      </div>
+      <div class="card-bar"><div class="card-bar-fill" style="width:${barW}%;background:${barColor}"></div></div>
+      <div class="card-tickers">${chips}</div>
+      ${rs?`<div class="card-rs"><span>Avg RS</span><span class="rs-pill ${rsCls}">${rs}</span><span style="margin-left:auto;color:var(--muted)">${t.count} stocks</span></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── Table render ──
+function renderTable(data) {
+  document.getElementById('matrixGrid').style.display='none';
+  document.getElementById('tableView').style.display='block';
+
+  const allScores = data.map(t=>t.m1+t.m3);
+  const maxScore = Math.max(...allScores.map(Math.abs),1);
+
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = data.map((t,i)=>{
+    const cfg = getCfg(t.theme);
+    const score = t.m1+t.m3;
+    const barW = Math.min(80, Math.abs(score)/maxScore*80);
+    const barColor = score>=0?'var(--green)':'var(--red)';
+    const chips = (t.tickers||[]).slice(0,3).map(tk=>`<span class="ticker-chip">${tk}</span>`).join(' ');
+    return `<tr>
+      <td><span class="rank-badge ${i<3?'top':''}">${i+1}</span></td>
+      <td><span style="margin-right:6px">${cfg.icon}</span><strong>${t.theme}</strong></td>
+      <td style="color:var(--muted2)">${t.count}</td>
+      <td><span class="heat-cell" style="background:${heatBg(t.d1)};color:${retColor(t.d1)}">${fmt(t.d1)}</span></td>
+      <td><span class="heat-cell" style="background:${heatBg(t.m1)};color:${retColor(t.m1)}">${fmt(t.m1)}</span></td>
+      <td><span class="heat-cell" style="background:${heatBg(t.m3)};color:${retColor(t.m3)}">${fmt(t.m3)}</span></td>
+      <td>
+        <div class="score-track">
+          <div class="score-bar-wrap"><div class="score-bar-fill" style="width:${barW}%;background:${barColor}"></div></div>
+          <div class="score-num" style="color:${score>=0?'var(--green)':'var(--red)'}">${fmt(score)}</div>
+        </div>
+      </td>
+      <td>${chips}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Detail panel ──
+function showDetail(themeName) {
+  const theme = allThemes.find(t=>t.theme===themeName);
+  if(!theme) return;
+
+  document.getElementById('detailTitle').textContent = `${getCfg(themeName).icon} ${themeName} — ${theme.count} stocks`;
+  const grid = document.getElementById('detailGrid');
+
+  const members = (theme.members||[]).slice(0,24);
+  grid.innerHTML = members.map(m=>{
+    const ret1m = m.m1||0;
+    return `<div class="member-row">
+      <div class="member-info">
+        <div class="member-ticker">${m.ticker}</div>
+        <div class="member-name">${m.name||''}</div>
+      </div>
+      <div class="member-ret" style="color:${ret1m>=0?'var(--green)':'var(--red)'}">${fmt(ret1m)}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('detailPanel').classList.add('open');
+  document.getElementById('detailPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').classList.remove('open');
+}
+
+// ── Init ──
+loadData();
+</script>
+</body>
+</html>
