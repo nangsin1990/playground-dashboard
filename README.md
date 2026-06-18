@@ -1,10 +1,16 @@
-# 🛝 สนามเด็กเล่น Playground — Market Dashboard
+# 🛝 Playground — Market Dashboard
 
 Quantitative Market Breadth + Confluence Scanner  
 **Real data from Yahoo Finance · FastAPI backend · ngrok tunnel**
 
 Universe: S&P500 + Nasdaq100 + ETF100 · SET100 · HSI · Nikkei225 · KOSPI200 · CSI300 (~913 tickers)
 
+A lightweight market intelligence dashboard for systematic investors.
+
+Playground Dashboard combines global market breadth, quantitative stock screening, leadership analysis, thematic investing, ETF monitoring, and sector rotation into a single web application powered primarily by Yahoo Finance data.
+
+The goal is simple:
+> 💡 Understand the market, discover opportunities, manage risk, and make better investment decisions.
 ---
 
 ## ▶️ รันใน Google Colab (ง่ายที่สุด)
@@ -19,7 +25,7 @@ Universe: S&P500 + Nasdaq100 + ETF100 · SET100 · HSI · Nikkei225 · KOSPI200 
 
 ## 🚀 วิธีใช้งาน
 
-### Option A — Google Colab + ngrok (แนะนำ)
+### OGoogle Colab + ngrok (แนะนำ) ###
 
 1. เปิด [colab.research.google.com](https://colab.research.google.com)
 2. File → Open notebook → GitHub → ใส่ `nangsin1990/playground-dashboard`
@@ -27,122 +33,286 @@ Universe: S&P500 + Nasdaq100 + ETF100 · SET100 · HSI · Nikkei225 · KOSPI200 
 4. ใส่ ngrok token ใน Cell 2 (สมัครฟรีที่ [ngrok.com](https://ngrok.com))
 5. Runtime → Run all → เปิด URL ที่ได้
 
+---
 
-## 📡 API Endpoints
+## ✨ Features
 
-| Path | Description |
-|------|-------------|
-| `GET /` | Dashboard UI |
-| `GET /api/status` | Health check |
-| `GET /api/dashboard?mode=core` | Core (~126 tickers, เร็ว) |
-| `GET /api/dashboard?mode=full` | Full (~913 tickers) |
-| `GET /api/dashboard?market=TH` | Filter เฉพาะตลาดไทย |
-| `GET /api/search?q=finance` | ค้นหาใน watchlist |
+### 📈 Market Overview
+
+Monitor overall market health across multiple countries.
+
+* 🌐 Market Breadth
+    * 📈 % Above MA50
+    * 📉 % Above MA200
+    * 📊 Advance / Decline
+    * 🆕 New High / New Low
+* 🔍 Market Regime Detection
+* 📥 Signal Accumulation
+* 🏥 Market Health Indicators
 
 ---
 
-## 📁 โครงสร้างไฟล์
+### 🌍 Global Market
 
-```
+Track major global asset classes.
+
+* 🇺🇸 Equity Markets
+    * 🇺🇸 United States
+    * 🇹🇭 Thailand
+    * 🇯🇵 Japan
+    * 🇭🇰 Hong Kong
+    * 🇨🇳 China
+    * 🇰🇷 South Korea
+* 📦 ETFs
+* 📊 Major Indices
+* 🏆 Market Performance Rankings
+
+---
+
+### ⚡ Quant Scanner
+
+Find high-quality stock setups automatically.
+
+Supported scans include:
+
+* 💧 Volume Dry-Up (VDU)
+* 🎯 Pocket Pivot
+* 🚀 Buyable Gap-Up (BGU)
+* 🔝 Near 52-Week High
+* 💪 Relative Strength Ranking
+* 📈 Trend-Based Screening
+
+---
+
+### 👑 Leadership Board
+
+Identify market leaders.
+
+* 🥇 Top Relative Strength Stocks
+* 🔥 Momentum Leaders
+* 💥 Breakout Candidates
+* 🐳 Volume Expansion Leaders
+
+---
+
+### 🌌 Theme Matrix
+
+Monitor capital flows across investment themes.
+
+Examples:
+
+* 🤖 Artificial Intelligence
+* 🔌 Semiconductors
+* ☁️ Cloud Computing
+* 🛡️ Cybersecurity
+* 🍃 Clean Energy
+* 🦾 Robotics
+
+Features:
+
+* 🏅 Theme Ranking
+* 📊 Theme Performance
+* 🔄 Theme Rotation
+* 👥 Theme Leaders
+
+---
+
+### 🌀 Rotation Chart
+
+Analyze sector and theme rotation.
+
+* 🗺️ Relative Rotation Graph (RRG)
+* ⚖️ Relative Strength Ratio
+* 🏎️ Relative Momentum
+* 🌊 Capital Flow Visualization
+
+---
+
+### 📂 ETF Board
+
+Track major ETFs across multiple asset classes.
+
+* 📌 Index ETFs
+* 🏭 Sector ETFs
+* 🪙 Commodity ETFs
+* 🗺️ International ETFs
+
+---
+
+### 📅 Economic Calendar
+
+Monitor upcoming macroeconomic events.
+
+Examples:
+
+* 🦅 FOMC Meetings
+* 🏷️ CPI Releases
+* 💼 Employment Reports
+* 📦 GDP Announcements
+
+---
+
+### ⭐ Watchlist
+
+Create and monitor personalized stock lists.
+
+* ❤️ Favorite Stocks
+* 📡 Signal Tracking
+* 🎯 Relative Strength Monitoring
+
+---
+
+### 💼 Portfolio Analytics
+
+Monitor portfolio exposure and allocation.
+
+* 📝 Holdings Overview
+* 🍕 Position Allocation
+* 🏭 Sector Exposure
+* 🗺️ Country Exposure
+
+---
+
+### 🛡️ Risk Dashboard
+
+Measure portfolio risk.
+
+* 📉 Max Drawdown
+* 🌊 Volatility
+* 📊 Sharpe Ratio
+* 🎯 Portfolio Concentration
+* ⚠️ Risk Exposure
+
+---
+
+### 📖 Trading Journal
+
+Track and evaluate trading performance.
+
+* 📝 Trade Log
+* 🎯 Setup Tracking
+* 🎯 Win Rate
+* ⚖️ Risk/Reward Analysis
+* 📊 Performance Statistics
+
+---
+
+### 🔔 Smart Alerts
+
+Receive notifications for important market events.
+
+* 💥 Breakouts
+* 📡 Scanner Signals
+* 🔄 Watchlist Updates
+* ⚡ Relative Strength Changes
+
+---
+
+## 🔌 Data Sources
+
+Primary Data Source:
+
+* 🟢 Yahoo Finance (yfinance)
+
+Optional Sources:
+
+* 🏛️ FRED Economic Data
+* 📊 Trading Economics
+* 📅 Custom Economic Calendar Feeds
+
+---
+
+## 🗺️ Supported Markets
+
+* 🇺🇸 United States
+* 🇹🇭 Thailand
+* 🇯🇵 Japan
+* 🇭🇰 Hong Kong
+* 🇨🇳 China
+* 🇰🇷 South Korea
+
+---
+
+## 🛠️ Technology Stack
+
+**Backend**
+* 🐍 Python
+* ⚡ FastAPI
+* 🐼 Pandas
+* 🔢 NumPy
+* 🟢 yfinance
+
+**Frontend**
+* 🌐 HTML
+* 🎨 CSS
+* 💛 Vanilla JavaScript
+
+**Deployment**
+* 🚂 Railway
+* ☁️ Render
+* 🚀 Google Colab
+
+---
+
+## 📁 Project Structure
+
+text
 playground-dashboard/
 │
-├── backend.py                  ← FastAPI API Gateway
-│                                /api/status
-│                                /api/dashboard
-│                                /api/search
-│                                /api/watchlist
-│                                /api/portfolio
-│
-├── pipeline.py                 ← Data Pipeline Orchestration
-│                                fetch → compute → cache → JSON
-│
-├── data_io.py                  ← yfinance downloader
-│                                batch fetch + TTL cache
-│
-├── data_engine.py              ← Quant Engine
-│                                indicators
-│                                RS ranking
-│                                VDU
-│                                Pocket Pivot
-│                                BGU
-│                                Breadth
-│                                Market Regime
-│
-├── universe.py                 ← Global Universe
-│                                913 tickers
-│                                6 markets
-│                                theme mapping
-│
-├── cache_utils.py              ← TTL Cache
-│
-├── economic_calendar.py        ← Economic Events
-│                                CPI
-│                                NFP
-│                                FOMC
-│
-├── leadership_board.py         ← RS Leaders
-│                                Top Momentum
-│                                Top Breakout
-│
-├── rotation_rrg.py             ← Relative Rotation Graph
-│
-├── thematic_matrix.py          ← Theme Ranking
-│                                Theme Rotation
-│
-├── portfolio_engine.py         ← Portfolio Analytics
-│                                Position Size
-│                                Exposure
-│                                Allocation
-│
-├── risk_engine.py              ← Risk Analytics
-│                                Max Drawdown
-│                                Volatility
-│                                Sharpe Ratio
-│
-├── watchlist_engine.py         ← Watchlist Intelligence
-│                                Signals
-│                                RS Changes
-│                                Breakout Tracking
-│
-├── alert_engine.py             ← Smart Alerts
-│                                Email
-│                                Telegram
-│
-├── journal_engine.py           ← Trading Journal
-│                                Trade Log
-│                                Win Rate
-│                                Expectancy
-│
-├── requirements.txt
-├── Procfile
-├── runtime.txt
-│
-├── static/
-│   │
-│   ├── index.html              ← Playground Dashboard
-│   ├── app.js
-│   ├── styles.css
-│   │
-│   ├── pages/
-│   │   ├── overview.html
-│   │   ├── global_market.html
-│   │   ├── scanner.html
-│   │   ├── themes.html
-│   │   ├── leadership.html
-│   │   ├── rotation.html
-│   │   ├── portfolio.html
-│   │   ├── risk.html
-│   │   ├── watchlist.html
-│   │   └── calendar.html
-│   │
-│   └── assets/
+├── ⚙️ backend.py
 
+📱 NS: ├── ⚙️ pipeline.py
+├── ⚙️ data_io.py
+├── ⚙️ data_engine.py
+├── ⚙️ cache_utils.py
+├── ⚙️ universe.py
+│
+├── 🧠 economic_calendar.py
+├── 🧠 leadership_board.py
+├── 🧠 rotation_rrg.py
+├── 🧠 thematic_matrix.py
+├── 🧠 portfolio_engine.py
+├── 🧠 risk_engine.py
+├── 🧠 watchlist_engine.py
+├── 🧠 alert_engine.py
+├── 🧠 journal_engine.py
+│
+├── 📄 requirements.txt
+├── 📄 Procfile
+├── 📄 runtime.txt
+│
+├── 📂 static/
+│   ├── 🌐 index.html
+│   ├── 💛 app.js
+│   ├── 🎨 styles.css
+│   └── 📂 pages/
+│
+└── 📓 Playground_Dashboard.ipynb
+
+## 🛣️ API Endpoints
+| Method | Endpoint | Description |
+|---|---|---|
+| 🌐 | / | Dashboard UI |
+| 💓 | /api/status | System health check |
+| 📊 | /api/dashboard | Dashboard snapshot |
+| 🎯 | /api/dashboard?mode=core | Core universe |
+| 📦 | /api/dashboard?mode=full | Full universe |
+| 🔍 | /api/scanner | Quant scanner |
+| 👑 | /api/leadership | Leadership board |
+| 🌌 | /api/themes | Theme matrix |
+| 🌀 | /api/rotation | Rotation chart |
+| 🌍 | /api/global | Global market data |
+| 📅 | /api/calendar | Economic calendar |
+| 🔎 | /api/search?q=NVDA | Symbol search |
+## 🧠 Philosophy
+Playground is designed as an investment operating system rather than a traditional stock screener.
+The platform focuses on answering five critical questions:
+ 1. 🏥 Is the market healthy?
+ 2. 🌊 Where is capital flowing?
+ 3. 👑 Which stocks are leading?
+ 4. ⚡ What opportunities exist today?
+ 5. 🛡️ How much risk should I take?
+## ⚠️ Disclaimer
+This project is intended for educational and research purposes only.
+Nothing in this project should be considered financial advice. Users are responsible for conducting their own research and making their own investment decisions.
 ```
-
----
-
-## 🌐 Deploy ฟรีถาวร (ไม่ต้องใช้ Colab)
-
-- **Railway.app** — push repo นี้ขึ้น Railway → deploy อัตโนมัติ URL คงที่
-- **Render.com** — connect GitHub repo → deploy ฟรี (sleep หลัง idle)
-- **Oracle Cloud Free** — ARM VM 4 CPU 24GB ฟรีตลอดไป (ดูวิธีใน `Oracle_Cloud_Setup_Guide.md`)
