@@ -22,22 +22,11 @@ Universe: S&P500 + Nasdaq100 + ETF100 · SET100 · HSI · Nikkei225 · KOSPI200 
 ### Option A — Google Colab + ngrok (แนะนำ)
 
 1. เปิด [colab.research.google.com](https://colab.research.google.com)
-2. File → Open notebook → GitHub → ใส่ `nangsin1990/stock-homework-dashboard`
+2. File → Open notebook → GitHub → ใส่ `nangsin1990/playground-dashboard`
 3. เปิดไฟล์ `Stock_Homework_Dashboard.ipynb`
 4. ใส่ ngrok token ใน Cell 2 (สมัครฟรีที่ [ngrok.com](https://ngrok.com))
 5. Runtime → Run all → เปิด URL ที่ได้
 
-### Option B — รันบนเครื่องตัวเอง
-
-```bash
-git clone https://github.com/nangsin1990/stock-homework-dashboard.git
-cd stock-homework-dashboard
-pip install -r requirements.txt
-uvicorn backend:app --host 0.0.0.0 --port 8000
-# เปิด http://localhost:8000
-```
-
----
 
 ## 📡 API Endpoints
 
@@ -55,19 +44,99 @@ uvicorn backend:app --host 0.0.0.0 --port 8000
 ## 📁 โครงสร้างไฟล์
 
 ```
-stock-homework-dashboard/
-├── backend.py          ← FastAPI: /api/status, /api/dashboard, /api/search
-├── pipeline.py         ← Orchestration: fetch → compute → JSON
-├── data_io.py          ← yfinance batch downloader + TTL cache
-├── data_engine.py      ← Quant math: indicators, scanners, RS, breadth
-├── cache_utils.py      ← Simple TTL cache (no Streamlit dep)
-├── universe.py         ← 913 tickers across 6 markets + theme tags
+playground-dashboard/
+│
+├── backend.py                  ← FastAPI API Gateway
+│                                /api/status
+│                                /api/dashboard
+│                                /api/search
+│                                /api/watchlist
+│                                /api/portfolio
+│
+├── pipeline.py                 ← Data Pipeline Orchestration
+│                                fetch → compute → cache → JSON
+│
+├── data_io.py                  ← yfinance downloader
+│                                batch fetch + TTL cache
+│
+├── data_engine.py              ← Quant Engine
+│                                indicators
+│                                RS ranking
+│                                VDU
+│                                Pocket Pivot
+│                                BGU
+│                                Breadth
+│                                Market Regime
+│
+├── universe.py                 ← Global Universe
+│                                913 tickers
+│                                6 markets
+│                                theme mapping
+│
+├── cache_utils.py              ← TTL Cache
+│
+├── economic_calendar.py        ← Economic Events
+│                                CPI
+│                                NFP
+│                                FOMC
+│
+├── leadership_board.py         ← RS Leaders
+│                                Top Momentum
+│                                Top Breakout
+│
+├── rotation_rrg.py             ← Relative Rotation Graph
+│
+├── thematic_matrix.py          ← Theme Ranking
+│                                Theme Rotation
+│
+├── portfolio_engine.py         ← Portfolio Analytics
+│                                Position Size
+│                                Exposure
+│                                Allocation
+│
+├── risk_engine.py              ← Risk Analytics
+│                                Max Drawdown
+│                                Volatility
+│                                Sharpe Ratio
+│
+├── watchlist_engine.py         ← Watchlist Intelligence
+│                                Signals
+│                                RS Changes
+│                                Breakout Tracking
+│
+├── alert_engine.py             ← Smart Alerts
+│                                Email
+│                                Telegram
+│
+├── journal_engine.py           ← Trading Journal
+│                                Trade Log
+│                                Win Rate
+│                                Expectancy
+│
 ├── requirements.txt
-├── Procfile            ← สำหรับ Railway/Render deploy
+├── Procfile
 ├── runtime.txt
+│
 ├── static/
-│   └── index.html      ← Dashboard SPA (vanilla JS)
-└── Stock_Homework_Dashboard.ipynb  ← Google Colab notebook
+│   │
+│   ├── index.html              ← Playground Dashboard
+│   ├── app.js
+│   ├── styles.css
+│   │
+│   ├── pages/
+│   │   ├── overview.html
+│   │   ├── global_market.html
+│   │   ├── scanner.html
+│   │   ├── themes.html
+│   │   ├── leadership.html
+│   │   ├── rotation.html
+│   │   ├── portfolio.html
+│   │   ├── risk.html
+│   │   ├── watchlist.html
+│   │   └── calendar.html
+│   │
+│   └── assets/
+
 ```
 
 ---
