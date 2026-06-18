@@ -1,4 +1,4 @@
-# 🏠 หุ้นการบ้าน — Stock Homework Dashboard
+# 🛝 สนามเด็กเล่น Playground — Market Dashboard
 
 Quantitative Market Breadth + Confluence Scanner  
 **Real data from Yahoo Finance · FastAPI backend · ngrok tunnel**

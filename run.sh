@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stock Homework Dashboard -- quick start
+# Playground Dashboard -- quick start
 # Usage: bash run.sh [--full]        (--full enables 913-ticker universe from launch)
 # Then open the URL printed by ngrok.
 
@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║     หุ้นการบ้าน · STOCK HOMEWORK DASHBOARD · LIVE        ║"
+echo "║     สนามเด็กเล่น Playground · PLAYGROUND DASHBOARD · LIVE        ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 

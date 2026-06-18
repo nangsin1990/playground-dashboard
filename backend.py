@@ -1,5 +1,5 @@
 """
-Stock Homework -- FastAPI backend
+Playground -- FastAPI backend
 ==================================
 Run:   uvicorn backend:app --host 0.0.0.0 --port 8000
 Share: ngrok http 8000
@@ -38,7 +38,7 @@ import etf_board as eb
 import market_regime as mr
 import leadership as lb
 
-app = FastAPI(title="Stock Homework Dashboard API", version="2.0")
+app = FastAPI(title="Playground Dashboard API", version="2.0")
 
 # Allow any origin so ngrok public URL works with the local frontend
 app.add_middleware(
@@ -56,7 +56,7 @@ def status():
     """Lightweight health check / uptime ping for ngrok monitoring."""
     return JSONResponse({
         "status": "ok",
-        "server": "Stock Homework Dashboard API v2.0",
+        "server": "Playground Dashboard API v2.0",
         "booted": _boot_time,
         "now": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
     })
