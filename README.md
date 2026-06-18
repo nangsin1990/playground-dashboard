@@ -13,25 +13,23 @@ The goal is simple:
 > 💡 Understand the market, discover opportunities, manage risk, and make better investment decisions.
 ---
 
-## ▶️ รันใน Google Colab (ง่ายที่สุด)
+## ▶️ Run as Google Colab (Simple way)
 
-เปิด notebook นี้ใน Colab ได้เลย:
+Open > notebook in Colab already:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nangsin1990/stock-homework-dashboard/blob/main/Stock_Homework_Dashboard.ipynb)
 
-หรือทำตามขั้นตอนด้านล่าง:
-
 ---
 
-## 🚀 วิธีใช้งาน
+## 🚀 Work instruction
 
-### OGoogle Colab + ngrok (แนะนำ) ###
+### OGoogle Colab + ngrok (recommend) ###
 
-1. เปิด [colab.research.google.com](https://colab.research.google.com)
-2. File → Open notebook → GitHub → ใส่ `nangsin1990/playground-dashboard`
-3. เปิดไฟล์ `Stock_Homework_Dashboard.ipynb`
-4. ใส่ ngrok token ใน Cell 2 (สมัครฟรีที่ [ngrok.com](https://ngrok.com))
-5. Runtime → Run all → เปิด URL ที่ได้
+1. Open [colab.research.google.com](https://colab.research.google.com)
+2. File → Open notebook → GitHub → input `nangsin1990/playground-dashboard`
+3. Open `playground-dashboard.ipynb`
+4. ใส่ ngrok token ใน Cell 2
+5. Runtime → Run all → Open URL
 
 ---
 
