@@ -201,7 +201,7 @@ def _format_event(d: date, category: str, title: str, subtitle: str,
 # ─────────────────────────────────────────────────────────────────────────────
 # 5) Main fetch
 # ─────────────────────────────────────────────────────────────────────────────
-@ttl_cache(ttl=CACHE_TTL)
+@ttl_cache(CACHE_TTL)
 def fetch_economic_calendar() -> dict:
     today = date.today()
     cutoff_start = today - timedelta(days=LOOK_BACK_DAYS)

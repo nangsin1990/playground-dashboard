@@ -33,9 +33,17 @@ import pandas as pd
 
 import data_engine as eng
 from cache_utils import ttl_cache
+from constants import (
+    CACHE_TTL_DATA,
+    LB_TREND_LOOKBACK, LB_ACCUM_LOOKBACK, LB_TIGHTNESS_WEEKS,
+    LB_UD_RATIO_LOOKBACK, LB_VOL_WINDOW,
+    LB_BREAKOUT_PROX, LB_ACCUM_MIN, LB_UD_MIN, LB_VOL_MIN,
+    LB_TOP_N, TRADING_DAYS_YEAR,
+)
+
 from universe import UNIVERSE
 
-CACHE_TTL = 15 * 60
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -60,7 +68,7 @@ def _trend_template(df: pd.DataFrame) -> dict:
     sma200_series = df["SMA200"].dropna()
     slope = 0.0
     if len(sma200_series) >= 21:
-        slope = float(sma200_series.iloc[-1] - sma200_series.iloc[-21]) / float(sma200_series.iloc[-21]) * 100
+        slope = float(sma200_series.iloc[-1] - sma200_series.iloc[-LB_TREND_LOOKBACK]) / float(sma200_series.iloc[-LB_TREND_LOOKBACK]) * 100
 
     c1 = p > s50
     c2 = p > s150
@@ -77,7 +85,7 @@ def _trend_template(df: pd.DataFrame) -> dict:
     }
 
 
-def _accumulation_score(df: pd.DataFrame, lookback: int = 20) -> float:
+def _accumulation_score(df: pd.DataFrame, lookback: int = LB_ACCUM_LOOKBACK) -> float:
     """
     Accumulation / Distribution Score (-1 to +1).
     Up days with above-avg volume = accumulation (+1 each)
@@ -101,7 +109,7 @@ def _accumulation_score(df: pd.DataFrame, lookback: int = 20) -> float:
     return round(score / lookback, 3)
 
 
-def _base_tightness(df: pd.DataFrame, weeks: int = 6) -> float:
+def _base_tightness(df: pd.DataFrame, weeks: int = LB_TIGHTNESS_WEEKS) -> float:
     """
     Base tightness: % range (high-low)/midpoint over last `weeks` weeks.
     Lower = tighter = better (VCP-style contraction).
@@ -115,7 +123,7 @@ def _base_tightness(df: pd.DataFrame, weeks: int = 6) -> float:
     return round((hi - lo) / mid * 100, 2) if mid else 100.0
 
 
-def _up_down_volume_ratio(df: pd.DataFrame, lookback: int = 10) -> float:
+def _up_down_volume_ratio(df: pd.DataFrame, lookback: int = LB_UD_RATIO_LOOKBACK) -> float:
     """
     Up/Down Volume Ratio over last `lookback` days.
     >1.5 = strong accumulation; <0.7 = distribution.
@@ -143,7 +151,7 @@ def _consecutive_up_days(df: pd.DataFrame) -> int:
 
 def _proximity_to_52w_high(df: pd.DataFrame) -> float:
     """% below 52-week high. 0 = AT the high; 5 = 5% below."""
-    high52 = float(df["Close"].tail(252).max())
+    high52 = float(df["Close"].tail(TRADING_DAYS_YEAR).max())
     current = float(df["Close"].iloc[-1])
     return round((high52 - current) / high52 * 100, 2) if high52 else 100.0
 

@@ -29,19 +29,25 @@ import pandas as pd
 import data_engine as eng
 import pipeline
 from cache_utils import ttl_cache
+from constants import (
+    CACHE_TTL_DATA,
+    RRG_SMOOTHING, RRG_ROLL_MIN, RRG_RRG_TAIL_WEEKS, RRG_TAIL_STEP,
+    RRG_CLAMP_LO, RRG_CLAMP_HI, RRG_ROC_SHIFT, RRG_MIN_HISTORY,
+)
+
 from universe import UNIVERSE
 
-CACHE_TTL = 15 * 60
+
 BENCHMARK_US = "SPY"
 BENCHMARK_TH = "^SET.BK"
-SMOOTHING = 10  # EMA days for RS ratio
+  # EMA days for RS ratio
 
 
 def _ema(series: pd.Series, span: int) -> pd.Series:
     return series.ewm(span=span, adjust=False).mean()
 
 
-def _rs_ratio_series(price: pd.Series, bench: pd.Series, span: int = SMOOTHING) -> pd.Series:
+def _rs_ratio_series(price: pd.Series, bench: pd.Series, span: int = RRG_SMOOTHING) -> pd.Series:
     """
     JdK RS-Ratio: smoothed (price/bench) normalised to 100-range.
     Raw relative = price / bench aligned by date.
@@ -52,20 +58,20 @@ def _rs_ratio_series(price: pd.Series, bench: pd.Series, span: int = SMOOTHING) 
     rel = aligned["p"] / aligned["b"]
     smoothed = _ema(rel, span)
     # normalise: centre on rolling 52-week mean, scale so 1 std ≈ 5 points
-    roll_mean = smoothed.rolling(52, min_periods=10).mean()
-    roll_std = smoothed.rolling(52, min_periods=10).std().replace(0, np.nan)
+    roll_mean = smoothed.rolling(52, min_periods=RRG_ROLL_MIN).mean()
+    roll_std = smoothed.rolling(52, min_periods=RRG_ROLL_MIN).std().replace(0, np.nan)
     normalised = 100 + (smoothed - roll_mean) / roll_std * 5
     return normalised
 
 
-def _rs_momentum_series(rs_ratio: pd.Series, span: int = SMOOTHING) -> pd.Series:
+def _rs_momentum_series(rs_ratio: pd.Series, span: int = RRG_SMOOTHING) -> pd.Series:
     """
     JdK RS-Momentum: rate-of-change of RS-Ratio, similarly normalised to 100.
     """
-    roc = rs_ratio - rs_ratio.shift(10)
+    roc = rs_ratio - rs_ratio.shift(RRG_ROC_SHIFT)
     smoothed = _ema(roc, span)
-    roll_mean = smoothed.rolling(52, min_periods=10).mean()
-    roll_std = smoothed.rolling(52, min_periods=10).std().replace(0, np.nan)
+    roll_mean = smoothed.rolling(52, min_periods=RRG_ROLL_MIN).mean()
+    roll_std = smoothed.rolling(52, min_periods=RRG_ROLL_MIN).std().replace(0, np.nan)
     normalised = 100 + (smoothed - roll_mean) / roll_std * 5
     return normalised
 
@@ -101,7 +107,7 @@ def _short_name(theme: str) -> str:
     return replacements.get(theme, theme.split(" ")[0])
 
 
-@ttl_cache(ttl=CACHE_TTL)
+@ttl_cache(CACHE_TTL_DATA)
 def fetch_rotation(mode: str = "core") -> dict:
     """
     Compute RRG data for all theme groups.
@@ -145,7 +151,7 @@ def fetch_rotation(mode: str = "core") -> dict:
         theme_map.setdefault(th, []).append(t)
 
     rrg_rows = []
-    TAIL_WEEKS = 16  # store last 16 weekly points for the tail
+      # store last 16 weekly points for the tail
 
     for theme, tickers in theme_map.items():
         if len(tickers) < 1:
@@ -186,20 +192,20 @@ def fetch_rotation(mode: str = "core") -> dict:
 
         # Weekly tail snapshots (sample every 5 trading days from end)
         tail = []
-        for w in range(TAIL_WEEKS, 0, -1):
+        for w in range(RRG_TAIL_WEEKS, 0, -1):
             idx_pos = len(rsr) - w * 5
             if idx_pos < 0:
                 continue
             r = float(rsr.iloc[idx_pos]) if not np.isnan(rsr.iloc[idx_pos]) else 100.0
             m = float(rsm.iloc[idx_pos]) if not np.isnan(rsm.iloc[idx_pos]) else 100.0
             # clamp to 90-115 range for display
-            tail.append([round(max(90, min(115, r)), 2), round(max(90, min(115, m)), 2)])
+            tail.append([round(max(RRG_CLAMP_LO, min(RRG_CLAMP_HI, r)), 2), round(max(RRG_CLAMP_LO, min(RRG_CLAMP_HI, m)), 2)])
 
         # Current values
         curr_rsr = float(rsr.iloc[-1]) if not np.isnan(rsr.iloc[-1]) else 100.0
         curr_rsm = float(rsm.iloc[-1]) if not np.isnan(rsm.iloc[-1]) else 100.0
-        curr_rsr = round(max(90, min(115, curr_rsr)), 2)
-        curr_rsm = round(max(90, min(115, curr_rsm)), 2)
+        curr_rsr = round(max(RRG_CLAMP_LO, min(RRG_CLAMP_HI, curr_rsr)), 2)
+        curr_rsm = round(max(RRG_CLAMP_LO, min(RRG_CLAMP_HI, curr_rsm)), 2)
         tail.append([curr_rsr, curr_rsm])
 
         avg_rs = int(np.mean([int(rs_now.get(t, 0)) for t in tickers if t in rs_now]))

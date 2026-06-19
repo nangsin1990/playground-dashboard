@@ -206,6 +206,7 @@ table.wl tr:hover{background:#161c2b}
 .sig-wt{font-size:10px;color:var(--muted);flex-shrink:0;min-width:30px;text-align:right}
 @media(max-width:900px){.regime-grid{grid-template-columns:1fr 1fr}.exposure-grid{grid-template-columns:1fr 1fr}}
 </style>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <div class="layout">
@@ -213,8 +214,8 @@ table.wl tr:hover{background:#161c2b}
 <!-- ===== SIDEBAR ===== -->
 <aside class="sidebar">
   <div class="brand">
-    <div class="brand-icon">🛝</div>
-    <div class="brand-text"><div class="th">Playground</div><div class="en">WE ARE LIVE</div></div>
+    <div class="brand-icon">Ayeeb</div>
+    <div class="brand-text"><div class="th">สนามเด็กเล่น Playground</div><div class="en">PLAYGROUND · LIVE</div></div>
   </div>
   <nav class="nav">
     <a href="/" class="nav-item active" style="text-decoration:none;color:inherit">
@@ -262,10 +263,13 @@ table.wl tr:hover{background:#161c2b}
     <label for="chk-auto" style="cursor:pointer">Auto-refresh ทุก 15 นาที</label>
     <span id="countdown"></span>
   </div>
-  <div class="sidebar-footer" id="syncBox">
+  <div class="sidebar-footer">
+    <div style="font-size:11px;color:#6b7280;padding:3px 6px 6px" id="nav-updated"></div>
+    <div id="syncBox">
     <div class="sync-row"><span class="dot idle"></span> กำลังเชื่อมต่อ...</div>
   </div>
-</aside>
+    </div>
+  </aside>
 
 <!-- ===== MAIN ===== -->
 <main class="main">
@@ -356,10 +360,12 @@ table.wl tr:hover{background:#161c2b}
           <div class="mkt-btn" data-mkt="CN">🇨🇳 CN</div>
         </div>
       </div>
-      <table class="wl">
+      <div class="tbl-wrap">
+<table class="wl">
         <thead><tr><th>Symbol</th><th>Theme</th><th>Pattern</th><th class="num">1D%</th><th class="num">RS</th></tr></thead>
         <tbody id="watchlistBody"></tbody>
       </table>
+</div>
       <div id="watchlistEmpty" class="empty-msg" style="display:none">ไม่มีหุ้นที่เข้าเกณฑ์ Confluence ในรอบนี้</div>
     </div>
 
@@ -386,6 +392,8 @@ table.wl tr:hover{background:#161c2b}
   <div class="footer-caption" id="footerCaption"></div>
 </main>
 </div>
+
+<script src="/nav.js"></script>
 
 <script>
 /* ===== CONSTANTS ===== */
@@ -740,5 +748,6 @@ $("searchBox").addEventListener("input",e=>{
 // Kick off initial load
 load("core");
 </script>
+
 </body>
 </html>

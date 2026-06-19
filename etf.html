@@ -4,35 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ETF Board | Playground</title>
-<style>
-:root{
-  --bg:#0b0f19;--panel:#111827;--border:#2a3344;--text:#e5e7eb;
-  --muted:#6b7280;--muted2:#9ca3af;--green:#10b981;--red:#ef4444;
-  --orange:#f59e0b;--indigo:#6366f1;--teal:#2dd4bf;--blue:#3b82f6;
-}
+<style><style>
+
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI','Noto Sans Thai',system-ui,sans-serif;
   background:var(--bg);color:var(--text);font-size:13px;-webkit-font-smoothing:antialiased}
 a{text-decoration:none;color:inherit}
 
 /* ── TOP NAV ── */
-.topnav{display:flex;align-items:center;background:var(--panel);border-bottom:1px solid var(--border);
-  padding:0 20px;height:52px;position:sticky;top:0;z-index:100;gap:0}
-.brand{display:flex;align-items:center;gap:10px;margin-right:24px}
-.brand-icon{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--indigo),#312e81);
-  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff}
-.brand-text{font-weight:700;font-size:13px;white-space:nowrap}
-.nav-links{display:flex;gap:2px;flex:1;overflow-x:auto}
-.nav-link{padding:8px 13px;border-radius:8px;font-size:12px;font-weight:600;color:var(--muted2);
-  white-space:nowrap;cursor:pointer;border:1px solid transparent;transition:.12s}
-.nav-link:hover{color:var(--text);background:#161c2b}
-.nav-link.active{color:#c7d2fe;background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.3)}
-.nav-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
-.upd{font-size:11px;color:var(--muted);white-space:nowrap}
-.refresh-btn{padding:6px 14px;border-radius:7px;border:1px solid var(--border);background:#161b22;
-  color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
-.refresh-btn:hover{border-color:#4b5563}
-.refresh-btn:disabled{opacity:.5;cursor:default}
 
 /* ── PAGE ── */
 .page{padding:18px 20px;max-width:1600px}
@@ -137,7 +116,8 @@ tbody tr:hover{background:#161c2b}
 .empty{text-align:center;padding:30px 0;color:var(--muted);font-size:12.5px}
 
 @media(max-width:800px){.two-col{grid-template-columns:1fr}.cat-grid{grid-template-columns:repeat(2,1fr)}}
-</style>
+</style></style>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
@@ -157,6 +137,8 @@ tbody tr:hover{background:#161c2b}
     <a class="nav-link" href="#" style="opacity:.35;cursor:default">💼 Portfolio</a>
   </div>
   <div class="nav-right">
+    <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
+    <span id="nav-loading" style="display:none;animation:spin .8s linear infinite;display:none">⏳</span>
     <span class="upd" id="updTime">–</span>
     <button class="refresh-btn" id="btnRefresh">🔄 Refresh</button>
   </div>
@@ -239,6 +221,7 @@ tbody tr:hover{background:#161c2b}
   <div style="height:30px"></div>
 </div>
 
+<script src="/nav.js"></script>
 <script>
 /* ── STATE ── */
 let fullData = null;
@@ -437,5 +420,6 @@ document.getElementById("searchBox").addEventListener("input", e => {
 
 load();
 </script>
+
 </body>
 </html>

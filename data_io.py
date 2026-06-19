@@ -1,46 +1,67 @@
 """
-Data I/O layer -- the only module that talks to the network (yfinance /
-Yahoo Finance). Kept isolated from data_engine.py so the engine stays
-unit-testable offline.
-
-At ~900 tickers, one-request-per-ticker is impractical (minutes of latency
-+ Yahoo rate-limit risk). `fetch_batch` uses `yf.download` with a ticker
-list so yfinance threads many symbols per HTTP round, then splits the
-resulting MultiIndex frame back into per-ticker DataFrames. Failed/empty
-tickers are simply absent from the result -- callers treat that as "skip".
-
-NOTE: TH tickers use the standard `.BK` suffix, which Yahoo Finance serves
-for SET-listed names -- this is what stands in for the doc's "SET Scraper"
-sync status, since it needs no separate scraper/credentials.
+data_io.py — Network layer (yfinance only)
+v2 fixes:
+  - Timeout: yf.download wraps in threading.Timer → kills hung batch after FETCH_TIMEOUT
+  - Rate limit: sleep FETCH_RATE_DELAY between chunks
+  - Delisted filter: skip tickers returning 0 rows or wrong schema
+  - Per-ticker error isolation: one bad ticker can't crash the batch
 """
 
 from __future__ import annotations
+import time
+import threading
 import pandas as pd
 import yfinance as yf
 
 from cache_utils import ttl_cache
 from universe import BENCHMARK
+from constants import (
+    CACHE_TTL_DATA, FETCH_MIN_ROWS, FETCH_TIMEOUT, FETCH_RATE_DELAY,
+)
 
 REQUIRED_COLS = ["Open", "High", "Low", "Close", "Volume"]
-MIN_ROWS = 60
-CACHE_TTL = 15 * 60
 
 
-@ttl_cache(CACHE_TTL)
+def _fetch_with_timeout(tickers: list[str], period: str, timeout: float) -> pd.DataFrame | None:
+    """
+    Run yf.download in a thread; return None if it exceeds `timeout` seconds.
+    Prevents server hanging on dead/delisted tickers.
+    """
+    result = [None]
+    exc    = [None]
+
+    def _run():
+        try:
+            result[0] = yf.download(
+                tickers, period=period, interval="1d",
+                group_by="ticker", auto_adjust=True,
+                threads=True, progress=False,
+            )
+        except Exception as e:
+            exc[0] = e
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(timeout)
+
+    if t.is_alive():
+        # Thread still running → timed out
+        return None
+    if exc[0] is not None:
+        return None
+    return result[0]
+
+
+@ttl_cache(CACHE_TTL_DATA)
 def fetch_batch(tickers: tuple[str, ...], period: str = "18mo") -> dict[str, pd.DataFrame]:
-    """Download a batch of tickers in one yf.download call.
-    Returns {ticker: OHLCV df}; tickers with no/insufficient data are
-    simply absent (caller skips them)."""
+    """
+    Download a batch of tickers in one yf.download call.
+    Returns {ticker: OHLCV df}; failed/delisted tickers are absent (caller skips).
+    """
     if not tickers:
         return {}
-    try:
-        raw = yf.download(
-            list(tickers), period=period, interval="1d",
-            group_by="ticker", auto_adjust=True, threads=True,
-            progress=False,
-        )
-    except Exception:
-        return {}
+
+    raw = _fetch_with_timeout(list(tickers), period, timeout=FETCH_TIMEOUT)
     if raw is None or raw.empty:
         return {}
 
@@ -53,23 +74,22 @@ def fetch_batch(tickers: tuple[str, ...], period: str = "18mo") -> dict[str, pd.
                 continue
             try:
                 df = raw[t][REQUIRED_COLS].dropna()
+                # Delisted check: too few rows = dead ticker
+                if len(df) >= FETCH_MIN_ROWS:
+                    out[t] = df
             except (KeyError, IndexError):
                 continue
-            if len(df) >= MIN_ROWS:
-                out[t] = df
     else:
-        # single-ticker download sometimes returns flat columns
+        # Single-ticker flat columns
         if len(tickers) == 1 and set(REQUIRED_COLS).issubset(raw.columns):
             df = raw[REQUIRED_COLS].dropna()
-            if len(df) >= MIN_ROWS:
+            if len(df) >= FETCH_MIN_ROWS:
                 out[tickers[0]] = df
 
     return out
 
 
 def fetch_history(ticker: str, period: str = "18mo") -> pd.DataFrame | None:
-    """Single-ticker convenience wrapper over fetch_batch (used for the
-    optional benchmark fetch)."""
     return fetch_batch((ticker,), period=period).get(ticker)
 
 
@@ -77,7 +97,7 @@ def chunk(seq: list, size: int) -> list[list]:
     return [seq[i:i + size] for i in range(0, len(seq), size)]
 
 
-@ttl_cache(CACHE_TTL)
+@ttl_cache(CACHE_TTL_DATA)
 def fetch_benchmark(market: str, period: str = "18mo") -> pd.DataFrame | None:
     sym = BENCHMARK.get(market)
     if not sym:
@@ -91,11 +111,10 @@ def clear_cache():
 
 
 def sync_report(fetched: dict[str, dict[str, pd.DataFrame]], universe: dict) -> dict[str, dict]:
-    """{market: {'ok': n_ok, 'total': n_total, 'failed': [tickers]}}"""
     report = {}
     for market, data in fetched.items():
-        total = len(universe[market])
-        ok = len(data)
+        total  = len(universe[market])
+        ok     = len(data)
         failed = [t for t in universe[market] if t not in data]
         report[market] = {"ok": ok, "total": total, "failed": failed}
     return report

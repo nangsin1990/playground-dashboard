@@ -23,11 +23,16 @@ import pandas as pd
 import data_engine as eng
 import pipeline
 from cache_utils import ttl_cache
+from constants import (
+    CACHE_TTL_DATA, THEMATIC_TOP_TICKERS, THEMATIC_MAX_MEMBERS,
+    TRADING_DAYS_MONTH, TRADING_DAYS_QUARTER,
+)
 
-CACHE_TTL = 15 * 60  # 15 min
+
+  # 15 min
 
 
-@ttl_cache(ttl=CACHE_TTL)
+@ttl_cache(CACHE_TTL_DATA)
 def fetch_thematic(mode: str = "core") -> dict:
     active = pipeline.active_universe(mode)
     combined, ticker_meta, fetch_results = pipeline.fetch_universe(active)
@@ -74,7 +79,7 @@ def fetch_thematic(mode: str = "core") -> dict:
         m3 = float(np.mean([m["m3"] for m in members]))
         avg_rs = int(np.mean([m["rs"] for m in members]))
         # top tickers by RS
-        top_tickers = [m["ticker"] for m in sorted(members, key=lambda x: x["rs"], reverse=True)[:4]]
+        top_tickers = [m["ticker"] for m in sorted(members, key=lambda x: x["rs"], reverse=True)[:THEMATIC_TOP_TICKERS]]
         # market from first member
         # Market: use majority vote (handles mixed ETF themes correctly)
         from collections import Counter
@@ -94,7 +99,7 @@ def fetch_thematic(mode: str = "core") -> dict:
             "tickers": top_tickers,
             "members": [
                 {"ticker": m["ticker"], "name": m["name"], "d1": m["d1"], "m1": m["m1"], "m3": m["m3"], "rs": m["rs"]}
-                for m in sorted_members[:30]
+                for m in sorted_members[:THEMATIC_MAX_MEMBERS]
             ],
         })
 
