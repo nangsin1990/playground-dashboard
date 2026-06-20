@@ -45,6 +45,8 @@ FETCH_TIMEOUT       = 30       # seconds per batch before giving up
 FETCH_CHUNK_SIZE    = 60       # tickers per yf.download() call
 FETCH_MIN_ROWS      = 60       # discard ticker if fewer rows returned
 FETCH_RATE_DELAY    = 0.5      # seconds to sleep between chunks (rate limit)
+FETCH_RETRY_MAX     = 3        # max retries on rate-limit / timeout
+FETCH_RETRY_BASE    = 2.0      # exponential backoff base (seconds)
 
 # ── Leadership Board ──────────────────────────────────────────────────────────
 LB_TREND_LOOKBACK   = 21       # SMA200 slope window (bars)
@@ -59,13 +61,13 @@ LB_VOL_MIN          = 1.5      # volume surge filter
 LB_TOP_N            = 20       # rows per leaderboard tab
 
 # ── RRG ──────────────────────────────────────────────────────────────────────
-RRG_SMOOTHING       = 10       # EMA span for RS-Ratio & Momentum
+RRG_SMOOTHING       = 14       # ← v2: EMA span 10→14 (reduces quadrant noise)
 RRG_ROLL_MIN        = 10       # min periods for rolling stats
-RRG_TAIL_WEEKS      = 16       # tail history points
+RRG_TAIL_WEEKS      = 16       # tail history points  (was RRG_RRG_TAIL_WEEKS — typo fixed)
 RRG_TAIL_STEP       = 5        # trading days between tail points
 RRG_CLAMP_LO        = 90.0     # display clamp
 RRG_CLAMP_HI        = 115.0
-RRG_ROC_SHIFT       = 10       # RS-Momentum: ROC lookback
+RRG_ROC_SHIFT       = 14       # ← v2: RS-Momentum ROC lookback 10→14 (matches smoothing)
 RRG_MIN_TICKERS     = 1        # min tickers to compute theme RRG
 RRG_MIN_HISTORY     = 30       # min trading days of history needed
 
@@ -80,7 +82,7 @@ CAL_MAX_EVENTS      = 30       # max events to return
 
 # ── Pipeline / Universe ───────────────────────────────────────────────────────
 PIPELINE_BATCH_SIZE = 60
-CORE_N = {"US": 40, "TH": 30, "HK": 16, "JP": 16, "KR": 12, "CN": 12}
+CORE_N = {"US": 40, "HK": 16, "JP": 16, "KR": 12, "CN": 12}
 
 # ── Breadth ───────────────────────────────────────────────────────────────────
 BREADTH_HISTORY_DAYS    = 20   # days of breadth chart history
@@ -92,3 +94,15 @@ BREADTH_BEAR_MIN_MKT    = 3    # min markets in bear = global bear
 WATCHLIST_TOP_N         = 10   # confluence watchlist size
 THEME_TOP_N             = 5    # top themes in overview
 RS_MOVERS_TOP_N         = 5    # RS movers count
+
+# ── Correlation Matrix ────────────────────────────────────────────────────────
+CORR_TICKERS = [
+    "SPY", "QQQ", "IWM", "DIA",      # broad US equity
+    "XLK", "XLF", "XLE", "XLV",      # sectors
+    "TLT", "IEF", "HYG",             # bonds
+    "GLD", "SLV", "USO",             # commodities
+    "DXY", "UUP",                    # dollar
+    "VXX",                           # volatility
+]
+CORR_PERIOD_DAYS = 63   # lookback for correlation (~3 months)
+CORR_BENCHMARK   = "SPY"

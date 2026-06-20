@@ -692,7 +692,7 @@ async function load(mode=currentMode, refresh=false){
     renderWatchlist(data.watchlist);
     renderThemeMovers(data.theme_movers);
     renderRsMovers(data.rs_movers);
-    $("footerCaption").textContent=`Universe: ${data.universe_loaded}/${data.universe_total} stocks loaded · Updated: ${data.updated} · ข้อมูลจาก Yahoo Finance (yfinance), แคช 15 นาที`;
+    $("footerCaption").textContent=`Universe: ${data.universe_loaded}/${data.universe_total} stocks loaded · Updated: ${data.updated} · ⏱ Data delayed ~15 min · Cache 15 min`;
     startCountdown();
   }catch(e){
     $("errBanner").textContent="⚠️ เชื่อมต่อ backend ไม่สำเร็จ: "+e.message+" — ตรวจสอบว่า uvicorn รันอยู่";

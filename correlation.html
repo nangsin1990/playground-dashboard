@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Correlations — Playground</title>
+<link rel="stylesheet" href="style.css">
+<script src="nav.js" defer></script>
+<style>
+  .corr-wrap { overflow-x: auto; }
+  .corr-grid { display: inline-grid; gap: 2px; }
+  .corr-cell {
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 600; border-radius: 3px;
+    cursor: default; transition: opacity .15s;
+  }
+  .corr-cell:hover { opacity: .8; }
+  .corr-label-cell {
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: #94a3b8;
+  }
+  .corner-cell { width: 42px; height: 42px; }
+
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #94a3b8; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .pair-table td, .pair-table th { padding: 6px 12px; font-size: 12px; }
+  .bar-bg { background: #1e293b; border-radius: 4px; height: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; margin-bottom: 20px; }
+  .stat-mini { background: #111827; border: 1px solid #1e293b; border-radius: 8px; padding: 10px 12px; }
+  .stat-mini .label { font-size: 10px; color: #64748b; margin-bottom: 2px; }
+  .stat-mini .val   { font-size: 16px; font-weight: 700; color: #e2e8f0; }
+  .stat-mini .sub   { font-size: 10px; color: #64748b; }
+
+  .data-lag-banner {
+    background: #1e293b; border-left: 3px solid #f59e0b;
+    padding: 8px 14px; border-radius: 4px; font-size: 11px; color: #94a3b8; margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a href="index.html">Overview</a>
+  <a href="global.html">Global</a>
+  <a href="etf.html">ETF</a>
+  <a href="leaders.html">Leadership</a>
+  <a href="thematic.html">Thematic</a>
+  <a href="rotation.html">Rotation</a>
+  <a href="correlation.html" class="active">Correlations</a>
+  <a href="calendar.html">Calendar</a>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <h1>Correlation Matrix</h1>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <span class="updated-badge" id="updatedBadge">—</span>
+      <button class="btn-refresh" onclick="loadData(true)">↻ Refresh</button>
+    </div>
+  </div>
+
+  <div class="data-lag-banner">⏱ yfinance data is delayed ~15 minutes during market hours. Correlations use ~63-day daily return lookback.</div>
+
+  <div id="loading" class="loading-state">Loading correlation data…</div>
+  <div id="error"   class="error-state"   style="display:none"></div>
+  <div id="content" style="display:none">
+
+    <p id="noteText" style="color:#64748b;font-size:12px;margin-bottom:14px;"></p>
+
+    <!-- Group legend -->
+    <div class="legend" id="groupLegend"></div>
+
+    <!-- Stat mini cards -->
+    <div class="stat-grid" id="statGrid"></div>
+
+    <!-- Heatmap -->
+    <div class="panel" style="padding:16px 10px;">
+      <div class="panel-header" style="margin-bottom:12px;">
+        <span class="panel-title">Heatmap</span>
+        <span style="font-size:11px;color:#64748b;">−1 = perfect inverse · 0 = uncorrelated · +1 = perfect correlation</span>
+      </div>
+      <div class="corr-wrap">
+        <div class="corr-grid" id="corrGrid"></div>
+      </div>
+    </div>
+
+    <!-- Top pairs -->
+    <div class="panel" style="margin-top:16px;">
+      <div class="panel-header"><span class="panel-title">Highest Absolute Correlations</span></div>
+      <table class="pair-table" style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="color:#64748b;font-size:11px;">
+            <th style="text-align:left;">Pair</th>
+            <th style="text-align:right;">Correlation</th>
+            <th style="width:120px;">Strength</th>
+          </tr>
+        </thead>
+        <tbody id="pairBody"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const GROUP_COLORS = {
+  "Broad":"#6366f1","Sector":"#3b82f6","Bonds":"#10b981",
+  "Cmdty":"#f59e0b","FX":"#ec4899","Vol":"#ef4444","Other":"#6b7280"
+};
+
+function corrColor(v) {
+  if (v === null || v === undefined) return "#1e293b";
+  if (v >= 0.8)  return "#1e3a5f";
+  if (v >= 0.5)  return "#1e4a8a";
+  if (v >= 0.2)  return "#1e3070";
+  if (v >= -0.2) return "#1e2a3a";
+  if (v >= -0.5) return "#3a1e1e";
+  if (v >= -0.8) return "#5f1e1e";
+  return "#8a1e1e";
+}
+function corrText(v) {
+  if (v === null || v === undefined) return "";
+  return (v >= 0 ? "+" : "") + v.toFixed(2);
+}
+function corrTextColor(v) {
+  if (v === null) return "#64748b";
+  const a = Math.abs(v);
+  if (a > 0.5) return "#e2e8f0";
+  return "#94a3b8";
+}
+
+async function loadData(refresh = false) {
+  document.getElementById("loading").style.display = "";
+  document.getElementById("content").style.display = "none";
+  document.getElementById("error").style.display   = "none";
+
+  try {
+    const url = "/api/correlation" + (refresh ? "?refresh=1" : "");
+    const r   = await fetch(url);
+    const d   = await r.json();
+    if (!d.ok) throw new Error(d.error || "API error");
+    render(d);
+  } catch(e) {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("error").style.display   = "";
+    document.getElementById("error").textContent     = "Failed to load: " + e.message;
+  }
+}
+
+function render(d) {
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("content").style.display = "";
+  document.getElementById("updatedBadge").textContent = d.updated || "—";
+  document.getElementById("noteText").textContent = d.note || "";
+
+  // Group legend
+  const groups = [...new Set(d.groups)];
+  document.getElementById("groupLegend").innerHTML = groups.map(g =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${GROUP_COLORS[g]||'#6b7280'}"></div>${g}</div>`
+  ).join("");
+
+  // Stat mini cards
+  const topCorr = d.top_pairs[0];
+  const minCorr = [...d.top_pairs].sort((a,b) => a.corr - b.corr)[0];
+  document.getElementById("statGrid").innerHTML = [
+    { label: "Assets Tracked", val: d.n_tickers, sub: "tickers" },
+    { label: "Lookback Period", val: d.period_days + "d", sub: "~3 months" },
+    { label: "Highest Corr", val: topCorr ? "+" + topCorr.corr.toFixed(2) : "—", sub: topCorr ? topCorr.a + "/" + topCorr.b : "" },
+    { label: "Lowest Corr",  val: minCorr ? minCorr.corr.toFixed(2) : "—",  sub: minCorr ? minCorr.a + "/" + minCorr.b : "" },
+  ].map(s => `<div class="stat-mini"><div class="label">${s.label}</div><div class="val">${s.val}</div><div class="sub">${s.sub}</div></div>`).join("");
+
+  // Build heatmap
+  const labels = d.labels;
+  const n = labels.length;
+  const grid = document.getElementById("corrGrid");
+  const cols = n + 1;
+  grid.style.gridTemplateColumns = `42px repeat(${n}, 42px)`;
+  grid.innerHTML = "";
+
+  // Top row: corner + col labels
+  grid.innerHTML += `<div class="corner-cell"></div>`;
+  labels.forEach((l, i) => {
+    const color = GROUP_COLORS[d.groups[i]] || "#6b7280";
+    grid.innerHTML += `<div class="corr-label-cell" style="color:${color}">${l}</div>`;
+  });
+
+  // Data rows
+  for (let i = 0; i < n; i++) {
+    const rowColor = GROUP_COLORS[d.groups[i]] || "#6b7280";
+    grid.innerHTML += `<div class="corr-label-cell" style="color:${rowColor}">${labels[i]}</div>`;
+    for (let j = 0; j < n; j++) {
+      const v = d.matrix[i][j];
+      const isDiag = i === j;
+      const bg = isDiag ? "#0b0f19" : corrColor(v);
+      const txt = isDiag ? labels[i].slice(0,3) : corrText(v);
+      const tc  = isDiag ? "#4b5563" : corrTextColor(v);
+      grid.innerHTML += `<div class="corr-cell" title="${labels[i]} vs ${labels[j]}: ${corrText(v)}"
+        style="background:${bg};color:${tc}">${txt}</div>`;
+    }
+  }
+
+  // Top pairs table
+  document.getElementById("pairBody").innerHTML = d.top_pairs.slice(0, 10).map(p => {
+    const pct = Math.abs(p.corr) * 100;
+    const barColor = p.corr > 0 ? "#3b82f6" : "#ef4444";
+    return `<tr style="border-bottom:1px solid #1e293b;">
+      <td style="color:#e2e8f0;font-weight:600;">${p.a} / ${p.b}</td>
+      <td style="text-align:right;color:${p.corr >= 0 ? '#34d399' : '#f87171'};font-weight:700;">
+        ${(p.corr >= 0 ? "+" : "") + p.corr.toFixed(3)}</td>
+      <td><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${barColor}"></div></div></td>
+    </tr>`;
+  }).join("");
+}
+
+loadData();
+</script>
+</body>
+</html>

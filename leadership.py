@@ -222,7 +222,7 @@ def _compute_leadership_score(
 # Main entry point
 # ─────────────────────────────────────────────────────────────────────────────
 
-@ttl_cache(CACHE_TTL)
+@ttl_cache(CACHE_TTL_DATA)
 def compute_leadership_board(
     combined: tuple,   # tuple of (ticker, market, name, theme) so it's hashable
     rs_now_dict: tuple,   # tuple of (ticker, rs_int)

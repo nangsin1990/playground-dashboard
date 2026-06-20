@@ -1,6 +1,6 @@
 """
 pipeline.py — Orchestration layer
-v2: use constants, add last-updated timestamp, NaN-safe returns, currency note
+v3: per-market RS rating, drawdown in watchlist, data lag in sync
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ SIGNAL_NAMES = ["VDU", "PPBP", "BGU", "52W"]
 
 
 def core_universe() -> dict:
-    return {m: dict(list(UNIVERSE[m].items())[:CORE_N[m]]) for m in UNIVERSE}
+    return {m: dict(list(UNIVERSE[m].items())[:CORE_N[m]]) for m in CORE_N}
 
 
 def active_universe(mode: str) -> dict:
@@ -53,7 +53,6 @@ def fetch_universe(active: dict):
             combined[t]         = eng.add_indicators(df)
             ticker_meta[t]      = {"market": m, "name": name, "theme": theme}
 
-        # Rate-limit guard between chunks
         if i > 0 and FETCH_RATE_DELAY > 0:
             time.sleep(FETCH_RATE_DELAY)
 
@@ -62,7 +61,6 @@ def fetch_universe(active: dict):
 
 # ── 2) Safe return helper (NaN-proof) ────────────────────────────────────────
 def _pct_change(series: pd.Series, n: int) -> float | None:
-    """Return percentage change over n bars; None if not enough data."""
     if len(series) <= n or series.iloc[-1 - n] == 0:
         return None
     val = (series.iloc[-1] / series.iloc[-1 - n] - 1) * 100
@@ -84,12 +82,12 @@ def compute_dashboard(combined: dict, ticker_meta: dict,
     for market in active:
         mtickers = list(fetch_results[market].keys())
         if not mtickers:
-            breadth_rows.append({"flag": FLAGS[market], "code": market,
+            breadth_rows.append({"flag": FLAGS.get(market, ""), "code": market,
                                   "ma50": 0.0, "ma200": 0.0, "chg": 0.0})
             continue
         a50, a200, a50_5ago = [], [], []
         for t in mtickers:
-            d = combined[t]
+            d    = combined[t]
             last = d.iloc[-1]
             a50.append(bool(last["Close"] > last["SMA50"]))
             a200.append(bool(last["Close"] > last["SMA200"]))
@@ -99,16 +97,16 @@ def compute_dashboard(combined: dict, ticker_meta: dict,
         ma50  = round(float(np.mean(a50)  * 100), 2)
         ma200 = round(float(np.mean(a200) * 100), 2)
         chg   = round(ma50 - (float(np.mean(a50_5ago) * 100) if a50_5ago else ma50), 2)
-        breadth_rows.append({"flag": FLAGS[market], "code": market,
+        breadth_rows.append({"flag": FLAGS.get(market, ""), "code": market,
                               "ma50": ma50, "ma200": ma200, "chg": chg})
 
     # ── Scanners / confluence ────────────────────────────────────────────────
     signal_count_5d: dict[str, int] = {k: 0 for k in SIGNAL_NAMES}
     ticker_signal:   dict[str, dict] = {}
     for t, d in combined.items():
-        sig             = eng.run_scanners(d)
+        sig                 = eng.run_scanners(d)
         rolled, conf, count = eng.confluence_flags(sig)
-        last_rolled     = {k: bool(v.iloc[-1]) for k, v in rolled.items()}
+        last_rolled         = {k: bool(v.iloc[-1]) for k, v in rolled.items()}
         for k, v in last_rolled.items():
             if v:
                 signal_count_5d[k] += 1
@@ -118,12 +116,11 @@ def compute_dashboard(combined: dict, ticker_meta: dict,
             "confluence": bool(conf.iloc[-1]),
         }
 
-    # ── RS Rating ────────────────────────────────────────────────────────────
-    blended   = pd.Series({t: eng.blended_return(d["Close"]) for t, d in combined.items()})
-    rs_now    = eng.rs_rating_table(blended)
+    # ── RS Rating — per market (no cross-currency mixing) ────────────────────
+    rs_now = eng.rs_rating_per_market(combined, ticker_meta)
     blended_7 = pd.Series({t: eng.blended_return(d["Close"].iloc[:-7])
                             for t, d in combined.items() if len(d) > 7})
-    rs_7      = eng.rs_rating_table(blended_7).reindex(rs_now.index).fillna(rs_now)
+    rs_7 = eng.rs_rating_table(blended_7).reindex(rs_now.index).fillna(rs_now)
 
     # ── Theme rotation ───────────────────────────────────────────────────────
     ret_1d = pd.Series({t: _pct_change(d["Close"], 1)  for t, d in combined.items()
@@ -162,14 +159,14 @@ def compute_dashboard(combined: dict, ticker_meta: dict,
             bh["ma200"] = [round(float(v), 2) for v in h200.values]
         breadth_history_all[market] = bh
 
-    breadth_history = breadth_history_all.get("TH", {"dates": [], "ma50": [], "ma200": [], "universe": 0})
+    breadth_history = breadth_history_all.get("US", {"dates": [], "ma50": [], "ma200": [], "universe": 0})
 
     # ── Bear override ────────────────────────────────────────────────────────
-    bear_markets   = [r for r in breadth_rows
-                      if r["ma50"] < BREADTH_BEAR_THRESHOLD and r["chg"] < BREADTH_BEAR_FALL]
-    bear_override  = len(bear_markets) >= BREADTH_BEAR_MIN_MKT
+    bear_markets  = [r for r in breadth_rows
+                     if r["ma50"] < BREADTH_BEAR_THRESHOLD and r["chg"] < BREADTH_BEAR_FALL]
+    bear_override = len(bear_markets) >= BREADTH_BEAR_MIN_MKT
 
-    # ── Confluence Watchlist ─────────────────────────────────────────────────
+    # ── Confluence Watchlist (with drawdown) ─────────────────────────────────
     watch = sorted(
         [t for t, s in ticker_signal.items() if s["confluence"]],
         key=lambda t: (ticker_signal[t]["count"], int(rs_now.get(t, 0))),
@@ -181,20 +178,24 @@ def compute_dashboard(combined: dict, ticker_meta: dict,
         meta   = ticker_meta[t]
         d      = combined[t]
         pct1d  = _pct_change(d["Close"], 1) or 0.0
+        dd     = eng.current_drawdown_from_peak(d["Close"])
+        max_dd = eng.max_drawdown(d["Close"])
         watchlist.append({
-            "ticker":      t.split(".")[0],
-            "full_ticker": t,
-            "name":        meta["name"],
-            "theme":       meta["theme"],
-            "patterns":    [k for k in SIGNAL_NAMES if ticker_signal[t]["rolled"].get(k)],
-            "pct1d":       pct1d,
-            "rs":          int(rs_now.get(t, 0)),
-            "market":      meta["market"],
+            "ticker":       t.split(".")[0],
+            "full_ticker":  t,
+            "name":         meta["name"],
+            "theme":        meta["theme"],
+            "patterns":     [k for k in SIGNAL_NAMES if ticker_signal[t]["rolled"].get(k)],
+            "pct1d":        pct1d,
+            "rs":           int(rs_now.get(t, 0)),
+            "market":       meta["market"],
+            "drawdown_pct": dd,
+            "max_dd_pct":   max_dd,
         })
 
     # ── RS Movers ────────────────────────────────────────────────────────────
-    movers     = eng.rs_movers_7d(rs_now, rs_7, top_n=RS_MOVERS_TOP_N)
-    rs_movers  = []
+    movers    = eng.rs_movers_7d(rs_now, rs_7, top_n=RS_MOVERS_TOP_N)
+    rs_movers = []
     for t, row in movers.iterrows():
         spark = [round(float(v), 4) for v in combined[t]["Close"].tail(10).tolist()
                  if not (np.isnan(v) or np.isinf(v))]
@@ -206,11 +207,6 @@ def compute_dashboard(combined: dict, ticker_meta: dict,
             "spark":       spark,
         })
 
-    # ── Note: cross-currency RS ───────────────────────────────────────────────
-    # RS Rating mixes USD (US), THB (TH), HKD (HK), JPY (JP), KRW (KR), CNY (CN).
-    # The breadth numbers per market are self-contained and valid.
-    # Cross-market RS comparisons should be interpreted with caution.
-
     return {
         "ok":                  True,
         "updated":             now_str,
@@ -218,13 +214,12 @@ def compute_dashboard(combined: dict, ticker_meta: dict,
         "universe_total":      sum(len(v) for v in active.values()),
         "sync":                sync,
         "breadth":             breadth_rows,
-        "breadth_history_th":  breadth_history,
+        "breadth_history_us":  breadth_history,
         "breadth_history_all": breadth_history_all,
         "stat_cards":          {**signal_count_5d, "total": len(combined)},
         "watchlist":           watchlist,
         "theme_movers":        theme_rows,
         "rs_movers":           rs_movers,
         "bear_override":       bear_override,
-        # Currency warning for frontend
-        "cross_currency_note": "RS across markets mixes currencies — use per-market breadth for comparison",
+        "rs_scope":            "per-market (no cross-currency comparison)",
     }

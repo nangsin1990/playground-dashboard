@@ -1,6 +1,6 @@
 """
 data_engine.py — Pure Quant Engine (no network)
-v2: replaced all magic numbers with constants imports
+v3: per-market RS rating, drawdown tracker, correlation prep
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from constants import (
     TRADING_DAYS_MONTH, TRADING_DAYS_QUARTER,
     TRADING_DAYS_HALFYR, TRADING_DAYS_3QTR, TRADING_DAYS_YEAR,
     BREADTH_HISTORY_DAYS,
+    CORR_PERIOD_DAYS,
 )
 
 REQUIRED_COLS = ["Open", "High", "Low", "Close", "Volume"]
@@ -38,30 +39,26 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
 # ── 2) Scanners ────────────────────────────────────────────────────────────────
 def scan_volume_dry_up(df: pd.DataFrame) -> pd.Series:
-    """VDU: volume 40-60% of 50d avg (institutional sweet spot)."""
     ratio = df["Volume"] / df["VOL_SMA50"].replace(0, np.nan)
     return (ratio >= VDU_VOL_LOW) & (ratio <= VDU_VOL_HIGH)
 
 
 def scan_pocket_pivot(df: pd.DataFrame, vol_lookback: int = PPBP_VOL_LOOKBACK) -> pd.Series:
-    """PPBP: up day, above SMA10, volume > max down-day vol of prior N sessions."""
-    up_day        = df["Close"] > df["Close"].shift(1)
-    above_sma10   = df["Close"] > df["SMA10"]
-    down_day_vol  = df["Volume"].where(df["Close"] < df["Close"].shift(1))
-    max_down_vol  = down_day_vol.shift(1).rolling(vol_lookback, min_periods=1).max()
+    up_day       = df["Close"] > df["Close"].shift(1)
+    above_sma10  = df["Close"] > df["SMA10"]
+    down_day_vol = df["Volume"].where(df["Close"] < df["Close"].shift(1))
+    max_down_vol = down_day_vol.shift(1).rolling(vol_lookback, min_periods=1).max()
     return up_day & above_sma10 & (df["Volume"] > max_down_vol)
 
 
 def scan_buyable_gap_up(df: pd.DataFrame,
                         gap_pct: float = BGU_GAP_PCT,
                         vol_mult: float = BGU_VOL_MULT) -> pd.Series:
-    """BGU: open >= gap_pct% above prior close AND volume >= vol_mult x 50d avg."""
     gap = (df["Open"] - df["Close"].shift(1)) / df["Close"].shift(1) * 100
     return (gap >= gap_pct) & (df["Volume"] >= vol_mult * df["VOL_SMA50"])
 
 
 def scan_52w_high(df: pd.DataFrame, pct: float = W52_PROXIMITY) -> pd.Series:
-    """52W: Close within pct of the rolling 252-session high."""
     return df["Close"] >= pct * df["HIGH_52W"]
 
 
@@ -102,7 +99,7 @@ def market_breadth_history(close_above_df: pd.DataFrame,
     return pct.tail(days)
 
 
-# ── 5) RS Rating ───────────────────────────────────────────────────────────────
+# ── 5) RS Rating (per-market) ──────────────────────────────────────────────────
 def blended_return(close: pd.Series) -> float:
     """
     IBD-style blended return:
@@ -122,11 +119,51 @@ def blended_return(close: pd.Series) -> float:
 
 
 def rs_rating_table(blended_returns: pd.Series) -> pd.Series:
+    """Rank 1-99 within the supplied universe (call separately per market)."""
     pct = blended_returns.rank(pct=True, method="average")
     return (pct * 98 + 1).round().astype(int).clip(1, 99)
 
 
-# ── 6) Theme / Sector rotation ────────────────────────────────────────────────
+def rs_rating_per_market(combined: dict, ticker_meta: dict) -> pd.Series:
+    """
+    Compute RS Rating scoped per market — avoids cross-currency comparison.
+    Returns a single Series indexed by ticker with RS 1-99 within its market.
+    """
+    all_rs: dict[str, int] = {}
+    markets = set(m["market"] for m in ticker_meta.values())
+    for mkt in markets:
+        tickers_in_mkt = [t for t, m in ticker_meta.items() if m["market"] == mkt and t in combined]
+        if not tickers_in_mkt:
+            continue
+        bl = pd.Series({t: blended_return(combined[t]["Close"]) for t in tickers_in_mkt})
+        rs = rs_rating_table(bl)
+        all_rs.update(rs.to_dict())
+    return pd.Series(all_rs)
+
+
+# ── 6) Drawdown Tracker ────────────────────────────────────────────────────────
+def max_drawdown(close: pd.Series) -> float:
+    """Max drawdown from peak (negative %). Returns e.g. -15.3 for 15.3% drawdown."""
+    if len(close) < 2:
+        return 0.0
+    roll_max = close.expanding().max()
+    dd = (close - roll_max) / roll_max * 100
+    return round(float(dd.min()), 2)
+
+
+def current_drawdown_from_peak(close: pd.Series, lookback: int = TRADING_DAYS_YEAR) -> float:
+    """Current % below peak over lookback period."""
+    tail = close.tail(lookback)
+    if len(tail) < 2:
+        return 0.0
+    peak    = float(tail.max())
+    current = float(tail.iloc[-1])
+    if peak == 0:
+        return 0.0
+    return round((current - peak) / peak * 100, 2)
+
+
+# ── 7) Theme / Sector rotation ────────────────────────────────────────────────
 def theme_returns(returns_1d: pd.Series, returns_1m: pd.Series,
                   returns_3m: pd.Series, theme_map: dict[str, str]) -> pd.DataFrame:
     df = pd.DataFrame({"1D": returns_1d, "1M": returns_1m, "3M": returns_3m})
@@ -140,3 +177,44 @@ def rs_movers_7d(rs_today: pd.Series, rs_7d_ago: pd.Series, top_n: int = 5) -> p
     delta = (rs_today - rs_7d_ago).rename("dRS_7D")
     out   = pd.DataFrame({"RS": rs_today, "dRS_7D": delta})
     return out.sort_values("dRS_7D", ascending=False).head(top_n)
+
+
+# ── 8) Correlation Matrix ─────────────────────────────────────────────────────
+def compute_correlation_matrix(combined: dict, tickers: list[str],
+                                 days: int = CORR_PERIOD_DAYS) -> dict:
+    """
+    Compute pairwise correlation of daily returns over `days` lookback.
+    Returns {"labels": [...], "matrix": [[...]], "period_days": days}
+    """
+    available = [t for t in tickers if t in combined]
+    if len(available) < 2:
+        return {"ok": False, "error": "Not enough tickers", "labels": [], "matrix": []}
+
+    closes = {}
+    for t in available:
+        c = combined[t]["Close"].tail(days + 1)
+        if len(c) > 1:
+            closes[t] = c
+
+    if len(closes) < 2:
+        return {"ok": False, "error": "Not enough data", "labels": [], "matrix": []}
+
+    df = pd.DataFrame({t: s for t, s in closes.items()}).pct_change().dropna()
+    corr = df.corr()
+
+    labels = list(corr.columns)
+    matrix = []
+    for row_label in labels:
+        row = []
+        for col_label in labels:
+            v = corr.loc[row_label, col_label]
+            row.append(round(float(v), 3) if not np.isnan(v) else None)
+        matrix.append(row)
+
+    return {
+        "ok":          True,
+        "labels":      labels,
+        "matrix":      matrix,
+        "period_days": days,
+        "n_tickers":   len(labels),
+    }

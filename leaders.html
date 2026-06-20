@@ -130,6 +130,7 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
   .tabs{gap:3px}
   .tab{padding:6px 10px;font-size:11.5px}
 }
+.data-lag-banner{background:#1e293b;border-left:3px solid #f59e0b;padding:6px 14px;border-radius:4px;font-size:11px;color:#94a3b8;margin-bottom:14px;}
 </style></style>
   <link rel="stylesheet" href="/style.css">
 </head>
@@ -167,6 +168,7 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 
   <div class="page-header">
     <div class="page-title">🏆 Institutional Leadership Board</div>
+  <div class="data-lag-banner">⏱ yfinance data delayed ~15 min during market hours</div>
     <div class="page-sub">
       จัดอันดับหุ้นที่ <strong>กองทุนและสถาบันการเงินกำลังสะสม</strong> ด้วย Leadership Score คำนวณจาก RS Rating + Trend Template + Accumulation/Distribution + Volume Surge + Base Tightness<br>
       วิธีการอ้างอิงจาก <em>William O'Neil (IBD 50), Mark Minervini (Trend Template), Stan Weinstein (Stage Analysis)</em>
@@ -254,7 +256,7 @@ const TAB_DEFS = {
 };
 
 const HEADERS = {
-  overall:      ["#","Symbol","LS Score","RS","dRS7","Trend","Accum","Base","52W%","Signals","Market"],
+  overall:      ["#","Symbol","LS Score","RS","dRS7","Trend","Accum","Base","52W%","DD%","Signals","Market"],
   top_rs:       ["#","Symbol","RS Rating","dRS7","LS Score","Trend","1M%","3M%","52W%","Signals","Market"],
   top_momentum: ["#","Symbol","dRS 7D","RS","LS Score","Vol Surge","Accum","Trend","1M%","Signals","Market"],
   near_breakout:["#","Symbol","52W High%","Trend","Base Tight","LS Score","RS","Vol","1M%","Signals","Market"],
@@ -319,9 +321,13 @@ function rowCells(r, tab){
   const mkt = `<td><span style="font-size:11px;font-weight:700;color:${MKT_COLORS[r.market]||"#6b7280"}">${r.market}</span></td>`;
   const vol  = `<td class="num"><span style="color:${r.vol_ratio>=2?"var(--red)":r.vol_ratio>=1.5?"var(--orange)":"var(--muted)"};font-weight:700">${r.vol_ratio.toFixed(1)}x</span></td>`;
   const prox52 = `<td class="num"><span class="${r.prox_52w<=2?"up":r.prox_52w<=5?"":"down"}">${r.prox_52w.toFixed(1)}%</span></td>`;
+  const ddVal = r.drawdown_pct !== undefined ? r.drawdown_pct : null;
+  const ddCell = ddVal !== null
+    ? `<td class="num"><span style="color:${ddVal>-5?"var(--muted)":ddVal>-15?"var(--orange)":"var(--red)"}">${ddVal.toFixed(1)}%</span></td>`
+    : `<td class="num"><span style="color:var(--muted)">—</span></td>`;
 
   switch(tab){
-    case "overall":       return `${symCell(r)}${lsBar(r.ls)}<td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td><td class="num ${r.drs7>=0?"up":"down"}">${r.drs7>=0?"+":""}${r.drs7}</td><td>${trendDots(r)}</td><td>${accumBar(r.accum_score)}</td><td class="num" style="color:var(--muted)">${r.base_tight.toFixed(1)}%</td>${prox52}<td>${sigTags(r)}</td>${mkt}`;
+    case "overall":       return `${symCell(r)}${lsBar(r.ls)}<td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td><td class="num ${r.drs7>=0?"up":"down"}">${r.drs7>=0?"+":""}${r.drs7}</td><td>${trendDots(r)}</td><td>${accumBar(r.accum_score)}</td><td class="num" style="color:var(--muted)">${r.base_tight.toFixed(1)}%</td>${prox52}${ddCell}<td>${sigTags(r)}</td>${mkt}`;
     case "top_rs":        return `${symCell(r)}<td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td><td class="num ${r.drs7>=0?"up":"down"}">${r.drs7>=0?"+":""}${r.drs7}</td>${lsBar(r.ls)}<td>${trendDots(r)}</td><td class="num">${fmtPct(r.r1m)}</td><td class="num">${fmtPct(r.r3m)}</td>${prox52}<td>${sigTags(r)}</td>${mkt}`;
     case "top_momentum":  return `${symCell(r)}<td class="num ${r.drs7>=0?"up":"down"}" style="font-size:16px;font-weight:800">${r.drs7>=0?"+":""}${r.drs7}</td><td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td>${lsBar(r.ls)}${vol}<td>${accumBar(r.accum_score)}</td><td>${trendDots(r)}</td><td class="num">${fmtPct(r.r1m)}</td><td>${sigTags(r)}</td>${mkt}`;
     case "near_breakout": return `${symCell(r)}${prox52}<td>${trendDots(r)}</td><td class="num" style="color:${r.base_tight<=8?"var(--green)":r.base_tight<=15?"var(--orange)":"var(--muted)"}">${r.base_tight.toFixed(1)}%</td>${lsBar(r.ls)}<td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td>${vol}<td class="num">${fmtPct(r.r1m)}</td><td>${sigTags(r)}</td>${mkt}`;

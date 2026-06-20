@@ -27,6 +27,7 @@ import leadership   as lb
 import thematic_matrix as tm
 import rotation_rrg    as rrg
 import economic_calendar as ec
+import correlation   as corr
 
 app = FastAPI(title="Playground Dashboard API", version="3.0")
 
@@ -221,6 +222,14 @@ def rotation(
 def economic_calendar(refresh: bool = Query(False)):
     result = (_refresh_and_fetch(ec.fetch_economic_calendar.cache_clear, ec.fetch_economic_calendar)
               if refresh else ec.fetch_economic_calendar())
+    return _resp(result)
+
+
+# ── Correlation Matrix ────────────────────────────────────────────────────────
+@app.get("/api/correlation")
+def correlation_matrix(refresh: bool = Query(False)):
+    result = (_refresh_and_fetch(corr.fetch_correlation.cache_clear, corr.fetch_correlation)
+              if refresh else corr.fetch_correlation())
     return _resp(result)
 
 
