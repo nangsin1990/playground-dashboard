@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 
 import data_engine as eng
+import data_io
 import pipeline
 from cache_utils import ttl_cache
 from constants import (
@@ -110,7 +111,6 @@ def fetch_rotation(mode: str = "core") -> dict:
 
     # Fetch SPY benchmark
     try:
-        import data_io
         bench_raw = data_io.fetch_batch((BENCHMARK_US,))
     except Exception:
         bench_raw = {}

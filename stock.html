@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock Deep Dive — Playground</title>
+<link rel="stylesheet" href="style.css">
+<style>
+:root{--panel-bg:#0d1117;--border:#1e293b;--indigo:#6366f1;--green:#10b981;--red:#ef4444;--orange:#f59e0b;--muted:#64748b;--muted2:#94a3b8;--text:#e2e8f0;}
+
+.search-bar{display:flex;gap:10px;margin-bottom:20px;}
+.ticker-input{flex:1;background:#0d1117;border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 16px;font-size:16px;font-weight:700;text-transform:uppercase;}
+.ticker-input:focus{outline:none;border-color:var(--indigo);}
+.btn-load{background:var(--indigo);color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;}
+.btn-load:hover{opacity:.85;}
+
+.tab-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px;}
+.tab-btn{padding:7px 16px;border-radius:6px;border:none;background:transparent;color:var(--muted2);font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{background:#6366f120;color:#a5b4fc;}
+
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:16px;}
+.metric-card{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+.metric-label{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:2px;}
+.metric-value{font-size:18px;font-weight:800;color:var(--text);}
+.metric-sub{font-size:10px;margin-top:2px;}
+.up{color:#34d399;}.dn{color:#f87171;}.neu{color:var(--muted2);}
+
+.signal-chip{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;margin:2px;}
+.chip-bull{background:rgba(16,185,129,.15);color:#34d399;}
+.chip-bear{background:rgba(239,68,68,.12);color:#f87171;}
+.chip-neu {background:rgba(100,116,139,.12);color:#94a3b8;}
+
+.chart-wrap{height:180px;position:relative;overflow:hidden;}
+.spark-canvas{width:100%;height:100%;}
+
+.vp-bar{display:flex;align-items:center;gap:8px;margin-bottom:3px;}
+.vp-label{width:55px;text-align:right;font-size:10px;color:var(--muted);font-weight:600;}
+.vp-track{flex:1;height:10px;background:#1e293b;border-radius:3px;overflow:hidden;}
+.vp-fill{height:100%;border-radius:3px;background:var(--indigo);transition:width .4s;}
+.vp-poc .vp-fill{background:var(--orange);}
+.vp-pct{font-size:10px;color:var(--muted);width:34px;}
+
+.earn-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #0d1520;font-size:12px;}
+.earn-date{color:var(--muted);width:85px;flex-shrink:0;}
+.earn-badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
+.earn-beat{background:rgba(16,185,129,.15);color:#34d399;}
+.earn-miss{background:rgba(239,68,68,.12);color:#f87171;}
+
+.div-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #0d1520;font-size:12px;}
+
+.iv-table td,.iv-table th{padding:6px 12px;font-size:12px;}
+.iv-table th{color:var(--muted);font-size:10px;font-weight:700;}
+
+.data-lag-banner{background:#1e293b;border-left:3px solid var(--orange);padding:6px 14px;border-radius:4px;font-size:11px;color:var(--muted2);margin-bottom:14px;}
+
+.rs-chart-wrap{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:600px){.rs-chart-wrap{grid-template-columns:1fr;}}
+
+#emptyState{text-align:center;padding:60px;color:var(--muted);font-size:14px;}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="brand"><div class="brand-icon">🛝</div><div class="brand-text">Playground</div></div>
+  <div class="nav-links">
+    <a class="nav-link" href="/">📊 Overview</a>
+    <a class="nav-link" href="/global.html">🌐 Global</a>
+    <a class="nav-link" href="/etf.html">📦 ETF</a>
+    <a class="nav-link" href="/leaders.html">🏆 Leadership</a>
+    <a class="nav-link" href="/thematic.html">🧩 Thematic</a>
+    <a class="nav-link" href="/rotation.html">🔄 Rotation</a>
+    <a class="nav-link" href="/screener.html">🔍 Screener</a>
+    <a class="nav-link" href="/correlation.html">📈 Correlations</a>
+    <a class="nav-link" href="/calendar.html">📅 Calendar</a>
+    <a class="nav-link active" href="/stock.html">🔬 Stock</a>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <h1>🔬 Stock Deep Dive</h1>
+    <span class="updated-badge" id="updatedBadge">—</span>
+  </div>
+
+  <div class="data-lag-banner">⏱ yfinance data delayed ~15 min during market hours</div>
+
+  <div class="search-bar">
+    <input class="ticker-input" id="tickerInput" type="text" placeholder="AAPL, NVDA, MSFT …" maxlength="10">
+    <button class="btn-load" onclick="loadStock()">Analyse</button>
+  </div>
+
+  <div class="tab-row" id="tabRow" style="display:none">
+    <button class="tab-btn active" onclick="showTab('technical')">📐 Technical</button>
+    <button class="tab-btn" onclick="showTab('volume')">📊 Volume Profile</button>
+    <button class="tab-btn" onclick="showTab('rs')">📈 RS vs Market</button>
+    <button class="tab-btn" onclick="showTab('earnings')">💰 Earnings</button>
+    <button class="tab-btn" onclick="showTab('dividends')">🏦 Dividends</button>
+    <button class="tab-btn" onclick="showTab('options')">🎯 Options IV</button>
+  </div>
+
+  <div id="emptyState">Enter a ticker above and click Analyse</div>
+  <div id="loadingState" style="display:none;text-align:center;padding:40px;color:var(--muted)">Loading…</div>
+
+  <!-- TABS -->
+  <div id="tabTechnical" class="tab-panel" style="display:none"></div>
+  <div id="tabVolume"    class="tab-panel" style="display:none"></div>
+  <div id="tabRs"        class="tab-panel" style="display:none"></div>
+  <div id="tabEarnings"  class="tab-panel" style="display:none"></div>
+  <div id="tabDividends" class="tab-panel" style="display:none"></div>
+  <div id="tabOptions"   class="tab-panel" style="display:none"></div>
+</div>
+
+<script src="/mobile-nav.js"></script>
+<script>
+let _state = {ticker:"", theme:"", data:{}};
+
+function $(id){ return document.getElementById(id); }
+function pct(v, d=1){ return v==null?"—":`<span class="${v>0?"up":v<0?"dn":"neu"}">${v>0?"+":""}${v.toFixed(d)}%</span>`; }
+function val(v, d=2){ return v==null?"—":v.toFixed(d); }
+function chip(signal){
+  const c = signal.includes("Bull")||signal.includes("Above")||signal.includes("Upper")?"chip-bull":
+            signal.includes("Bear")||signal.includes("Below")||signal.includes("Over")&&!signal.includes("Above")?"chip-bear":
+            signal.includes("Overbought")?"chip-bear":
+            signal.includes("Oversold")?"chip-bull":"chip-neu";
+  return `<span class="signal-chip ${c}">${signal}</span>`;
+}
+
+async function loadStock(){
+  const tk = $("tickerInput").value.trim().toUpperCase();
+  if(!tk){ return; }
+  _state.ticker = tk;
+  $("emptyState").style.display = "none";
+  $("tabRow").style.display = "none";
+  $("loadingState").style.display = "";
+  ["tabTechnical","tabVolume","tabRs","tabEarnings","tabDividends","tabOptions"]
+    .forEach(id => $(id).style.display = "none");
+
+  // Fetch all in parallel
+  const [tech, rs, earn, div, iv] = await Promise.all([
+    fetch(`/api/technicals?ticker=${tk}`).then(r=>r.json()).catch(()=>({ok:false})),
+    fetch(`/api/sector_rs?ticker=${tk}&theme=${encodeURIComponent(_state.theme)}`).then(r=>r.json()).catch(()=>({ok:false})),
+    fetch(`/api/earnings?ticker=${tk}`).then(r=>r.json()).catch(()=>({ok:false})),
+    fetch(`/api/dividends?ticker=${tk}`).then(r=>r.json()).catch(()=>({ok:false})),
+    fetch(`/api/options_iv?ticker=${tk}`).then(r=>r.json()).catch(()=>({ok:false})),
+  ]);
+
+  _state.data = {tech, rs, earn, div, iv};
+  $("loadingState").style.display = "none";
+  $("tabRow").style.display = "";
+  $("updatedBadge").textContent = tech.updated || "—";
+
+  renderTechnical(tech);
+  renderVolume(tech);
+  renderRS(rs);
+  renderEarnings(earn);
+  renderDividends(div);
+  renderOptions(iv);
+  showTab("technical");
+}
+
+function showTab(name){
+  document.querySelectorAll(".tab-btn").forEach((b,i)=>{
+    const names=["technical","volume","rs","earnings","dividends","options"];
+    b.classList.toggle("active", names[i]===name);
+  });
+  document.querySelectorAll(".tab-panel").forEach(p=>p.style.display="none");
+  $("tab"+name.charAt(0).toUpperCase()+name.slice(1)).style.display="";
+}
+
+// ── Technical ──────────────────────────────────────────────────────────────
+function renderTechnical(d){
+  if(!d.ok){ $("tabTechnical").innerHTML=`<div class="panel" style="padding:20px;color:var(--red)">${d.error||"Error"}</div>`; return; }
+  $("tabTechnical").innerHTML = `
+  <div class="metric-grid">
+    ${metric("RSI (14)", val(d.rsi,1), chip(d.rsi_signal))}
+    ${metric("MACD Hist", val(d.macd_hist,4), chip(d.macd_signal))}
+    ${metric("Stoch %K", val(d.stoch_k,1), chip(d.stoch_signal))}
+    ${metric("BB Position", d.bb_pct!=null?d.bb_pct.toFixed(1)+"%":"—", chip(d.bb_signal||"—"))}
+    ${metric("VWAP", "$"+val(d.vwap,2), chip(d.vwap_signal))}
+    ${metric("ATR (14)", val(d.atr,2), `<span class="metric-sub neu">${d.atr_pct!=null?d.atr_pct+"%":""} of price</span>`)}
+  </div>
+  <div class="panel" style="padding:14px;">
+    <div class="panel-header"><span class="panel-title">RSI (14) — last 30 bars</span></div>
+    <canvas id="rsiCanvas" height="80" style="width:100%;display:block;margin-top:8px;"></canvas>
+  </div>
+  <div class="panel" style="padding:14px;margin-top:10px;">
+    <div class="panel-header"><span class="panel-title">MACD Histogram</span></div>
+    <canvas id="macdCanvas" height="80" style="width:100%;display:block;margin-top:8px;"></canvas>
+  </div>
+  <div class="panel" style="padding:14px;margin-top:10px;">
+    <div class="panel-header"><span class="panel-title">Price vs Bollinger Bands + VWAP</span></div>
+    <canvas id="bbCanvas" height="100" style="width:100%;display:block;margin-top:8px;"></canvas>
+  </div>`;
+
+  requestAnimationFrame(()=>{
+    drawLineChart("rsiCanvas", d.rsi_spark||[], "#6366f1", 0, 100, [{y:70,color:"#ef444460"},{y:30,color:"#10b98160"}]);
+    drawBarChart("macdCanvas", d.macd_spark||[], d.macd_spark||[]);
+    drawBBChart("bbCanvas", d.price_history||{});
+  });
+}
+
+function metric(label, val, sub=""){
+  return `<div class="metric-card"><div class="metric-label">${label}</div><div class="metric-value">${val}</div>${sub}</div>`;
+}
+
+function drawLineChart(id, data, color="#6366f1", yMin=null, yMax=null, refs=[]){
+  const c = $(id); if(!c||!data.length) return;
+  const ctx = c.getContext("2d");
+  c.width = c.parentElement.clientWidth; c.height = 80;
+  const w=c.width, h=c.height, n=data.length;
+  const lo = yMin??Math.min(...data), hi = yMax??Math.max(...data);
+  const scale = v => h - (v - lo) / (hi - lo + .0001) * h;
+  ctx.clearRect(0,0,w,h);
+  // Reference lines
+  refs.forEach(r => {
+    ctx.beginPath(); ctx.strokeStyle=r.color; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    const y=scale(r.y); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); ctx.setLineDash([]);
+  });
+  // Line
+  ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=2;
+  data.forEach((v,i)=>{ const x=i/(n-1)*w, y=scale(v); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.stroke();
+}
+
+function drawBarChart(id, data){
+  const c=$(id); if(!c||!data.length) return;
+  const ctx=c.getContext("2d");
+  c.width=c.parentElement.clientWidth; c.height=80;
+  const w=c.width, h=c.height, n=data.length;
+  const lo=Math.min(0,...data), hi=Math.max(0,...data);
+  const zero = h - (0-lo)/(hi-lo+.0001)*h;
+  const bw = w/n-1;
+  ctx.clearRect(0,0,w,h);
+  data.forEach((v,i)=>{
+    const x=i*(bw+1), yv=h-(v-lo)/(hi-lo+.0001)*h;
+    ctx.fillStyle = v>=0?"#34d399":"#f87171";
+    ctx.fillRect(x, Math.min(yv,zero), bw, Math.abs(yv-zero)||1);
+  });
+}
+
+function drawBBChart(id, ph){
+  const c=$(id); if(!c||!ph.close||!ph.close.length) return;
+  const ctx=c.getContext("2d");
+  c.width=c.parentElement.clientWidth; c.height=100;
+  const w=c.width, h=c.height;
+  const vals=[...ph.close,...ph.vwap,...ph.bb_up,...ph.bb_lo].filter(v=>v!=null);
+  if(!vals.length) return;
+  const lo=Math.min(...vals), hi=Math.max(...vals);
+  const sc = v => v==null?null:h-(v-lo)/(hi-lo+.0001)*h;
+  const n=ph.close.length;
+  const drawLine = (arr, color, dashed=false) => {
+    ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=dashed?1:1.5;
+    if(dashed) ctx.setLineDash([3,3]);
+    let first=true;
+    arr.forEach((v,i)=>{ const y=sc(v); if(y==null) return; const x=i/(n-1)*w; first?ctx.moveTo(x,y):ctx.lineTo(x,y); first=false; });
+    ctx.stroke(); ctx.setLineDash([]);
+  };
+  ctx.clearRect(0,0,w,h);
+  drawLine(ph.bb_up, "#6366f140", true);
+  drawLine(ph.bb_lo, "#6366f140", true);
+  drawLine(ph.bb_mid,"#6366f170", true);
+  drawLine(ph.vwap,  "#f59e0b",  false);
+  drawLine(ph.close, "#e2e8f0",  false);
+}
+
+// ── Volume Profile ─────────────────────────────────────────────────────────
+function renderVolume(d){
+  const vp = d.volume_profile;
+  if(!d.ok||!vp||!vp.price_levels){ $("tabVolume").innerHTML=`<div class="panel" style="padding:20px;color:var(--muted)">No volume profile data.</div>`; return; }
+  const maxPct = Math.max(...vp.volume_pct);
+  const pocIdx  = vp.volume_pct.indexOf(maxPct);
+  const bars = vp.price_levels.map((price,i)=>`
+    <div class="vp-bar${i===pocIdx?" vp-poc":""}">
+      <div class="vp-label">$${price}</div>
+      <div class="vp-track"><div class="vp-fill" style="width:${vp.volume_pct[i]/maxPct*100}%"></div></div>
+      <div class="vp-pct">${vp.volume_pct[i]}%</div>
+    </div>`).reverse().join("");
+  $("tabVolume").innerHTML = `
+  <div class="panel" style="padding:16px;">
+    <div class="panel-header"><span class="panel-title">Volume Profile — last ${vp.days} days</span></div>
+    <div style="margin-top:4px;font-size:11px;color:var(--muted)">
+      Range $${vp.price_lo} – $${vp.price_hi} · <span style="color:var(--orange)">▌ Point of Control: $${vp.poc_price}</span>
+    </div>
+    <div style="margin-top:12px;">${bars}</div>
+  </div>`;
+}
+
+// ── RS vs Market ──────────────────────────────────────────────────────────
+function renderRS(d){
+  if(!d.ok){ $("tabRs").innerHTML=`<div class="panel" style="padding:20px;color:var(--red)">${d.error||"Error"}</div>`; return; }
+  const periods = d.vs_spy?.periods||{};
+  const LABELS  = {p5:"1W",p21:"1M",p63:"3M",p126:"6M",p252:"1Y"};
+  const rows    = Object.entries(periods).map(([k,v])=>`
+    <tr style="border-bottom:1px solid #0d1520;">
+      <td style="color:var(--muted2);font-size:12px;">${LABELS[k]||k}</td>
+      <td style="text-align:right;font-size:12px;">${pct(v.stock_ret)}</td>
+      <td style="text-align:right;font-size:12px;">${pct(v.bench_ret)}</td>
+      <td style="text-align:right;font-size:12px;font-weight:700;">${pct(v.alpha)}</td>
+      <td style="text-align:center;">${v.outperform?"✅":"❌"}</td>
+    </tr>`).join("");
+
+  const ac = d.alpha_chart||{};
+  $("tabRs").innerHTML = `
+  <div class="panel" style="padding:14px;margin-bottom:10px;">
+    <div class="panel-header"><span class="panel-title">${d.ticker} vs SPY — Alpha by Period</span></div>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px;">
+      <thead><tr style="font-size:10px;color:var(--muted);">
+        <th style="text-align:left">Period</th><th style="text-align:right">Stock</th>
+        <th style="text-align:right">SPY</th><th style="text-align:right">Alpha</th>
+        <th style="text-align:center">Beat</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+  <div class="panel" style="padding:14px;">
+    <div class="panel-header"><span class="panel-title">63-Day Relative Performance (indexed to 100)</span>
+      <span style="font-size:10px;color:var(--muted);margin-left:8px;">
+        <span style="color:#e2e8f0">— ${d.ticker}</span> &nbsp; 
+        <span style="color:#6366f1">— SPY</span> &nbsp; 
+        <span style="color:#f59e0b">— RS Ratio</span>
+      </span>
+    </div>
+    <canvas id="rsCanvas" height="100" style="width:100%;display:block;margin-top:8px;"></canvas>
+  </div>
+  ${d.vs_sector && Object.keys(d.vs_sector.periods||{}).length ? `
+  <div class="panel" style="padding:14px;margin-top:10px;">
+    <div class="panel-header"><span class="panel-title">${d.ticker} vs ${d.sector_etf} (Sector)</span></div>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px;">
+      ${Object.entries(d.vs_sector.periods||{}).map(([k,v])=>`
+        <span style="margin-right:16px;">${LABELS[k]||k}: <b style="color:${v.alpha>0?"var(--green)":"var(--red)"}">${v.alpha>0?"+":""}${v.alpha}%</b></span>
+      `).join("")}
+    </div>
+  </div>` : ""}`;
+
+  requestAnimationFrame(()=>{
+    if(ac.dates?.length){
+      const c=$("rsCanvas"); if(!c) return;
+      const ctx=c.getContext("2d");
+      c.width=c.parentElement.clientWidth; c.height=100;
+      const w=c.width,h=c.height,n=ac.dates.length;
+      const all=[...ac.stock,...ac.spy,...ac.rs_ratio].filter(v=>v!=null);
+      if(!all.length) return;
+      const lo=Math.min(...all),hi=Math.max(...all);
+      const sc=v=>v==null?null:h-(v-lo)/(hi-lo+.0001)*h;
+      const drawSeries=(arr,color,lw=1.5)=>{
+        ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=lw;
+        let first=true;
+        arr.forEach((v,i)=>{const y=sc(v);if(y==null)return;const x=i/(n-1)*w;first?ctx.moveTo(x,y):ctx.lineTo(x,y);first=false;});
+        ctx.stroke();
+      };
+      ctx.clearRect(0,0,w,h);
+      drawSeries(ac.spy,     "#6366f1");
+      drawSeries(ac.rs_ratio,"#f59e0b",1);
+      drawSeries(ac.stock,   "#e2e8f0",2);
+    }
+  });
+}
+
+// ── Earnings ──────────────────────────────────────────────────────────────
+function renderEarnings(d){
+  if(!d.ok){ $("tabEarnings").innerHTML=`<div class="panel" style="padding:20px;color:var(--red)">${d.error||"Error"}</div>`; return; }
+  const rows = (d.history||[]).map(r=>`
+    <div class="earn-row">
+      <div class="earn-date">${r.date}</div>
+      <div style="flex:1;">
+        <span style="color:var(--muted);font-size:11px;">Est </span><b>${r.eps_est??'—'}</b>
+        <span style="color:var(--muted);font-size:11px;margin-left:8px;">Act </span><b>${r.eps_actual??'—'}</b>
+      </div>
+      ${r.surprise!=null?`<span class="earn-badge ${r.beat?"earn-beat":"earn-miss"}">${r.beat?"BEAT":"MISS"} ${r.beat?"+":""}${r.surprise}%</span>`:"<span style='color:var(--muted);font-size:11px'>—</span>"}
+    </div>`).join("");
+  $("tabEarnings").innerHTML = `
+  <div class="panel" style="padding:14px;">
+    <div class="panel-header">
+      <span class="panel-title">EPS Surprise History</span>
+      ${d.beat_rate!=null?`<span style="font-size:11px;color:var(--green);margin-left:8px;">Beat Rate: ${d.beat_rate}%</span>`:""}
+    </div>
+    ${d.next_date?`<div style="margin:8px 0;font-size:12px;color:var(--orange)">📅 Next earnings: <b>${d.next_date}</b></div>`:""}
+    ${rows||`<div style="color:var(--muted);padding:12px;font-size:12px">No earnings history available</div>`}
+  </div>`;
+}
+
+// ── Dividends ─────────────────────────────────────────────────────────────
+function renderDividends(d){
+  if(!d.ok){ $("tabDividends").innerHTML=`<div class="panel" style="padding:20px;color:var(--muted)">${d.error||"No dividend data"}</div>`; return; }
+  const divRows = (d.dividends||[]).map(r=>`
+    <div class="div-row"><span style="color:var(--muted)">${r.date}</span><span style="color:var(--green);font-weight:700;">$${r.amount}</span></div>`).join("");
+  const spl = (d.splits||[]).map(r=>`
+    <div class="div-row"><span style="color:var(--muted)">${r.date}</span><span style="color:var(--orange);font-weight:700;">${r.ratio}:1 split</span></div>`).join("");
+  $("tabDividends").innerHTML = `
+  <div class="metric-grid">
+    ${metric("Annual Yield",   d.div_yield!=null?(d.div_yield*100).toFixed(2)+"%":"—","<span class='metric-sub neu'>ttm</span>")}
+    ${metric("Annual Rate",    d.div_rate!=null?"$"+d.div_rate:"—","")}
+    ${metric("Ex-Div Date",    d.ex_div||"—","")}
+  </div>
+  <div class="panel" style="padding:14px;">
+    <div class="panel-header"><span class="panel-title">Recent Dividends</span></div>
+    ${divRows||`<div style="color:var(--muted);font-size:12px;padding:8px">No dividends</div>`}
+  </div>
+  ${spl?`<div class="panel" style="padding:14px;margin-top:10px;">
+    <div class="panel-header"><span class="panel-title">Stock Splits</span></div>
+    ${spl}
+  </div>`:""}`;
+}
+
+// ── Options IV ────────────────────────────────────────────────────────────
+function renderOptions(d){
+  if(!d.ok){ $("tabOptions").innerHTML=`<div class="panel" style="padding:20px;color:var(--muted)">${d.error||"No options data"}</div>`; return; }
+  const ivPct = d.nearest_iv ? (d.nearest_iv*100).toFixed(1)+"%" : "—";
+  const rows = (d.expirations||[]).map(r=>`
+    <tr style="border-bottom:1px solid #0d1520;font-size:12px;">
+      <td style="color:var(--muted2)">${r.expiry}</td>
+      <td style="text-align:center;color:var(--muted)">${r.dte}d</td>
+      <td style="text-align:right;font-weight:700">${r.avg_iv!=null?(r.avg_iv*100).toFixed(1)+"%":"—"}</td>
+      <td style="text-align:right;color:var(--orange)">${r.exp_move!=null?"$"+r.exp_move.toFixed(2):"—"}</td>
+      <td style="text-align:right;color:var(--muted2)">${r.exp_move_pct!=null?"±"+r.exp_move_pct+"%":"—"}</td>
+    </tr>`).join("");
+  $("tabOptions").innerHTML = `
+  <div class="metric-grid">
+    ${metric("Nearest IV",      ivPct, "<span class='metric-sub neu'>ATM straddle</span>")}
+    ${metric("Expected Move",   d.nearest_exp_move!=null?"$"+d.nearest_exp_move.toFixed(2):"—", "")}
+    ${metric("Expected Move %", d.nearest_exp_move_pct!=null?"±"+d.nearest_exp_move_pct+"%":"—", "")}
+  </div>
+  <div class="panel" style="padding:14px;">
+    <div class="panel-header"><span class="panel-title">IV Term Structure</span></div>
+    <table class="iv-table" style="width:100%;border-collapse:collapse;margin-top:8px;">
+      <thead><tr><th style="text-align:left">Expiry</th><th style="text-align:center">DTE</th>
+        <th style="text-align:right">Avg IV</th><th style="text-align:right">Exp Move $</th><th style="text-align:right">Exp Move %</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:10px;font-size:10px;color:var(--muted)">${d.note||""}</div>
+  </div>`;
+}
+
+// Enter key triggers load
+document.getElementById("tickerInput").addEventListener("keydown",e=>{
+  if(e.key==="Enter") loadStock();
+});
+
+// Auto-load from URL param ?t=AAPL
+const urlTk = new URLSearchParams(location.search).get("t");
+if(urlTk){ $("tickerInput").value=urlTk.toUpperCase(); loadStock(); }
+</script>
+</body>
+</html>

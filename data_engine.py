@@ -218,3 +218,222 @@ def compute_correlation_matrix(combined: dict, tickers: list[str],
         "period_days": days,
         "n_tickers":   len(labels),
     }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ── 9) Technical Indicators: RSI / MACD / Stochastic / Bollinger / VWAP ────
+# ══════════════════════════════════════════════════════════════════════════════
+
+def calc_rsi(close: pd.Series, period: int = 14) -> pd.Series:
+    """RSI (Wilder smoothing)."""
+    delta = close.diff()
+    gain  = delta.clip(lower=0)
+    loss  = (-delta).clip(lower=0)
+    avg_g = gain.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
+    avg_l = loss.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
+    rs    = avg_g / avg_l.replace(0, np.nan)
+    return 100 - (100 / (1 + rs))
+
+
+def calc_macd(close: pd.Series,
+              fast: int = 12, slow: int = 26, signal: int = 9
+              ) -> tuple[pd.Series, pd.Series, pd.Series]:
+    """Returns (macd_line, signal_line, histogram)."""
+    ema_fast   = close.ewm(span=fast,   adjust=False).mean()
+    ema_slow   = close.ewm(span=slow,   adjust=False).mean()
+    macd_line  = ema_fast - ema_slow
+    signal_line= macd_line.ewm(span=signal, adjust=False).mean()
+    histogram  = macd_line - signal_line
+    return macd_line, signal_line, histogram
+
+
+def calc_stochastic(df: pd.DataFrame,
+                    k_period: int = 14, d_period: int = 3
+                    ) -> tuple[pd.Series, pd.Series]:
+    """Returns (%K, %D)."""
+    low_min  = df["Low"].rolling(k_period).min()
+    high_max = df["High"].rolling(k_period).max()
+    denom    = (high_max - low_min).replace(0, np.nan)
+    pct_k    = (df["Close"] - low_min) / denom * 100
+    pct_d    = pct_k.rolling(d_period).mean()
+    return pct_k, pct_d
+
+
+def calc_bollinger(close: pd.Series,
+                   period: int = 20, n_std: float = 2.0
+                   ) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
+    """Returns (upper, mid, lower, %B)."""
+    mid   = close.rolling(period).mean()
+    std   = close.rolling(period).std()
+    upper = mid + n_std * std
+    lower = mid - n_std * std
+    pct_b = (close - lower) / (upper - lower).replace(0, np.nan) * 100
+    return upper, mid, lower, pct_b
+
+
+def calc_vwap(df: pd.DataFrame, lookback: int = 20) -> pd.Series:
+    """Rolling VWAP over last `lookback` bars (typical price × volume)."""
+    tp  = (df["High"] + df["Low"] + df["Close"]) / 3
+    pv  = tp * df["Volume"]
+    return pv.rolling(lookback).sum() / df["Volume"].rolling(lookback).sum().replace(0, np.nan)
+
+
+def calc_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
+    """Average True Range."""
+    hl  = df["High"] - df["Low"]
+    hc  = (df["High"] - df["Close"].shift(1)).abs()
+    lc  = (df["Low"]  - df["Close"].shift(1)).abs()
+    tr  = pd.concat([hl, hc, lc], axis=1).max(axis=1)
+    return tr.ewm(alpha=1/period, adjust=False).mean()
+
+
+def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """Append RSI, MACD, Stochastic, Bollinger, VWAP, ATR to df."""
+    out = df.copy()
+    out["RSI"]         = calc_rsi(out["Close"])
+    ml, sl, hist       = calc_macd(out["Close"])
+    out["MACD"]        = ml
+    out["MACD_SIGNAL"] = sl
+    out["MACD_HIST"]   = hist
+    k, d               = calc_stochastic(out)
+    out["STOCH_K"]     = k
+    out["STOCH_D"]     = d
+    ub, mb, lb, pb     = calc_bollinger(out["Close"])
+    out["BB_UPPER"]    = ub
+    out["BB_MID"]      = mb
+    out["BB_LOWER"]    = lb
+    out["BB_PCT"]      = pb          # 0=at lower, 100=at upper
+    out["VWAP"]        = calc_vwap(out)
+    out["ATR"]         = calc_atr(out)
+    return out
+
+
+def tech_snapshot(df: pd.DataFrame) -> dict:
+    """
+    Return latest-bar snapshot of all technical indicators.
+    Includes signal interpretation for frontend display.
+    """
+    df2  = add_technical_indicators(df)
+    last = df2.iloc[-1]
+    close = float(last["Close"])
+
+    rsi  = round(float(last["RSI"]),  1) if not np.isnan(last["RSI"])  else None
+    macd = round(float(last["MACD"]), 4) if not np.isnan(last["MACD"]) else None
+    macd_sig = round(float(last["MACD_SIGNAL"]), 4) if not np.isnan(last["MACD_SIGNAL"]) else None
+    macd_hist= round(float(last["MACD_HIST"]), 4)   if not np.isnan(last["MACD_HIST"])   else None
+    stoch_k  = round(float(last["STOCH_K"]), 1) if not np.isnan(last["STOCH_K"]) else None
+    stoch_d  = round(float(last["STOCH_D"]), 1) if not np.isnan(last["STOCH_D"]) else None
+    bb_upper = round(float(last["BB_UPPER"]), 2) if not np.isnan(last["BB_UPPER"]) else None
+    bb_lower = round(float(last["BB_LOWER"]), 2) if not np.isnan(last["BB_LOWER"]) else None
+    bb_pct   = round(float(last["BB_PCT"]), 1)   if not np.isnan(last["BB_PCT"])   else None
+    vwap     = round(float(last["VWAP"]), 2)     if not np.isnan(last["VWAP"])     else None
+    atr      = round(float(last["ATR"]), 2)      if not np.isnan(last["ATR"])      else None
+    atr_pct  = round(atr / close * 100, 2)       if atr and close else None
+
+    # Signal interpretations
+    rsi_signal = (
+        "Overbought" if rsi and rsi > 70 else
+        "Oversold"   if rsi and rsi < 30 else
+        "Neutral"
+    )
+    macd_signal = (
+        "Bullish"  if macd_hist and macd_hist > 0 else
+        "Bearish"  if macd_hist and macd_hist < 0 else
+        "Neutral"
+    )
+    stoch_signal = (
+        "Overbought" if stoch_k and stoch_k > 80 else
+        "Oversold"   if stoch_k and stoch_k < 20 else
+        "Neutral"
+    )
+    bb_signal = (
+        "Upper Break" if bb_pct and bb_pct >= 100 else
+        "Lower Break" if bb_pct and bb_pct <= 0   else
+        "Upper Zone"  if bb_pct and bb_pct >= 80  else
+        "Lower Zone"  if bb_pct and bb_pct <= 20  else
+        "Mid"
+    )
+    vwap_signal = "Above VWAP" if vwap and close > vwap else "Below VWAP"
+
+    # Sparklines: last 20 bars of RSI and MACD_HIST
+    rsi_spark  = [round(float(v), 1) for v in df2["RSI"].tail(20).tolist()
+                  if not np.isnan(v)]
+    macd_spark = [round(float(v), 4) for v in df2["MACD_HIST"].tail(20).tolist()
+                  if not np.isnan(v)]
+
+    return {
+        "rsi":         rsi,        "rsi_signal":   rsi_signal,
+        "macd":        macd,       "macd_signal_line": macd_sig,
+        "macd_hist":   macd_hist,  "macd_signal":  macd_signal,
+        "stoch_k":     stoch_k,    "stoch_d": stoch_d,
+        "stoch_signal":stoch_signal,
+        "bb_upper":    bb_upper,   "bb_lower": bb_lower,
+        "bb_pct":      bb_pct,     "bb_signal": bb_signal,
+        "vwap":        vwap,       "vwap_signal": vwap_signal,
+        "atr":         atr,        "atr_pct": atr_pct,
+        "rsi_spark":   rsi_spark,
+        "macd_spark":  macd_spark,
+        "close":       close,
+    }
+
+
+# ── 10) Relative Strength vs Benchmark ────────────────────────────────────────
+def rs_vs_benchmark(stock_close: pd.Series,
+                    bench_close: pd.Series,
+                    periods: list[int] | None = None) -> dict:
+    """
+    Compare stock return vs benchmark (e.g. SPY) over multiple periods.
+    Returns alpha (stock_return - bench_return) per period.
+    """
+    if periods is None:
+        periods = [5, 21, 63, 126, 252]   # 1W 1M 3M 6M 1Y
+
+    aligned = pd.concat([stock_close, bench_close], axis=1, join="inner")
+    aligned.columns = ["stock", "bench"]
+
+    result = {}
+    for n in periods:
+        if len(aligned) <= n:
+            continue
+        s_ret  = float(aligned["stock"].iloc[-1] / aligned["stock"].iloc[-1-n] - 1) * 100
+        b_ret  = float(aligned["bench"].iloc[-1] / aligned["bench"].iloc[-1-n] - 1) * 100
+        alpha  = round(s_ret - b_ret, 2)
+        result[f"p{n}"] = {
+            "stock_ret": round(s_ret, 2),
+            "bench_ret": round(b_ret, 2),
+            "alpha":     alpha,
+            "outperform": alpha > 0,
+        }
+
+    # Rolling 63d RS ratio (outperformance trend)
+    rel    = aligned["stock"] / aligned["bench"]
+    rs_63  = rel.pct_change(63).tail(63)
+    trend  = [round(float(v)*100, 2) for v in rs_63.tolist() if not np.isnan(v)]
+
+    return {"periods": result, "rs_trend_63d": trend}
+
+
+# ── 11) Sector Relative Strength ──────────────────────────────────────────────
+# GICS sector → SPDR ETF mapping
+SECTOR_ETF_MAP = {
+    "Information Technology":  "XLK",
+    "Financials":              "XLF",
+    "Energy":                  "XLE",
+    "Health Care":             "XLV",
+    "Industrials":             "XLI",
+    "Consumer Discretionary":  "XLY",
+    "Consumer Staples":        "XLP",
+    "Utilities":               "XLU",
+    "Materials":               "XLB",
+    "Communication Services":  "XLC",
+    "Real Estate":             "IYR",
+    # Broad fallback
+    "Semiconductors":          "SMH",
+    "Biotech":                 "XBI",
+}
+
+def sector_relative_strength(stock_close: pd.Series,
+                              sector_close: pd.Series,
+                              periods: list[int] | None = None) -> dict:
+    """Compare stock vs its sector ETF."""
+    return rs_vs_benchmark(stock_close, sector_close, periods)

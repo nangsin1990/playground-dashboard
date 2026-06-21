@@ -111,7 +111,7 @@ a{text-decoration:none;color:inherit}
 <body>
 
 <!-- TOP NAV -->
-<div class="topnav">
+<nav class="topnav">
   <div class="brand">
     <div class="brand-icon">🛝</div>
     <div class="brand-text">Playground</div>
@@ -123,77 +123,16 @@ a{text-decoration:none;color:inherit}
     <a class="nav-link" href="/leaders.html">🏆 Leadership</a>
     <a class="nav-link" href="/thematic.html">🧩 Thematic</a>
     <a class="nav-link active" href="/rotation.html">🔄 Rotation</a>
+    <a class="nav-link" href="/screener.html">🔍 Screener</a>
+    <a class="nav-link" href="/correlation.html">📈 Correlations</a>
     <a class="nav-link" href="/calendar.html">📅 Calendar</a>
-    <a class="nav-link" href="#" style="opacity:.35;cursor:default">💼 Portfolio</a>
+    <a class="nav-link" href="/stock.html">🔬 Stock</a>
   </div>
   <div class="nav-right">
     <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
-    <span id="nav-loading" style="display:none;animation:spin .8s linear infinite;display:none">⏳</span>
-    <span class="badge-mode" id="modeLabel">CORE</span>
-    <button class="btn-refresh" onclick="loadData(true)">⟳ Refresh</button>
+    <span id="nav-loading" style="display:none">⏳</span>
   </div>
-</div>
-
-<!-- TOOLTIP -->
-<div class="rrg-tooltip" id="tooltip">
-  <div class="tt-name" id="ttName"></div>
-  <div class="tt-row"><span class="info-label">RS Ratio</span><span class="tt-val" id="ttRatio"></span></div>
-  <div class="tt-row"><span class="info-label">RS Momentum</span><span class="tt-val" id="ttMomentum"></span></div>
-  <div class="tt-row"><span class="info-label">Quadrant</span><span class="tt-val" id="ttQuad"></span></div>
-  <div class="tt-row"><span class="info-label">RS Rating</span><span class="tt-val" id="ttRS"></span></div>
-</div>
-
-<!-- MAIN -->
-<div class="main">
-  <div class="page-header">
-    <div class="page-title">🔄 Relative Rotation Graph (RRG)</div>
-  <div class="data-lag-banner">⏱ yfinance data delayed ~15 min during market hours</div>
-    <div class="page-sub">RS Ratio (x) vs RS Momentum (y) — sector & theme rotation vs benchmark</div>
-  </div>
-
-  <!-- CONTROLS -->
-  <div class="controls">
-    <div class="filter-group" id="marketFilter">
-      <button class="filter-btn active" data-mkt="US" onclick="setMarket('US',this)">🇺🇸 US Sectors</button>
-      <button class="filter-btn" data-mkt="TH" onclick="setMarket('TH',this)">🇹🇭 TH Sectors</button>
-      <button class="filter-btn" data-mkt="GLOBAL" onclick="setMarket('GLOBAL',this)">🌐 Global</button>
-      <button class="filter-btn" data-mkt="ETF" onclick="setMarket('ETF',this)">📦 ETF</button>
-    </div>
-    <div class="tail-toggle">
-      <button class="tail-btn active" onclick="setTail(4,this)">4W tail</button>
-      <button class="tail-btn" onclick="setTail(8,this)">8W tail</button>
-      <button class="tail-btn" onclick="setTail(12,this)">12W tail</button>
-    </div>
-    <div class="filter-group">
-      <button class="filter-btn active" onclick="setView('theme',this)">By Theme</button>
-      <button class="filter-btn" onclick="setView('ticker',this)">By Ticker</button>
-    </div>
-  </div>
-
-  <!-- LOADER -->
-  <div class="loader" id="loader">
-    <div class="loader-spin"></div>
-    <div>Computing RS Ratio & Momentum…</div>
-    <div style="font-size:11px;margin-top:6px;color:var(--muted)">Calculating relative rotation from Yahoo Finance data</div>
-  </div>
-  <div class="error-box" id="errorBox" style="display:none">
-    <div style="font-size:24px;margin-bottom:8px">⚠️</div>
-    <div id="errorMsg">Failed to load data</div>
-  </div>
-
-  <div id="mainContent" style="display:none">
-    <div class="layout2col">
-      <!-- RRG CHART -->
-      <div class="rrg-panel">
-        <div class="rrg-title">
-          <span>Relative Rotation Graph</span>
-          <span style="font-size:10px;color:var(--muted2)" id="benchmarkLabel">vs SPY benchmark</span>
-        </div>
-        <div class="rrg-canvas-wrap">
-          <canvas id="rrgCanvas"></canvas>
-        </div>
-        <div class="quad-legend">
-          <div class="quad-item"><div class="quad-dot" style="background:#10b981"></div><div><div class="quad-name">Leading 💚</div><div class="quad-desc">High RS, gaining momentum</div></div></div>
+</nav>
           <div class="quad-item"><div class="quad-dot" style="background:#f59e0b"></div><div><div class="quad-name">Weakening 🟡</div><div class="quad-desc">High RS, losing momentum</div></div></div>
           <div class="quad-item"><div class="quad-dot" style="background:#6366f1"></div><div><div class="quad-name">Improving 💜</div><div class="quad-desc">Low RS, gaining momentum</div></div></div>
           <div class="quad-item"><div class="quad-dot" style="background:#ef4444"></div><div><div class="quad-name">Lagging 🔴</div><div class="quad-desc">Low RS, losing momentum</div></div></div>
@@ -554,5 +493,6 @@ window.addEventListener('resize', ()=>{
 });
 </script>
 
+<script src="/mobile-nav.js"></script>
 </body>
 </html>

@@ -148,14 +148,14 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
     <a class="nav-link active" href="/leaders.html">🏆 Leadership</a>
     <a class="nav-link" href="/thematic.html">🧩 Thematic</a>
     <a class="nav-link" href="/rotation.html">🔄 Rotation</a>
+    <a class="nav-link" href="/screener.html">🔍 Screener</a>
+    <a class="nav-link" href="/correlation.html">📈 Correlations</a>
     <a class="nav-link" href="/calendar.html">📅 Calendar</a>
-    <a class="nav-link" href="#" style="opacity:.35;cursor:default">💼 Portfolio</a>
+    <a class="nav-link" href="/stock.html">🔬 Stock</a>
   </div>
   <div class="nav-right">
     <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
-    <span id="nav-loading" style="display:none;animation:spin .8s linear infinite;display:none">⏳</span>
-    <span class="upd" id="updTime">–</span>
-    <button class="refresh-btn" id="btnRefresh">🔄 Refresh</button>
+    <span id="nav-loading" style="display:none">⏳</span>
   </div>
 </nav>
 
@@ -436,5 +436,6 @@ document.getElementById("btnRefresh").addEventListener("click", load);
 load();
 </script>
 
+<script src="/mobile-nav.js"></script>
 </body>
 </html>

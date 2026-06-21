@@ -121,7 +121,7 @@ a{text-decoration:none;color:inherit}
 <body>
 
 <!-- TOP NAV -->
-<div class="topnav">
+<nav class="topnav">
   <div class="brand">
     <div class="brand-icon">🛝</div>
     <div class="brand-text">Playground</div>
@@ -133,53 +133,16 @@ a{text-decoration:none;color:inherit}
     <a class="nav-link" href="/leaders.html">🏆 Leadership</a>
     <a class="nav-link" href="/thematic.html">🧩 Thematic</a>
     <a class="nav-link" href="/rotation.html">🔄 Rotation</a>
+    <a class="nav-link" href="/screener.html">🔍 Screener</a>
+    <a class="nav-link" href="/correlation.html">📈 Correlations</a>
     <a class="nav-link active" href="/calendar.html">📅 Calendar</a>
-    <a class="nav-link" href="#" style="opacity:.35;cursor:default">💼 Portfolio</a>
+    <a class="nav-link" href="/stock.html">🔬 Stock</a>
   </div>
   <div class="nav-right">
     <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
-    <span id="nav-loading" style="display:none;animation:spin .8s linear infinite;display:none">⏳</span>
-    <button class="btn-refresh" onclick="loadData(true)">⟳ Refresh</button>
+    <span id="nav-loading" style="display:none">⏳</span>
   </div>
-</div>
-
-<!-- MAIN -->
-<div class="main">
-  <div class="page-header">
-    <div class="page-title">📅 Economic Calendar</div>
-    <div class="page-sub">FOMC · CPI · NFP · GDP · PCE · Earnings — 90 วันข้างหน้า · ฟรี 100% จาก FRED + yfinance</div>
-  </div>
-
-  <!-- LOADER -->
-  <div class="loader" id="loader">
-    <div class="loader-spin"></div>
-    <div>Loading economic events…</div>
-    <div style="font-size:11px;margin-top:6px;color:var(--muted)">Fetching from FRED API + yfinance</div>
-  </div>
-  <div class="error-box" id="errorBox" style="display:none">
-    <div style="font-size:24px;margin-bottom:8px">⚠️</div>
-    <div id="errorMsg">Failed to load calendar data</div>
-  </div>
-
-  <div id="mainContent" style="display:none">
-
-    <!-- NEXT FOMC HERO -->
-    <div class="fomc-hero" id="fomcHero" style="display:none">
-      <div class="fomc-countdown">
-        <div class="fomc-days" id="fomcDays">—</div>
-        <div class="fomc-days-label">days away</div>
-      </div>
-      <div class="fomc-divider"></div>
-      <div class="fomc-info">
-        <div class="fomc-badge">🏦 NEXT FOMC</div>
-        <div class="fomc-title" id="fomcTitle">FOMC Meeting</div>
-        <div class="fomc-sub" id="fomcSub">—</div>
-      </div>
-      <div class="fomc-date-badge">
-        <div class="fomc-date-big" id="fomcDateBig">—</div>
-        <div class="fomc-date-sub" id="fomcDateSub">—</div>
-      </div>
-    </div>
+</nav>
 
     <!-- CONTROLS -->
     <div class="controls">
@@ -363,5 +326,6 @@ function renderTimeline(events) {
 loadData();
 </script>
 
+<script src="/mobile-nav.js"></script>
 </body>
 </html>

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Screener — Playground</title>
+<link rel="stylesheet" href="style.css">
+<script src="nav.js" defer></script>
+<style>
+:root{--panel-bg:#0d1117;--border:#1e293b;--indigo:#6366f1;--green:#10b981;--red:#ef4444;--orange:#f59e0b;--muted:#64748b;--muted2:#94a3b8;--text:#e2e8f0;}
+
+/* ── Filter Panel ── */
+.filter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:16px;}
+.filter-group{display:flex;flex-direction:column;gap:4px;}
+.filter-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.filter-input{background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:12px;width:100%;box-sizing:border-box;transition:border-color .15s;}
+.filter-input:focus{outline:none;border-color:var(--indigo);}
+.filter-select{background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:12px;width:100%;box-sizing:border-box;}
+
+/* ── Presets ── */
+.preset-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.preset-btn{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted2);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.preset-btn:hover,.preset-btn.active{background:var(--indigo);border-color:var(--indigo);color:#fff;}
+
+/* ── Results header ── */
+.results-meta{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap;}
+.match-count{font-size:13px;font-weight:700;color:var(--text);}
+.match-sub{font-size:11px;color:var(--muted);}
+
+/* ── Table ── */
+.scr-table{width:100%;border-collapse:collapse;font-size:12px;}
+.scr-table thead th{padding:7px 10px;text-align:left;color:var(--muted);font-size:10px;font-weight:700;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
+.scr-table thead th:hover{color:var(--text);}
+.scr-table thead th.sort-active{color:var(--indigo);}
+.scr-table thead th.num{text-align:right;}
+.scr-table tbody tr{border-bottom:1px solid #0d1520;transition:background .1s;}
+.scr-table tbody tr:hover{background:rgba(99,102,241,.06);}
+.scr-table td{padding:7px 10px;white-space:nowrap;}
+.scr-table td.num{text-align:right;}
+
+/* ── Cells ── */
+.sym{font-weight:800;color:var(--text);font-size:13px;}
+.sym-name{font-size:10px;color:var(--muted);display:block;max-width:140px;overflow:hidden;text-overflow:ellipsis;}
+.rs-pill{display:inline-block;min-width:30px;text-align:center;padding:2px 7px;border-radius:12px;font-weight:700;font-size:11px;}
+.rs-90{background:rgba(16,185,129,.2);color:#34d399;}
+.rs-80{background:rgba(16,185,129,.12);color:#6ee7b7;}
+.rs-70{background:rgba(245,158,11,.18);color:#fbbf24;}
+.rs-low{background:rgba(107,114,128,.12);color:#9ca3af;}
+.up{color:#34d399;font-weight:600;}
+.dn{color:#f87171;font-weight:600;}
+.neu{color:var(--muted2);}
+.trend-dots{display:flex;gap:3px;align-items:center;}
+.td{width:9px;height:9px;border-radius:50%;}
+.td-on{background:#34d399;}
+.td-off{background:#1e293b;}
+.ls-bar-wrap{width:60px;height:5px;background:#1e293b;border-radius:3px;overflow:hidden;display:inline-block;}
+.ls-bar-fill{height:100%;border-radius:3px;background:var(--indigo);}
+.sig-tag{display:inline-block;padding:1px 5px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(99,102,241,.15);color:#a5b4fc;margin:1px;}
+.mkt-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;}
+.empty-state{text-align:center;padding:48px;color:var(--muted);font-size:14px;}
+.sort-asc::after{content:" ▲";}
+.sort-desc::after{content:" ▼";}
+.data-lag-banner{background:#1e293b;border-left:3px solid var(--orange);padding:6px 14px;border-radius:4px;font-size:11px;color:var(--muted2);margin-bottom:14px;}
+.btn-run{background:var(--indigo);color:#fff;border:none;padding:8px 22px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.btn-run:hover{opacity:.85;}
+.btn-reset{background:transparent;border:1px solid var(--border);color:var(--muted2);padding:8px 16px;border-radius:8px;font-size:12px;cursor:pointer;transition:all .15s;}
+.btn-reset:hover{border-color:var(--muted2);color:var(--text);}
+.mode-toggle{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--muted);}
+.mode-toggle select{background:#0d1117;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:11px;}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="brand">
+    <div class="brand-icon">🛝</div>
+    <div class="brand-text">Playground</div>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link" href="/">📊 Overview</a>
+    <a class="nav-link" href="/global.html">🌐 Global</a>
+    <a class="nav-link" href="/etf.html">📦 ETF</a>
+    <a class="nav-link" href="/leaders.html">🏆 Leadership</a>
+    <a class="nav-link" href="/thematic.html">🧩 Thematic</a>
+    <a class="nav-link" href="/rotation.html">🔄 Rotation</a>
+    <a class="nav-link active" href="/screener.html">🔍 Screener</a>
+    <a class="nav-link" href="/correlation.html">📈 Correlations</a>
+    <a class="nav-link" href="/calendar.html">📅 Calendar</a>
+    <a class="nav-link" href="/stock.html">🔬 Stock</a>
+  </div>
+  <div class="nav-right">
+    <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
+    <span id="nav-loading" style="display:none">⏳</span>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <h1>Stock Screener</h1>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <div class="mode-toggle">
+        Universe: <select id="modeSelect"><option value="core">Core (~126)</option><option value="full">Full (913)</option></select>
+      </div>
+      <span class="updated-badge" id="updatedBadge">—</span>
+    </div>
+  </div>
+
+  <div class="data-lag-banner">⏱ yfinance data delayed ~15 min · RS Rating ranked per-market (US vs US)</div>
+
+  <!-- Presets -->
+  <div class="preset-row" id="presetRow">
+    <span style="font-size:11px;color:var(--muted);align-self:center;">Quick:</span>
+    <button class="preset-btn" data-preset="leaders">🏆 Leaders</button>
+    <button class="preset-btn" data-preset="breakout">🚀 Near Breakout</button>
+    <button class="preset-btn" data-preset="momentum">⚡ RS Momentum</button>
+    <button class="preset-btn" data-preset="trend">📈 Trend Template</button>
+    <button class="preset-btn" data-preset="accum">🏦 Institutional Buying</button>
+    <button class="preset-btn" data-preset="volume">🔊 Volume Surge</button>
+    <button class="preset-btn" data-preset="custom">✏️ Custom</button>
+  </div>
+
+  <!-- Filter Panel -->
+  <div class="panel" style="padding:16px;margin-bottom:14px;">
+    <div class="filter-grid">
+      <div class="filter-group">
+        <label class="filter-label">RS Rating Min</label>
+        <input class="filter-input" id="f_rs_min" type="number" min="0" max="99" placeholder="0" value="70">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">RS Rating Max</label>
+        <input class="filter-input" id="f_rs_max" type="number" min="0" max="99" placeholder="99" value="99">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Trend Score Min (0–4)</label>
+        <input class="filter-input" id="f_trend_min" type="number" min="0" max="4" placeholder="0" value="0">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Accum Score Min</label>
+        <input class="filter-input" id="f_accum_min" type="number" step="0.1" placeholder="-1.0" value="-1">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Vol Ratio Min</label>
+        <input class="filter-input" id="f_vol_min" type="number" step="0.1" placeholder="0" value="0">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">% Below 52W High Max</label>
+        <input class="filter-input" id="f_prox_max" type="number" step="1" placeholder="100" value="100">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">1M Return Min (%)</label>
+        <input class="filter-input" id="f_r1m_min" type="number" step="1" placeholder="any">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">3M Return Min (%)</label>
+        <input class="filter-input" id="f_r3m_min" type="number" step="1" placeholder="any">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Leadership Score Min</label>
+        <input class="filter-input" id="f_ls_min" type="number" step="1" placeholder="0" value="0">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">RS Accel (dRS7) Min</label>
+        <input class="filter-input" id="f_drs7_min" type="number" step="1" placeholder="any">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Market</label>
+        <select class="filter-select" id="f_market">
+          <option value="">All</option>
+          <option value="US" selected>US</option>
+          <option value="HK">HK</option>
+          <option value="JP">JP</option>
+          <option value="KR">KR</option>
+          <option value="CN">CN</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Signal</label>
+        <select class="filter-select" id="f_signal">
+          <option value="">Any</option>
+          <option value="52W">52W High Breakout</option>
+          <option value="PPBP">Pocket Pivot</option>
+          <option value="VDU">Volume Dry-Up</option>
+          <option value="BGU">Buyable Gap-Up</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Theme / Sector</label>
+        <input class="filter-input" id="f_theme" type="text" placeholder="e.g. Tech, Health…">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Sort By</label>
+        <select class="filter-select" id="f_sort_by">
+          <option value="ls" selected>Leadership Score</option>
+          <option value="rs">RS Rating</option>
+          <option value="drs7">RS Acceleration</option>
+          <option value="r1m">1M Return</option>
+          <option value="r3m">3M Return</option>
+          <option value="vol_ratio">Volume Ratio</option>
+          <option value="prox_52w">% From 52W High ↑</option>
+          <option value="accum_score">Accum Score</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:6px;">
+      <button class="btn-run" onclick="runScreen()">🔍 Run Screen</button>
+      <button class="btn-reset" onclick="resetFilters()">Reset</button>
+      <span id="runStatus" style="font-size:11px;color:var(--muted);"></span>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="loading" style="display:none;text-align:center;padding:32px;color:var(--muted);">Running screen…</div>
+  <div id="noResults" style="display:none;" class="panel">
+    <div class="empty-state">😶 No stocks matched your filters. Try relaxing the criteria.</div>
+  </div>
+
+  <div id="resultsPanel" style="display:none;" class="panel" style="padding:0;">
+    <div style="padding:12px 16px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span class="match-count" id="matchCount">—</span>
+      <span class="match-sub" id="matchSub">—</span>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+        <label style="font-size:11px;color:var(--muted);">Sort ↓</label>
+        <input type="checkbox" id="sortDescCheck" checked onchange="runScreen()">
+        <button class="btn-reset" style="padding:4px 12px;font-size:11px;" onclick="runScreen(true)">↻ Refresh</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;padding:8px 0 0;">
+      <table class="scr-table">
+        <thead id="scrHead"></thead>
+        <tbody id="scrBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const MKT_COLORS = {US:"#6366f1",HK:"#f59e0b",JP:"#ef4444",KR:"#3b82f6",CN:"#e74c3c"};
+
+const PRESETS = {
+  leaders:   {rs_min:80,trend_min:3,ls_min:50,market:"US"},
+  breakout:  {rs_min:70,trend_min:2,prox_max:5,market:"US"},
+  momentum:  {rs_min:60,drs7_min:5,market:"US"},
+  trend:     {trend_min:4,rs_min:60,market:"US"},
+  accum:     {accum_min:0.2,rs_min:60,market:"US"},
+  volume:    {vol_min:1.5,rs_min:50,market:"US"},
+  custom:    {},
+};
+
+const FIELD_IDS = {
+  rs_min:"f_rs_min",rs_max:"f_rs_max",trend_min:"f_trend_min",
+  accum_min:"f_accum_min",vol_min:"f_vol_min",prox_max:"f_prox_max",
+  r1m_min:"f_r1m_min",r3m_min:"f_r3m_min",ls_min:"f_ls_min",
+  drs7_min:"f_drs7_min",market:"f_market",signal:"f_signal",theme:"f_theme",
+};
+
+function applyPreset(name){
+  document.querySelectorAll(".preset-btn").forEach(b=>b.classList.remove("active"));
+  document.querySelector(`[data-preset="${name}"]`)?.classList.add("active");
+
+  // Reset to defaults first
+  document.getElementById("f_rs_min").value  = 0;
+  document.getElementById("f_rs_max").value  = 99;
+  document.getElementById("f_trend_min").value = 0;
+  document.getElementById("f_accum_min").value = -1;
+  document.getElementById("f_vol_min").value   = 0;
+  document.getElementById("f_prox_max").value  = 100;
+  document.getElementById("f_r1m_min").value   = "";
+  document.getElementById("f_r3m_min").value   = "";
+  document.getElementById("f_ls_min").value    = 0;
+  document.getElementById("f_drs7_min").value  = "";
+  document.getElementById("f_market").value    = "US";
+  document.getElementById("f_signal").value    = "";
+  document.getElementById("f_theme").value     = "";
+
+  const p = PRESETS[name] || {};
+  Object.entries(p).forEach(([k, v]) => {
+    const el = document.getElementById(FIELD_IDS[k]);
+    if (el) el.value = v;
+  });
+  runScreen();
+}
+
+function collectParams(){
+  const g = id => document.getElementById(id).value.trim();
+  const params = new URLSearchParams();
+  params.set("mode",      document.getElementById("modeSelect").value);
+  params.set("rs_min",    g("f_rs_min")  || 0);
+  params.set("rs_max",    g("f_rs_max")  || 99);
+  params.set("trend_min", g("f_trend_min") || 0);
+  params.set("accum_min", g("f_accum_min") || -1);
+  params.set("vol_min",   g("f_vol_min") || 0);
+  params.set("prox_max",  g("f_prox_max") || 100);
+  params.set("ls_min",    g("f_ls_min")  || 0);
+  params.set("sort_desc", document.getElementById("sortDescCheck").checked);
+  params.set("sort_by",   document.getElementById("f_sort_by").value);
+  params.set("limit",     200);
+  const r1m = g("f_r1m_min"); if(r1m) params.set("r1m_min", r1m);
+  const r3m = g("f_r3m_min"); if(r3m) params.set("r3m_min", r3m);
+  const d7  = g("f_drs7_min"); if(d7) params.set("drs7_min", d7);
+  const mkt = g("f_market"); if(mkt) params.set("market", mkt);
+  const sig = g("f_signal"); if(sig) params.set("signal", sig);
+  const thm = g("f_theme"); if(thm) params.set("theme", thm);
+  return params;
+}
+
+async function runScreen(refresh=false){
+  document.getElementById("loading").style.display = "";
+  document.getElementById("resultsPanel").style.display = "none";
+  document.getElementById("noResults").style.display   = "none";
+  document.getElementById("runStatus").textContent = "Running…";
+
+  const t0 = Date.now();
+  const params = collectParams();
+  if(refresh) params.set("refresh","1");
+
+  try {
+    const r = await fetch("/api/screener?" + params.toString());
+    const d = await r.json();
+    const ms = Date.now() - t0;
+
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("updatedBadge").textContent = d.updated || "—";
+    document.getElementById("runStatus").textContent = `${ms}ms`;
+
+    if(!d.ok){ showError(d.error); return; }
+
+    if(!d.rows || !d.rows.length){
+      document.getElementById("noResults").style.display = "";
+      document.getElementById("matchCount").textContent = "0 stocks matched";
+      return;
+    }
+    renderTable(d);
+    document.getElementById("resultsPanel").style.display = "";
+
+  } catch(e) {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("runStatus").textContent = "Error: " + e.message;
+  }
+}
+
+function resetFilters(){
+  document.getElementById("f_rs_min").value   = 70;
+  document.getElementById("f_rs_max").value   = 99;
+  document.getElementById("f_trend_min").value = 0;
+  document.getElementById("f_accum_min").value = -1;
+  document.getElementById("f_vol_min").value   = 0;
+  document.getElementById("f_prox_max").value  = 100;
+  document.getElementById("f_r1m_min").value   = "";
+  document.getElementById("f_r3m_min").value   = "";
+  document.getElementById("f_ls_min").value    = 0;
+  document.getElementById("f_drs7_min").value  = "";
+  document.getElementById("f_market").value    = "US";
+  document.getElementById("f_signal").value    = "";
+  document.getElementById("f_theme").value     = "";
+  document.querySelectorAll(".preset-btn").forEach(b=>b.classList.remove("active"));
+}
+
+function fmtPct(v){ return v==null?"—":`<span class="${v>0?"up":v<0?"dn":"neu"}">${v>0?"+":""}${v.toFixed(1)}%</span>`; }
+function rsClass(v){ return v>=90?"rs-90":v>=80?"rs-80":v>=70?"rs-70":"rs-low"; }
+function trendDots(r){
+  return `<div class="trend-dots">${["c1_above_50","c2_above_150","c3_above_200","c4_slope_up"].map(c=>`<div class="td ${r[c]?"td-on":"td-off"}"></div>`).join("")}</div>`;
+}
+function lsBar(v){ return `<div class="ls-bar-wrap"><div class="ls-bar-fill" style="width:${v}%"></div></div><span style="font-size:10px;color:var(--muted2);margin-left:4px;">${v}</span>`; }
+function sigTags(r){
+  const tags=[];
+  if(r.is_near_52w) tags.push("52W");
+  if(r.is_pocket)   tags.push("PPBP");
+  if(r.is_vdu)      tags.push("VDU");
+  if(r.is_bgu)      tags.push("BGU");
+  return tags.map(t=>`<span class="sig-tag">${t}</span>`).join("")||"<span style='color:var(--muted);font-size:10px'>—</span>";
+}
+
+function renderTable(d){
+  document.getElementById("matchCount").textContent = `${d.total_matched} stocks matched`;
+  document.getElementById("matchSub").textContent   = `from ${d.total_universe} universe · sorted by ${d.sort_by}`;
+
+  const sortBy = d.sort_by;
+  const HEADERS = [
+    {k:"#",     label:"#",      cls:""},
+    {k:"symbol",label:"Symbol", cls:""},
+    {k:"ls",    label:"LS",     cls:"num"},
+    {k:"rs",    label:"RS",     cls:"num"},
+    {k:"drs7",  label:"dRS7",   cls:"num"},
+    {k:"trend_score", label:"Trend",cls:"num"},
+    {k:"r1d",   label:"1D",     cls:"num"},
+    {k:"r1m",   label:"1M",     cls:"num"},
+    {k:"r3m",   label:"3M",     cls:"num"},
+    {k:"prox_52w",label:"52W%", cls:"num"},
+    {k:"vol_ratio",label:"Vol", cls:"num"},
+    {k:"accum_score",label:"Accum",cls:"num"},
+    {k:"signals",label:"Signals",cls:""},
+    {k:"market",label:"Mkt",    cls:""},
+  ];
+
+  document.getElementById("scrHead").innerHTML = `<tr>` +
+    HEADERS.map(h => {
+      const active = h.k === sortBy ? " sort-active" : "";
+      const arrow  = h.k === sortBy ? (document.getElementById("sortDescCheck").checked ? " sort-desc" : " sort-asc") : "";
+      return `<th class="${h.cls}${active}${arrow}" onclick="clickSort('${h.k}')">${h.label}</th>`;
+    }).join("") + `</tr>`;
+
+  document.getElementById("scrBody").innerHTML = d.rows.map((r, i) => {
+    const prox52Color = r.prox_52w<=2?"var(--green)":r.prox_52w<=5?"var(--orange)":"var(--muted2)";
+    const mktColor = MKT_COLORS[r.market] || "#6b7280";
+    const ddText = r.drawdown_pct != null ? `<span style="font-size:9px;color:${r.drawdown_pct>-10?'var(--muted)':'var(--orange)'}">${r.drawdown_pct.toFixed(1)}%</span>` : "";
+    return `<tr>
+      <td style="color:var(--muted);font-size:11px;">${i+1}</td>
+      <td>
+        <a href="/stock.html?t=${r.ticker}" style="text-decoration:none;">
+          <span class="sym">${r.ticker}</span>
+        </a>
+        <span class="sym-name">${r.name}</span>
+        <span style="font-size:9px;color:var(--muted)">${r.theme||""}</span>
+      </td>
+      <td class="num">${lsBar(r.ls)}</td>
+      <td class="num"><span class="rs-pill ${rsClass(r.rs)}">${r.rs}</span></td>
+      <td class="num"><span class="${r.drs7>=0?"up":"dn"}">${r.drs7>=0?"+":""}${r.drs7}</span></td>
+      <td class="num">${trendDots(r)}</td>
+      <td class="num">${fmtPct(r.r1d)}</td>
+      <td class="num">${fmtPct(r.r1m)}</td>
+      <td class="num">${fmtPct(r.r3m)}</td>
+      <td class="num"><span style="color:${prox52Color};font-weight:600;">${r.prox_52w.toFixed(1)}%</span>${ddText}</td>
+      <td class="num"><span style="color:${r.vol_ratio>=2?"var(--red)":r.vol_ratio>=1.5?"var(--orange)":"var(--muted2)"};font-weight:600;">${r.vol_ratio.toFixed(1)}x</span></td>
+      <td class="num"><span style="color:${r.accum_score>=0.2?"var(--green)":r.accum_score<=-0.2?"var(--red)":"var(--muted2)"}">${r.accum_score.toFixed(2)}</span></td>
+      <td>${sigTags(r)}</td>
+      <td><span class="mkt-badge" style="color:${mktColor}">${r.market}</span></td>
+    </tr>`;
+  }).join("");
+}
+
+function clickSort(key){
+  document.getElementById("f_sort_by").value = key;
+  // Toggle direction if same col
+  const check = document.getElementById("sortDescCheck");
+  runScreen();
+}
+
+// Keyboard shortcut: Enter to run
+document.addEventListener("keydown", e => {
+  if(e.key === "Enter" && !e.target.matches("button")) runScreen();
+});
+
+// Preset buttons
+document.querySelectorAll(".preset-btn").forEach(btn => {
+  btn.addEventListener("click", () => applyPreset(btn.dataset.preset));
+});
+
+// Auto-run Leaders preset on load
+window.addEventListener("load", () => applyPreset("leaders"));
+</script>
+<script src="/mobile-nav.js"></script>
+</body>
+</html>

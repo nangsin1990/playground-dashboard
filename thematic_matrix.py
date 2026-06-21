@@ -1,21 +1,9 @@
 """
-Thematic Matrix Engine
-======================
-คำนวณ return per theme/sector สำหรับ Thematic Matrix หน้า
-
-Output per theme:
-  - theme name, market filter
-  - 1D / 1M / 3M equal-weight average return
-  - momentum score (1M+3M)
-  - member list with per-stock returns
-  - avg RS Rating of members
-  - top tickers by RS
-  - member count
+thematic_matrix.py — Thematic/Sector heatmap engine
+v3: per-market RS, wrapped try/except, US-only themes
 """
-
 from __future__ import annotations
 from datetime import datetime
-from functools import lru_cache
 
 import numpy as np
 import pandas as pd
@@ -29,86 +17,107 @@ from constants import (
 )
 
 
-  # 15 min
+def _safe_pct(close: pd.Series, n: int) -> float | None:
+    try:
+        if len(close) <= n or close.iloc[-1 - n] == 0:
+            return None
+        v = float(close.iloc[-1] / close.iloc[-1 - n] - 1) * 100
+        return None if (np.isnan(v) or np.isinf(v)) else round(v, 2)
+    except Exception:
+        return None
 
 
 @ttl_cache(CACHE_TTL_DATA)
 def fetch_thematic(mode: str = "core") -> dict:
-    active = pipeline.active_universe(mode)
-    combined, ticker_meta, fetch_results = pipeline.fetch_universe(active)
+    try:
+        active = pipeline.active_universe(mode)
+        combined, ticker_meta, _ = pipeline.fetch_universe(active)
 
-    if not combined:
-        return {"ok": False, "error": "No data from yfinance"}
+        if not combined:
+            return {"ok": False, "error": "No data from yfinance", "themes": []}
 
-    # RS Ratings
-    blended = pd.Series({t: eng.blended_return(d["Close"]) for t, d in combined.items()})
-    rs_now = eng.rs_rating_table(blended)
+        # Per-market RS (no cross-market mixing)
+        rs_now = eng.rs_rating_per_market(combined, ticker_meta)
 
-    # Per-ticker returns
-    rows = {}
-    for t, d in combined.items():
-        meta = ticker_meta.get(t, {})
-        ret_1d = float(d["Close"].iloc[-1] / d["Close"].iloc[-2] - 1) * 100 if len(d) > 1 else 0.0
-        ret_1m = float(d["Close"].iloc[-1] / d["Close"].iloc[-21] - 1) * 100 if len(d) > 21 else 0.0
-        ret_3m = float(d["Close"].iloc[-1] / d["Close"].iloc[-63] - 1) * 100 if len(d) > 63 else 0.0
-        rows[t] = {
-            "ticker": t.split(".")[0],
-            "name": meta.get("name", t),
-            "theme": meta.get("theme", "Unknown"),
-            "market": meta.get("market", "US"),
-            "d1": round(ret_1d, 3),
-            "m1": round(ret_1m, 3),
-            "m3": round(ret_3m, 3),
-            "rs": int(rs_now.get(t, 0)),
+        # Build per-ticker rows
+        ticker_rows: dict[str, dict] = {}
+        for t, d in combined.items():
+            meta  = ticker_meta.get(t, {})
+            close = d["Close"]
+            ticker_rows[t] = {
+                "ticker":  t.split(".")[0],
+                "name":    meta.get("name", t),
+                "theme":   meta.get("theme", "Unknown"),
+                "market":  meta.get("market", ""),
+                "r1d":     _safe_pct(close, 1),
+                "r1m":     _safe_pct(close, TRADING_DAYS_MONTH),
+                "r3m":     _safe_pct(close, TRADING_DAYS_QUARTER),
+                "rs":      int(rs_now.get(t, 0)),
+                "close":   round(float(close.iloc[-1]), 2),
+            }
+
+        # Group by theme
+        theme_map: dict[str, list[str]] = {}
+        for t, row in ticker_rows.items():
+            theme_map.setdefault(row["theme"], []).append(t)
+
+        themes = []
+        for theme, members in theme_map.items():
+            if not members:
+                continue
+
+            r1d_vals = [ticker_rows[t]["r1d"] for t in members if ticker_rows[t]["r1d"] is not None]
+            r1m_vals = [ticker_rows[t]["r1m"] for t in members if ticker_rows[t]["r1m"] is not None]
+            r3m_vals = [ticker_rows[t]["r3m"] for t in members if ticker_rows[t]["r3m"] is not None]
+            rs_vals  = [ticker_rows[t]["rs"]  for t in members]
+
+            avg_r1d = round(float(np.mean(r1d_vals)), 2) if r1d_vals else 0.0
+            avg_r1m = round(float(np.mean(r1m_vals)), 2) if r1m_vals else 0.0
+            avg_r3m = round(float(np.mean(r3m_vals)), 2) if r3m_vals else 0.0
+            avg_rs  = int(np.mean(rs_vals)) if rs_vals else 0
+            score   = avg_r1m + avg_r3m
+
+            # Markets in this theme
+            markets = list(set(ticker_rows[t]["market"] for t in members))
+
+            # Top tickers by RS
+            top_tickers = sorted(members, key=lambda t: ticker_rows[t]["rs"], reverse=True)[:THEMATIC_TOP_TICKERS]
+
+            # Member rows (sorted by RS, capped)
+            member_list = sorted(
+                [ticker_rows[t] for t in members],
+                key=lambda r: r["rs"],
+                reverse=True,
+            )[:THEMATIC_MAX_MEMBERS]
+
+            themes.append({
+                "theme":       theme,
+                "markets":     markets,
+                "count":       len(members),
+                "r1d":         avg_r1d,
+                "r1m":         avg_r1m,
+                "r3m":         avg_r3m,
+                "score":       round(score, 2),
+                "avg_rs":      avg_rs,
+                "top_tickers": [t.split(".")[0] for t in top_tickers],
+                "members":     member_list,
+            })
+
+        themes.sort(key=lambda x: x["score"], reverse=True)
+
+        return {
+            "ok":              True,
+            "updated":         datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "universe_loaded": len(combined),
+            "themes":          themes,
+            "total_themes":    len(themes),
         }
 
-    # Aggregate by theme
-    theme_groups: dict[str, list] = {}
-    for t, r in rows.items():
-        th = r["theme"]
-        if th not in theme_groups:
-            theme_groups[th] = []
-        theme_groups[th].append(r)
-
-    themes = []
-    for theme, members in theme_groups.items():
-        if not members:
-            continue
-        d1 = float(np.mean([m["d1"] for m in members]))
-        m1 = float(np.mean([m["m1"] for m in members]))
-        m3 = float(np.mean([m["m3"] for m in members]))
-        avg_rs = int(np.mean([m["rs"] for m in members]))
-        # top tickers by RS
-        top_tickers = [m["ticker"] for m in sorted(members, key=lambda x: x["rs"], reverse=True)[:THEMATIC_TOP_TICKERS]]
-        # market from first member
-        # Market: use majority vote (handles mixed ETF themes correctly)
-        from collections import Counter
-        market = Counter(m["market"] for m in members).most_common(1)[0][0] if members else "US" 
-        # sort members by 1M return desc
-        sorted_members = sorted(members, key=lambda x: x["m1"], reverse=True)
-
-        themes.append({
-            "theme": theme,
-            "market": market,
-            "count": len(members),
-            "d1": round(d1, 3),
-            "m1": round(m1, 3),
-            "m3": round(m3, 3),
-            "score": round(m1 + m3, 3),
-            "avg_rs": avg_rs,
-            "tickers": top_tickers,
-            "members": [
-                {"ticker": m["ticker"], "name": m["name"], "d1": m["d1"], "m1": m["m1"], "m3": m["m3"], "rs": m["rs"]}
-                for m in sorted_members[:THEMATIC_MAX_MEMBERS]
-            ],
-        })
-
-    # Sort by score desc
-    themes.sort(key=lambda x: x["score"], reverse=True)
-
-    return {
-        "ok": True,
-        "updated": datetime.now().strftime("%d/%m/%Y %H:%M"),
-        "universe_loaded": len(combined),
-        "themes": themes,
-    }
+    except Exception as e:
+        import traceback
+        return {
+            "ok":    False,
+            "error": str(e),
+            "trace": traceback.format_exc()[-500:],
+            "themes": [],
+        }

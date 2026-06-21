@@ -106,3 +106,25 @@ CORR_TICKERS = [
 ]
 CORR_PERIOD_DAYS = 63   # lookback for correlation (~3 months)
 CORR_BENCHMARK   = "SPY"
+
+# ── Sector ETF Map (GICS → SPDR) ──────────────────────────────────────────────
+SECTOR_ETF_MAP = {
+    "Information Technology":  "XLK",
+    "Financials":              "XLF",
+    "Energy":                  "XLE",
+    "Health Care":             "XLV",
+    "Industrials":             "XLI",
+    "Consumer Discretionary":  "XLY",
+    "Consumer Staples":        "XLP",
+    "Utilities":               "XLU",
+    "Materials":               "XLB",
+    "Communication Services":  "XLC",
+    "Real Estate":             "IYR",
+    "Semiconductors":          "SMH",
+    "Biotech":                 "XBI",
+    "Electronic Technology":   "XLK",
+    "ETF - Broad Market":      "SPY",
+    "ETF - Sector Equity":     "XLK",
+    "ETF - Fixed Income":      "TLT",
+    "ETF - Commodity":         "GLD",
+}

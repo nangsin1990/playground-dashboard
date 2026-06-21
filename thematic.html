@@ -135,7 +135,7 @@ a{text-decoration:none;color:inherit}
 <body>
 
 <!-- TOP NAV -->
-<div class="topnav">
+<nav class="topnav">
   <div class="brand">
     <div class="brand-icon">🛝</div>
     <div class="brand-text">Playground</div>
@@ -147,58 +147,16 @@ a{text-decoration:none;color:inherit}
     <a class="nav-link" href="/leaders.html">🏆 Leadership</a>
     <a class="nav-link active" href="/thematic.html">🧩 Thematic</a>
     <a class="nav-link" href="/rotation.html">🔄 Rotation</a>
+    <a class="nav-link" href="/screener.html">🔍 Screener</a>
+    <a class="nav-link" href="/correlation.html">📈 Correlations</a>
     <a class="nav-link" href="/calendar.html">📅 Calendar</a>
-    <a class="nav-link" href="#" style="opacity:.35;cursor:default">💼 Portfolio</a>
+    <a class="nav-link" href="/stock.html">🔬 Stock</a>
   </div>
   <div class="nav-right">
     <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
-    <span id="nav-loading" style="display:none;animation:spin .8s linear infinite;display:none">⏳</span>
-    <span class="badge-mode" id="modeLabel">CORE</span>
-    <button class="btn-refresh" onclick="loadData(true)">⟳ Refresh</button>
+    <span id="nav-loading" style="display:none">⏳</span>
   </div>
-</div>
-
-<!-- MAIN -->
-<div class="main">
-  <div class="page-header">
-    <div class="page-title">🧩 Thematic Matrix</div>
-  <div class="data-lag-banner">⏱ yfinance data delayed ~15 min during market hours</div>
-    <div class="page-sub">Sector & Theme rotation heatmap — equal-weight avg return across universe</div>
-  </div>
-
-  <!-- CONTROLS -->
-  <div class="controls">
-    <div class="filter-group" id="marketFilter">
-      <button class="filter-btn active" data-mkt="ALL" onclick="setMarket('ALL',this)">🌐 All</button>
-      <button class="filter-btn" data-mkt="US" onclick="setMarket('US',this)">🇺🇸 US</button>
-      <button class="filter-btn" data-mkt="TH" onclick="setMarket('TH',this)">🇹🇭 TH</button>
-      <button class="filter-btn" data-mkt="HK" onclick="setMarket('HK',this)">🇭🇰 HK</button>
-      <button class="filter-btn" data-mkt="JP" onclick="setMarket('JP',this)">🇯🇵 JP</button>
-      <button class="filter-btn" data-mkt="KR" onclick="setMarket('KR',this)">🇰🇷 KR</button>
-    </div>
-    <div class="filter-group" id="sortFilter">
-      <button class="filter-btn active" data-sort="1m3m" onclick="setSort('1m3m',this)">Score</button>
-      <button class="filter-btn" data-sort="1d" onclick="setSort('1d',this)">1D</button>
-      <button class="filter-btn" data-sort="1m" onclick="setSort('1m',this)">1M</button>
-      <button class="filter-btn" data-sort="3m" onclick="setSort('3m',this)">3M</button>
-      <button class="filter-btn" data-sort="members" onclick="setSort('members',this)"># Stocks</button>
-    </div>
-    <input class="search-box" id="searchBox" placeholder="🔍 Search theme..." oninput="applyFilters()">
-    <div class="view-toggle">
-      <button class="view-btn active" onclick="setView('grid',this)" title="Card view">▦ Grid</button>
-      <button class="view-btn" onclick="setView('table',this)" title="Table view">☰ Table</button>
-    </div>
-  </div>
-
-  <!-- SUMMARY ROW -->
-  <div class="summary-row" id="summaryRow" style="display:none">
-    <div class="sum-card"><div class="sum-label">Total Themes</div><div class="sum-val" id="sumThemes">—</div><div class="sum-sub">across markets</div></div>
-    <div class="sum-card"><div class="sum-label">Best 1D</div><div class="sum-val" id="sumBest1d" style="color:var(--green)">—</div><div class="sum-sub" id="sumBest1dName">—</div></div>
-    <div class="sum-card"><div class="sum-label">Best 1M</div><div class="sum-val" id="sumBest1m" style="color:var(--green)">—</div><div class="sum-sub" id="sumBest1mName">—</div></div>
-    <div class="sum-card"><div class="sum-label">Worst 1M</div><div class="sum-val" id="sumWorst1m" style="color:var(--red)">—</div><div class="sum-sub" id="sumWorst1mName">—</div></div>
-    <div class="sum-card"><div class="sum-label">Best 3M</div><div class="sum-val" id="sumBest3m" style="color:var(--green)">—</div><div class="sum-sub" id="sumBest3mName">—</div></div>
-    <div class="sum-card"><div class="sum-label">Universe</div><div class="sum-val" id="sumUniverse">—</div><div class="sum-sub">stocks loaded</div></div>
-  </div>
+</nav>
 
   <!-- DETAIL PANEL -->
   <div class="detail-panel" id="detailPanel">
@@ -529,5 +487,6 @@ function closeDetail() {
 loadData();
 </script>
 
+<script src="/mobile-nav.js"></script>
 </body>
 </html>

@@ -28,6 +28,8 @@ import thematic_matrix as tm
 import rotation_rrg    as rrg
 import economic_calendar as ec
 import correlation   as corr
+import screener      as scr
+import technical_analysis as ta
 
 app = FastAPI(title="Playground Dashboard API", version="3.0")
 
@@ -37,6 +39,20 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+from fastapi.responses import JSONResponse as _JSONResponse
+from fastapi import Request as _Request
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: _Request, exc: Exception):
+    """Catch ALL unhandled exceptions → return JSON (not HTML 500 page)."""
+    import traceback
+    tb = traceback.format_exc()
+    return _JSONResponse(
+        status_code=200,  # 200 so frontend can parse JSON
+        content={"ok": False, "error": str(exc), "traceback": tb[-500:]},
+    )
+
 
 _boot_time  = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 _last_call  = {"time": None}  # simple heartbeat tracker
@@ -223,6 +239,103 @@ def economic_calendar(refresh: bool = Query(False)):
     result = (_refresh_and_fetch(ec.fetch_economic_calendar.cache_clear, ec.fetch_economic_calendar)
               if refresh else ec.fetch_economic_calendar())
     return _resp(result)
+
+
+# ── Screener ──────────────────────────────────────────────────────────────────
+@app.get("/api/screener")
+def screener(
+    mode:      str   = Query("core", pattern="^(core|full)$"),
+    rs_min:    float = Query(0),
+    rs_max:    float = Query(99),
+    trend_min: int   = Query(0),
+    accum_min: float = Query(-1.0),
+    vol_min:   float = Query(0.0),
+    prox_max:  float = Query(100.0),
+    r1m_min:   Optional[float] = Query(None),
+    r3m_min:   Optional[float] = Query(None),
+    ls_min:    float = Query(0.0),
+    drs7_min:  Optional[float] = Query(None),
+    market:    str   = Query(""),
+    theme:     str   = Query(""),
+    signal:    str   = Query(""),
+    sort_by:   str   = Query("ls"),
+    sort_desc: bool  = Query(True),
+    limit:     int   = Query(100),
+    refresh:   bool  = Query(False),
+):
+    if refresh:
+        scr._get_all_rows.cache_clear()
+        time.sleep(0.2)
+
+    params = {
+        "rs_min": rs_min, "rs_max": rs_max,
+        "trend_min": trend_min, "accum_min": accum_min,
+        "vol_min": vol_min, "prox_max": prox_max,
+        "r1m_min": r1m_min, "r3m_min": r3m_min,
+        "ls_min": ls_min, "drs7_min": drs7_min,
+        "market": market, "theme": theme, "signal": signal,
+    }
+    result = scr.fetch_screener(mode, params, sort_by, sort_desc, limit)
+    return _resp(result)
+
+
+
+
+# ── Technical Analysis (per-ticker) ───────────────────────────────────────────
+@app.get("/api/technicals")
+def technicals(
+    ticker:  str  = Query(..., min_length=1, max_length=10),
+    refresh: bool = Query(False),
+):
+    t = ticker.upper().strip()
+    if refresh:
+        ta.fetch_technicals.cache_clear()
+    return _resp(ta.fetch_technicals(t))
+
+
+@app.get("/api/sector_rs")
+def sector_rs(
+    ticker:  str = Query(..., min_length=1, max_length=10),
+    theme:   str = Query(""),
+    refresh: bool = Query(False),
+):
+    t = ticker.upper().strip()
+    if refresh:
+        ta.fetch_sector_rs.cache_clear()
+    return _resp(ta.fetch_sector_rs(t, theme))
+
+
+@app.get("/api/earnings")
+def earnings(
+    ticker:  str  = Query(..., min_length=1, max_length=10),
+    refresh: bool = Query(False),
+):
+    t = ticker.upper().strip()
+    if refresh:
+        ta.fetch_earnings.cache_clear()
+    return _resp(ta.fetch_earnings(t))
+
+
+@app.get("/api/dividends")
+def dividends(
+    ticker:  str  = Query(..., min_length=1, max_length=10),
+    refresh: bool = Query(False),
+):
+    t = ticker.upper().strip()
+    if refresh:
+        ta.fetch_dividends.cache_clear()
+    return _resp(ta.fetch_dividends(t))
+
+
+@app.get("/api/options_iv")
+def options_iv(
+    ticker:  str  = Query(..., min_length=1, max_length=10),
+    refresh: bool = Query(False),
+):
+    t = ticker.upper().strip()
+    if refresh:
+        ta.fetch_options_iv.cache_clear()
+    return _resp(ta.fetch_options_iv(t))
 
 
 # ── Correlation Matrix ────────────────────────────────────────────────────────
