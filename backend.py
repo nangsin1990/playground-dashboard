@@ -38,6 +38,11 @@ from cache_utils import ttl_cache, clear_all_drive_cache, cache_status as _cache
 from constants   import CACHE_TTL_DATA
 import data_io as _data_io
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+    datefmt="%H:%M:%S",
+)
 log = logging.getLogger("playground")
 
 app = FastAPI(title="Playground Dashboard API", version="5.0")
@@ -116,14 +121,26 @@ def health():
 @app.get("/api/status")
 def status():
     from cache_utils import cache_status as _cs
-    cs = _cs()
-    bio = _data_io.cache_info()
+    from pipeline import get_fetch_state
+    cs    = _cs()
+    bio   = _data_io.cache_info()
+    fstate= get_fetch_state()
     return JSONResponse({
         "status":    "ok",
-        "version":   "5.1",
+        "version":   "5.2",
         "booted":    _boot_time,
         "now":       datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
         "last_call": _last_call["time"],
+        "fetch": {
+            "stage":         fstate.get("stage"),
+            "market":        fstate.get("market"),
+            "batch":         fstate.get("batch"),
+            "total_batches": fstate.get("total_batches"),
+            "markets_done":  fstate.get("markets_done"),
+            "markets_total": fstate.get("markets_total"),
+            "elapsed_sec":   fstate.get("elapsed_sec"),
+            "last_error":    fstate.get("last_error"),
+        },
         "cache": {
             "drive_mounted": cs.get("drive_mounted"),
             "cache_dir":     cs.get("cache_dir"),

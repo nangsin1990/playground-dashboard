@@ -1,11 +1,17 @@
 """
 pipeline.py — Orchestration layer
-v4: parallel market fetching, per-market RS, drawdown in watchlist
+v5.2 fixes (per Incident Report):
+  1. ลบ except Exception: pass → log.exception ทุกตัว
+  2. เพิ่ม FETCH_STATE progress tracker → /api/status อ่านได้
+  3. เพิ่ม batch-level + market-level logging (ดู Colab output)
+  4. future.result timeout ครบทุก market ไม่ค้าง
 """
 from __future__ import annotations
+import logging
+import threading
+import time
 from datetime import datetime
 import concurrent.futures
-import time
 
 import numpy as np
 import pandas as pd
@@ -20,12 +26,37 @@ from constants import (
     TRADING_DAYS_MONTH, TRADING_DAYS_QUARTER, FETCH_RATE_DELAY,
 )
 
+log = logging.getLogger("playground.pipeline")
+
 SIGNAL_NAMES = ["VDU", "PPBP", "BGU", "52W"]
+
+# ── Fix #2: Global progress state (thread-safe) ───────────────────────────────
+_state_lock = threading.Lock()
+FETCH_STATE: dict = {
+    "stage":          "idle",      # idle | fetching | computing | done | error
+    "market":         "",
+    "batch":          0,
+    "total_batches":  0,
+    "markets_done":   [],
+    "markets_total":  [],
+    "started":        None,
+    "elapsed_sec":    0,
+    "last_error":     "",
+}
+
+def _set_state(**kw):
+    with _state_lock:
+        FETCH_STATE.update(kw)
+        if FETCH_STATE.get("started"):
+            FETCH_STATE["elapsed_sec"] = round(time.time() - FETCH_STATE["started"], 1)
+
+def get_fetch_state() -> dict:
+    with _state_lock:
+        return dict(FETCH_STATE)
 
 
 def core_universe() -> dict:
     return {m: dict(list(UNIVERSE[m].items())[:CORE_N[m]]) for m in CORE_N}
-
 
 def active_universe(mode: str) -> dict:
     return UNIVERSE if mode == "full" else core_universe()
@@ -33,17 +64,40 @@ def active_universe(mode: str) -> dict:
 
 # ── 1) Fetch — parallel per market ───────────────────────────────────────────
 def _fetch_market(market: str, ticker_dict: dict) -> tuple[str, dict]:
-    """Fetch one market's tickers in batches. Returns (market, {ticker: df})."""
-    flat    = list(ticker_dict.items())   # [(ticker, (name, theme)), ...]
-    results = {}
-    for batch in data_io.chunk(flat, PIPELINE_BATCH_SIZE):
+    """Fetch one market's tickers in batches — with progress + logging."""
+    flat       = list(ticker_dict.items())
+    batches    = list(data_io.chunk(flat, PIPELINE_BATCH_SIZE))
+    n_batches  = len(batches)
+    results    = {}
+
+    log.info("[%s] START — %d tickers / %d batches", market, len(flat), n_batches)
+    _set_state(market=market, batch=0, total_batches=n_batches)
+
+    for i, batch in enumerate(batches, 1):
         tickers = tuple(t for t, _ in batch)
-        raw     = data_io.fetch_batch(tickers)
-        for t, _ in batch:
-            df = raw.get(t)
-            if df is not None:
-                results[t] = df
+        t0      = time.time()
+
+        # Fix #3: log every batch start
+        log.info("[%s] batch %d/%d — %d tickers ...", market, i, n_batches, len(tickers))
+        _set_state(market=market, batch=i, total_batches=n_batches)
+
+        try:
+            raw = data_io.fetch_batch(tickers)
+            for t, _ in batch:
+                df = raw.get(t)
+                if df is not None:
+                    results[t] = df
+        except Exception:
+            # Fix #1: ไม่กลืน error — log ออกมา
+            log.exception("[%s] batch %d/%d FAILED", market, i, n_batches)
+
+        elapsed = round(time.time() - t0, 1)
+        log.info("[%s] batch %d/%d DONE — %d/%d tickers OK (%.1fs)",
+                 market, i, n_batches, len(results), len(flat), elapsed)
+
         time.sleep(FETCH_RATE_DELAY)
+
+    log.info("[%s] END — %d/%d tickers loaded", market, len(results), len(flat))
     return market, results
 
 
@@ -52,20 +106,55 @@ def fetch_universe(active: dict):
     ticker_meta:   dict[str, dict]         = {}
     fetch_results: dict[str, dict]         = {m: {} for m in active}
 
-    # Fetch markets in parallel (max 4 threads — yfinance-safe)
+    markets = list(active.keys())
+    t_start = time.time()
+    _set_state(
+        stage="fetching",
+        market="",
+        batch=0,
+        total_batches=0,
+        markets_done=[],
+        markets_total=markets,
+        started=t_start,
+        last_error="",
+    )
+
+    log.info("=== fetch_universe START — markets: %s ===", markets)
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
         futures = {ex.submit(_fetch_market, m, tk): m for m, tk in active.items()}
+
         for future in concurrent.futures.as_completed(futures):
+            market = futures[future]
             try:
-                market, market_results = future.result(timeout=120)
-                fetch_results[market]  = market_results
-                ticker_dict            = active[market]
+                # Fix #1: timeout per-market so one hung market doesn't block all
+                mkt_result, market_results = future.result(timeout=120)
+                fetch_results[mkt_result]  = market_results
+                ticker_dict                = active[mkt_result]
+
                 for t, df in market_results.items():
                     name, theme         = ticker_dict[t]
                     combined[t]         = eng.add_indicators(df)
-                    ticker_meta[t]      = {"market": market, "name": name, "theme": theme}
+                    ticker_meta[t]      = {"market": mkt_result, "name": name, "theme": theme}
+
+                with _state_lock:
+                    FETCH_STATE["markets_done"].append(mkt_result)
+
+                log.info("market %s DONE — %d tickers loaded", mkt_result, len(market_results))
+
+            except concurrent.futures.TimeoutError:
+                # Fix #1: log ออกมา ไม่กลืน
+                log.error("market %s TIMEOUT after 120s — skipping", market)
+                _set_state(last_error=f"{market} timeout")
+
             except Exception:
-                pass   # individual market failure → skip, others continue
+                # Fix #1: log ออกมา ไม่กลืน
+                log.exception("market %s FAILED — skipping", market)
+                _set_state(last_error=f"{market} error")
+
+    elapsed = round(time.time() - t_start, 1)
+    log.info("=== fetch_universe END — %d tickers total (%.1fs) ===", len(combined), elapsed)
+    _set_state(stage="computing", elapsed_sec=elapsed)
 
     return combined, ticker_meta, fetch_results
 
@@ -87,8 +176,11 @@ def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
     sync    = data_io.sync_report(fetch_results, active)
 
     if not combined:
+        _set_state(stage="error", last_error="combined empty")
         return {"ok": False, "error": "ดึงข้อมูลจาก Yahoo Finance ไม่สำเร็จ",
                 "sync": sync, "updated": now_str}
+
+    log.info("compute_dashboard — %d tickers", len(combined))
 
     # ── Market breadth ────────────────────────────────────────────────────────
     breadth_rows = []
@@ -116,16 +208,20 @@ def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
     signal_count_5d = {k: 0 for k in SIGNAL_NAMES}
     ticker_signal   = {}
     for t, d in combined.items():
-        sig             = eng.run_scanners(d)
-        rolled, conf, count = eng.confluence_flags(sig)
-        last_rolled     = {k: bool(v.iloc[-1]) for k, v in rolled.items()}
-        for k, v in last_rolled.items():
-            if v: signal_count_5d[k] += 1
-        ticker_signal[t] = {
-            "rolled":     last_rolled,
-            "count":      int(count.iloc[-1]),
-            "confluence": bool(conf.iloc[-1]),
-        }
+        try:
+            sig             = eng.run_scanners(d)
+            rolled, conf, count = eng.confluence_flags(sig)
+            last_rolled     = {k: bool(v.iloc[-1]) for k, v in rolled.items()}
+            for k, v in last_rolled.items():
+                if v: signal_count_5d[k] += 1
+            ticker_signal[t] = {
+                "rolled":     last_rolled,
+                "count":      int(count.iloc[-1]),
+                "confluence": bool(conf.iloc[-1]),
+            }
+        except Exception:
+            log.exception("scanner failed for %s", t)
+            ticker_signal[t] = {"rolled": {}, "count": 0, "confluence": False}
 
     # ── RS Rating per-market ──────────────────────────────────────────────────
     rs_now = eng.rs_rating_per_market(combined, ticker_meta)
@@ -160,13 +256,16 @@ def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
         mt = list(fetch_results.get(market, {}).keys())
         bh = {"dates": [], "ma50": [], "ma200": [], "universe": len(mt)}
         if mt:
-            a50_df  = pd.DataFrame({t: combined[t]["Close"] > combined[t]["SMA50"]  for t in mt})
-            a200_df = pd.DataFrame({t: combined[t]["Close"] > combined[t]["SMA200"] for t in mt})
-            h50     = eng.market_breadth_history(a50_df,  days=BREADTH_HISTORY_DAYS)
-            h200    = eng.market_breadth_history(a200_df, days=BREADTH_HISTORY_DAYS)
-            bh["dates"] = [d.strftime("%Y-%m-%d") for d in h50.index]
-            bh["ma50"]  = [round(float(v), 2) for v in h50.values]
-            bh["ma200"] = [round(float(v), 2) for v in h200.values]
+            try:
+                a50_df  = pd.DataFrame({t: combined[t]["Close"] > combined[t]["SMA50"]  for t in mt})
+                a200_df = pd.DataFrame({t: combined[t]["Close"] > combined[t]["SMA200"] for t in mt})
+                h50     = eng.market_breadth_history(a50_df,  days=BREADTH_HISTORY_DAYS)
+                h200    = eng.market_breadth_history(a200_df, days=BREADTH_HISTORY_DAYS)
+                bh["dates"] = [d.strftime("%Y-%m-%d") for d in h50.index]
+                bh["ma50"]  = [round(float(v), 2) for v in h50.values]
+                bh["ma200"] = [round(float(v), 2) for v in h200.values]
+            except Exception:
+                log.exception("breadth_history failed for %s", market)
         breadth_history_all[market] = bh
 
     breadth_history = breadth_history_all.get("US", {"dates":[],"ma50":[],"ma200":[],"universe":0})
@@ -176,7 +275,7 @@ def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
                      if r["ma50"] < BREADTH_BEAR_THRESHOLD and r["chg"] < BREADTH_BEAR_FALL]
     bear_override = len(bear_markets) >= BREADTH_BEAR_MIN_MKT
 
-    # ── Watchlist (with drawdown) ─────────────────────────────────────────────
+    # ── Watchlist ─────────────────────────────────────────────────────────────
     watch = sorted(
         [t for t, s in ticker_signal.items() if s["confluence"]],
         key=lambda t: (ticker_signal[t]["count"], int(rs_now.get(t, 0))),
@@ -207,6 +306,9 @@ def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
             "ticker": t.split(".")[0], "full_ticker": t,
             "rs": int(row["RS"]), "drs7": int(row["dRS_7D"]), "spark": spark,
         })
+
+    _set_state(stage="done")
+    log.info("compute_dashboard DONE")
 
     return {
         "ok":                  True,
