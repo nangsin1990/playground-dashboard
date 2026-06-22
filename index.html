@@ -285,7 +285,14 @@ table.wl tr:hover{background:#161c2b}
 
 <!-- ===== MAIN ===== -->
 <main class="main">
-  <div id="loading"><div class="spinner"></div><div class="load-msg" id="loadMsg">กำลังดึงข้อมูลจาก Yahoo Finance...</div></div>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div class="load-msg" id="loadMsg">กำลังเชื่อมต่อ...</div>
+    <div style="width:280px;background:#1e293b;border-radius:6px;height:6px;margin-top:10px;overflow:hidden">
+      <div id="loadBar" style="height:100%;border-radius:6px;background:#6366f1;width:0%;transition:width 0.4s"></div>
+    </div>
+    <div id="loadDetail" style="font-size:11px;color:#6b7280;margin-top:8px;text-align:center;max-width:340px"></div>
+  </div>
   <div id="errBanner"></div>
   <div id="bearBanner"><div class="bear-title">⚠️ BEAR MARKET OVERRIDE</div><div class="bear-body" id="bearBody"></div></div>
 
@@ -670,10 +677,11 @@ async function load(mode=currentMode, refresh=false){
   $("btn-full").classList.toggle("active",mode==="full");
   $("btn-refresh").disabled=true;
   $("errBanner").style.display="none";
-  $("loadMsg").textContent=mode==="full"
-    ?"Full mode: กำลังดึง ~913 ตัวเป็นชุด (batched yf.download)\\nครั้งแรกอาจใช้เวลา 1-3 นาที — แคช 15 นาทีหลังจากนั้น..."
-    :"กำลังดึงข้อมูลจาก Yahoo Finance...";
+  $("loadMsg").textContent = "กำลังเชื่อมต่อ...";
+  $("loadBar").style.width = "0%";
+  $("loadDetail").textContent = "";
   $("loading").style.display="flex";
+  startProgressPoll();
   resetCountdown();
   try{
     const url=`/api/dashboard?mode=${mode}${refresh?"&refresh=1":""}`;
@@ -710,10 +718,40 @@ async function load(mode=currentMode, refresh=false){
     $("errBanner").textContent="⚠️ เชื่อมต่อ backend ไม่สำเร็จ: "+e.message+" — ตรวจสอบว่า uvicorn รันอยู่";
     $("errBanner").style.display="block";
   }finally{
+    stopProgressPoll();
     $("loading").style.display="none";
     $("btn-refresh").disabled=false;
     loading=false;
   }
+}
+
+/* ===== PROGRESS POLL ===== */
+let _pollTimer = null;
+function startProgressPoll() {
+  stopProgressPoll();
+  _pollTimer = setInterval(async () => {
+    try {
+      const r = await fetch("/api/progress");
+      const d = await r.json();
+      if (!d.ok) return;
+      $("loadMsg").textContent = d.msg || "กำลังโหลด...";
+      $("loadBar").style.width = (d.pct || 0) + "%";
+      // detail line
+      const parts = [];
+      if (d.markets_done && d.markets_total && d.markets_total.length)
+        parts.push(\`${d.markets_done.length}/${d.markets_total.length} markets\`);
+      if (d.cache_hits || d.cache_misses)
+        parts.push(\`cache ${d.cache_hits} hit / ${d.cache_misses} download\`);
+      if (d.drive_mounted !== undefined)
+        parts.push(d.drive_mounted ? "💾 Drive OK" : "💾 /tmp");
+      if (d.last_error)
+        parts.push(\`⚠️ \${d.last_error}\`);
+      $("loadDetail").textContent = parts.join(" · ");
+    } catch(e) {}
+  }, 2000);
+}
+function stopProgressPoll() {
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
 }
 
 /* ===== AUTO-REFRESH COUNTDOWN ===== */

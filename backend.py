@@ -34,13 +34,12 @@ import technical_analysis  as ta
 import data_engine         as eng
 import pandas              as pd
 
-from cache_utils import ttl_cache, clear_all_drive_cache, cache_status as _cache_status
+from cache_utils import ttl_cache
 from constants   import CACHE_TTL_DATA
-import data_io as _data_io
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+    format="%(asctime)s [%(name)s] %(message)s",
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("playground")
@@ -120,60 +119,72 @@ def health():
 
 @app.get("/api/status")
 def status():
-    from cache_utils import cache_status as _cs
     from pipeline import get_fetch_state
-    cs    = _cs()
-    bio   = _data_io.cache_info()
-    fstate= get_fetch_state()
+    fs = get_fetch_state()
     return JSONResponse({
         "status":    "ok",
-        "version":   "5.2",
+        "version":   "5.3",
         "booted":    _boot_time,
         "now":       datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
         "last_call": _last_call["time"],
-        "fetch": {
-            "stage":         fstate.get("stage"),
-            "market":        fstate.get("market"),
-            "batch":         fstate.get("batch"),
-            "total_batches": fstate.get("total_batches"),
-            "markets_done":  fstate.get("markets_done"),
-            "markets_total": fstate.get("markets_total"),
-            "elapsed_sec":   fstate.get("elapsed_sec"),
-            "last_error":    fstate.get("last_error"),
-        },
-        "cache": {
-            "drive_mounted": cs.get("drive_mounted"),
-            "cache_dir":     cs.get("cache_dir"),
-            "ttl_files":     cs.get("files"),
-            "batch_files":   bio.get("disk_files"),
-            "total_mb":      round((cs.get("size_mb", 0) + bio.get("disk_mb", 0)), 2),
-        },
+        "fetch":     fs,
     })
 
 
-# ── Cache Management ──────────────────────────────────────────────────────────
-@app.get("/api/cache")
-def cache_info_endpoint():
-    """Cache status + manual clear."""
-    from cache_utils import cache_status as _cs
-    return JSONResponse({
-        "ok":       True,
-        "ttl_cache":  _cs(),
-        "batch_cache": _data_io.cache_info(),
-        "hint": "POST /api/cache/clear เพื่อ clear ทั้งหมด",
-    })
+@app.get("/api/progress")
+def progress():
+    """Poll นี้ทุก 2 วินาทีระหว่างโหลด — บอกสถานะจริงๆ"""
+    from pipeline import get_fetch_state
+    import data_io as _dio
+    fs  = get_fetch_state()
+    ci  = _dio.cache_info()
+    pct = 0
+    if fs.get("tickers_total", 0) > 0:
+        pct = round(fs["tickers_done"] / fs["tickers_total"] * 100, 1)
+    # สร้างข้อความ human-readable
+    stage = fs.get("stage", "idle")
+    market = fs.get("market", "")
+    batch  = fs.get("batch", 0)
+    total_batches = fs.get("total_batches", 0)
+    elapsed = fs.get("elapsed_sec", 0)
+    hits   = fs.get("cache_hits", 0)
+    misses = fs.get("cache_misses", 0)
+    done   = fs.get("markets_done", [])
+    total_markets = fs.get("markets_total", [])
+    err    = fs.get("last_error", "")
 
+    if stage == "idle":
+        msg = "รอเริ่มโหลด..."
+    elif stage == "fetching":
+        source_hint = f" (cache)" if hits > misses else " (yfinance)"
+        msg = f"กำลังดึง {market} batch {batch}/{total_batches}{source_hint} | {pct}% | {elapsed}s"
+    elif stage == "computing":
+        msg = f"คำนวณ indicators ({len(done)}/{len(total_markets)} markets) | {elapsed}s"
+    elif stage == "done":
+        msg = f"โหลดสำเร็จ | {elapsed}s | cache hits {hits} / download {misses}"
+    elif stage == "error":
+        msg = f"ข้อผิดพลาด: {err}"
+    else:
+        msg = stage
 
-@app.post("/api/cache/clear")
-def cache_clear_endpoint():
-    """Clear ALL caches: memory + Drive. ใช้เมื่อข้อมูลผิดหรือต้องการ refresh."""
-    _cached_dashboard.cache_clear()
-    _data_io.clear_cache()
-    n = clear_all_drive_cache()
     return JSONResponse({
-        "ok":      True,
-        "cleared": f"{n} Drive files + memory caches",
-        "message": "โหลดใหม่ทั้งหมดครั้งถัดไป",
+        "ok":     True,
+        "stage":  stage,
+        "msg":    msg,
+        "pct":    pct,
+        "market": market,
+        "batch":  batch,
+        "total_batches": total_batches,
+        "markets_done":  done,
+        "markets_total": total_markets,
+        "elapsed_sec":   elapsed,
+        "cache_hits":    hits,
+        "cache_misses":  misses,
+        "last_error":    err,
+        "cache_dir":     ci.get("cache_dir",""),
+        "cache_files":   ci.get("disk_files", 0),
+        "cache_mb":      ci.get("disk_mb", 0),
+        "drive_mounted": ci.get("drive_mounted", False),
     })
 
 
