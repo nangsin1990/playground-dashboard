@@ -34,8 +34,9 @@ import technical_analysis  as ta
 import data_engine         as eng
 import pandas              as pd
 
-from cache_utils import ttl_cache
+from cache_utils import ttl_cache, clear_all_drive_cache, cache_status as _cache_status
 from constants   import CACHE_TTL_DATA
+import data_io as _data_io
 
 log = logging.getLogger("playground")
 
@@ -114,12 +115,48 @@ def health():
 
 @app.get("/api/status")
 def status():
+    from cache_utils import cache_status as _cs
+    cs = _cs()
+    bio = _data_io.cache_info()
     return JSONResponse({
         "status":    "ok",
-        "version":   "5.0",
+        "version":   "5.1",
         "booted":    _boot_time,
         "now":       datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
         "last_call": _last_call["time"],
+        "cache": {
+            "drive_mounted": cs.get("drive_mounted"),
+            "cache_dir":     cs.get("cache_dir"),
+            "ttl_files":     cs.get("files"),
+            "batch_files":   bio.get("disk_files"),
+            "total_mb":      round((cs.get("size_mb", 0) + bio.get("disk_mb", 0)), 2),
+        },
+    })
+
+
+# ── Cache Management ──────────────────────────────────────────────────────────
+@app.get("/api/cache")
+def cache_info_endpoint():
+    """Cache status + manual clear."""
+    from cache_utils import cache_status as _cs
+    return JSONResponse({
+        "ok":       True,
+        "ttl_cache":  _cs(),
+        "batch_cache": _data_io.cache_info(),
+        "hint": "POST /api/cache/clear เพื่อ clear ทั้งหมด",
+    })
+
+
+@app.post("/api/cache/clear")
+def cache_clear_endpoint():
+    """Clear ALL caches: memory + Drive. ใช้เมื่อข้อมูลผิดหรือต้องการ refresh."""
+    _cached_dashboard.cache_clear()
+    _data_io.clear_cache()
+    n = clear_all_drive_cache()
+    return JSONResponse({
+        "ok":      True,
+        "cleared": f"{n} Drive files + memory caches",
+        "message": "โหลดใหม่ทั้งหมดครั้งถัดไป",
     })
 
 
