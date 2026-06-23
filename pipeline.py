@@ -57,6 +57,10 @@ def _fetch_market(market: str, ticker_dict: dict) -> tuple[str, dict]:
     results = {}
     log.info("[%s] START — %d tickers / %d batches", market, len(flat), n)
 
+    # FIX: KR/CN rate limit strict
+    if market in ["KR", "CN"]:
+        time.sleep(2)
+
     for i, batch in enumerate(batches, 1):
         tickers = tuple(t for t, _ in batch)
         _upd(market=market, batch=i, total_batches=n)
@@ -64,14 +68,15 @@ def _fetch_market(market: str, ticker_dict: dict) -> tuple[str, dict]:
         t0 = time.time()
         try:
             raw = data_io.fetch_batch(tickers)
-            ok  = sum(1 for v in raw.values() if v is not None)
-            # ตรวจว่า batch มาจาก cache หรือ download
-            source = raw.get("_meta_source", "yfinance") if isinstance(raw, dict) else "yfinance"
+
+            # FIX: guard empty batch (KR/CN silent drop)
+            if not raw or all(v is None for v in raw.values()):
+                log.warning("[%s] EMPTY BATCH %s", market, tickers)
+                continue
+
+            ok = sum(1 for v in raw.values() if v is not None)
             with _lock:
-                if source == "cache":
-                    FETCH_STATE["cache_hits"] += 1
-                else:
-                    FETCH_STATE["cache_misses"] += 1
+                FETCH_STATE["cache_misses"] += 1
                 FETCH_STATE["tickers_done"] += ok
             for t, _ in batch:
                 df = raw.get(t)
