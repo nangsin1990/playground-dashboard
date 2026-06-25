@@ -1,12 +1,13 @@
-"""
-backend.py — FastAPI entry point
-v5 fixes (per architecture review):
-  1. HTTP 500 for unhandled exceptions (ไม่ return 200 อีกต่อไป)
-  2. No silent except pass — errors logged properly
-  3. /api/search ไม่ recompute dashboard ทั้งหมด — search จาก cache
-  4. Dashboard generation cached ด้วย TTL cache
-  5. No blocking time.sleep() ใน request path
-"""
+# @title
+#"""
+#backend.py — FastAPI entry point
+#v5 fixes (per architecture review):
+#  1. HTTP 500 for unhandled exceptions (ไม่ return 200 อีกต่อไป)
+#  2. No silent except pass — errors logged properly
+#  3. /api/search ไม่ recompute dashboard ทั้งหมด — search จาก cache
+#  4. Dashboard generation cached ด้วย TTL cache
+#  5. No blocking time.sleep() ใน request path
+#"""
 
 from __future__ import annotations
 import logging
