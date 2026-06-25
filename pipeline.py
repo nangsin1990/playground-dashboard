@@ -1,9 +1,3 @@
-"""
-pipeline.py v5.3
-- FETCH_STATE: track market/batch/elapsed realtime
-- executor.shutdown(wait=False) fix
-- log ทุก batch + error ออก Colab
-"""
 from __future__ import annotations
 import logging, threading, time
 from datetime import datetime
@@ -22,6 +16,9 @@ from constants import (
 
 log = logging.getLogger("playground.pipeline")
 SIGNAL_NAMES = ["VDU", "PPBP", "BGU", "52W"]
+
+def _safe_series(s):
+    return s.replace([np.inf, -np.inf], np.nan).fillna(0)
 
 # ── Thread-safe progress state ────────────────────────────────────────────────
 _lock = threading.Lock()
@@ -44,16 +41,31 @@ def get_fetch_state() -> dict:
     with _lock:
         return dict(FETCH_STATE)
 
-def core_universe() -> dict:
-    return {m: dict(list(UNIVERSE[m].items())[:CORE_N[m]]) for m in CORE_N}
+def build_active_universe():
+    from universe import UNIVERSE
+
+    return {
+        "US": list(UNIVERSE["US"].keys()),
+        "HK": list(UNIVERSE["HK"].keys()),
+        "JP": list(UNIVERSE["JP"].keys()),
+        "KR": list(UNIVERSE["KR"].keys()),
+        "CN": list(UNIVERSE["CN"].keys()),
+    }
+
+def core_universe():
+    active = build_active_universe()
+    return {m: active[m][:CORE_N[m]] for m in CORE_N}
+
 
 def active_universe(mode: str) -> dict:
-    return UNIVERSE if mode == "full" else core_universe()
+    return build_active_universe() if mode == "full" else core_universe()
 
-def _fetch_market(market: str, ticker_dict: dict) -> tuple[str, dict]:
-    flat    = list(ticker_dict.items())
+def _fetch_market(market: str, ticker_dict):
+    flat = list(ticker_dict.keys()) if isinstance(ticker_dict, dict) else list(ticker_dict)
+
     batches = list(data_io.chunk(flat, PIPELINE_BATCH_SIZE))
-    n       = len(batches)
+    n = len(batches)
+
     results = {}
     log.info("[%s] START — %d tickers / %d batches", market, len(flat), n)
 
@@ -62,29 +74,41 @@ def _fetch_market(market: str, ticker_dict: dict) -> tuple[str, dict]:
         time.sleep(2)
 
     for i, batch in enumerate(batches, 1):
-        tickers = tuple(t for t, _ in batch)
+        tickers = tuple(batch)
+        #tickers = tuple(t for t, _ in batch)
+        #tickers = tuple(t for t in batch)
         _upd(market=market, batch=i, total_batches=n)
         log.info("[%s] batch %d/%d (%d tickers) ...", market, i, n, len(tickers))
         t0 = time.time()
+
         try:
             raw = data_io.fetch_batch(tickers)
 
-            # FIX: guard empty batch (KR/CN silent drop)
-            if not raw or all(v is None for v in raw.values()):
-                log.warning("[%s] EMPTY BATCH %s", market, tickers)
-                continue
+            ok = []
+            for k, v in raw.items():
+              if v is not None and len(v) > 0:
+                ok.append(k)
 
-            ok = sum(1 for v in raw.values() if v is not None)
-            with _lock:
-                FETCH_STATE["cache_misses"] += 1
-                FETCH_STATE["tickers_done"] += ok
-            for t, _ in batch:
-                df = raw.get(t)
-                if df is not None:
-                    results[t] = df
+            print("OK =", market, len(ok), ok[:5])
+
+            if not ok:
+              log.warning("[%s] EMPTY BATCH %s", market, tickers)
+              continue
+
         except Exception:
             log.exception("[%s] batch %d/%d FAILED", market, i, n)
             _upd(last_error=f"{market} batch {i} failed")
+            continue  # ข้ามไปทำ batch ถัดไปหากดึงข้อมูลล้มเหลว
+
+        ok_count = len(ok)
+
+        with _lock:
+            FETCH_STATE["cache_misses"] += 1
+            FETCH_STATE["tickers_done"] += ok_count
+
+        for t in ok:
+          results[t] = raw[t]
+
         log.info("[%s] batch %d/%d DONE %.1fs", market, i, n, time.time()-t0)
         time.sleep(FETCH_RATE_DELAY)
 
@@ -104,7 +128,7 @@ def fetch_universe(active: dict):
          started=t0, last_error="", cache_hits=0, cache_misses=0)
     log.info("=== fetch_universe START %s (%d tickers) ===", markets, total)
 
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     futures_map = {executor.submit(_fetch_market, m, tk): m for m, tk in active.items()}
     try:
         for future in concurrent.futures.as_completed(futures_map, timeout=300):
@@ -114,7 +138,9 @@ def fetch_universe(active: dict):
                 fetch_results[mkt_name] = mkt_results
                 tk_dict = active[mkt_name]
                 for t, df in mkt_results.items():
-                    name, theme      = tk_dict[t]
+                    name, theme = ("", "")
+                    if isinstance(tk_dict, dict) and t in tk_dict:
+                      name, theme = tk_dict[t]
                     combined[t]      = eng.add_indicators(df)
                     ticker_meta[t]   = {"market": mkt_name, "name": name, "theme": theme}
                 with _lock:
@@ -164,8 +190,8 @@ def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
             if len(d) > 5:
                 r5 = d.iloc[-6]
                 a50_5ago.append(bool(r5["Close"] > r5["SMA50"]))
-        ma50  = round(float(np.mean(a50))  * 100, 2)
-        ma200 = round(float(np.mean(a200)) * 100, 2)
+        ma50  = round(float(np.nanmean(a50)) * 100, 2) if len(a50) else 0.0
+        ma200 = round(float(np.nanmean(a200)) * 100, 2) if len(a200) else 0.0
         chg   = round(ma50 - (float(np.mean(a50_5ago)*100) if a50_5ago else ma50), 2)
         breadth_rows.append({"flag": FLAGS.get(market,""), "code": market,
                               "ma50": ma50, "ma200": ma200, "chg": chg})
@@ -176,28 +202,61 @@ def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
         try:
             sig = eng.run_scanners(d)
             rolled, conf, count = eng.confluence_flags(sig)
-            last_rolled = {k: bool(v.iloc[-1]) for k, v in rolled.items()}
+
+            # guard กัน empty series
+            count_val = float(count.iloc[-1]) if count is not None and len(count) else 0
+            conf_val  = bool(conf.iloc[-1]) if conf is not None and len(conf) else False
+
+            last_rolled = {k: bool(v.iloc[-1]) for k, v in rolled.items() if v is not None and len(v)}
+
             for k, v in last_rolled.items():
-                if v: signal_count_5d[k] += 1
-            ticker_signal[t] = {"rolled": last_rolled, "count": int(count.iloc[-1]),
-                                 "confluence": bool(conf.iloc[-1])}
+              if v:
+                signal_count_5d[k] += 1
+
+            ticker_signal[t] = {
+              "rolled": last_rolled,
+              "count": int(count_val),
+              "confluence": conf_val
+            }
         except Exception:
             log.exception("scanner failed: %s", t)
             ticker_signal[t] = {"rolled": {}, "count": 0, "confluence": False}
 
-    rs_now = eng.rs_rating_per_market(combined, ticker_meta)
+    rs_now = eng.rs_rating_per_market(
+    {t: d for t, d in combined.items() if d is not None and len(d) > 5},
+    ticker_meta
+)
     blended7 = pd.Series({t: eng.blended_return(d["Close"].iloc[:-7])
                            for t, d in combined.items() if len(d) > 7})
     rs_7 = eng.rs_rating_table(blended7).reindex(rs_now.index).fillna(rs_now)
 
-    ret_1d = pd.Series({t: _pct_change(d["Close"], 1) for t, d in combined.items()
-                         if _pct_change(d["Close"], 1) is not None})
-    ret_1m = pd.Series({t: _pct_change(d["Close"], TRADING_DAYS_MONTH) for t, d in combined.items()
-                         if _pct_change(d["Close"], TRADING_DAYS_MONTH) is not None})
-    ret_3m = pd.Series({t: _pct_change(d["Close"], TRADING_DAYS_QUARTER) for t, d in combined.items()
-                         if _pct_change(d["Close"], TRADING_DAYS_QUARTER) is not None})
+    ret_1d = pd.Series({
+      t: (_pct_change(d["Close"], 1) or 0)
+      for t, d in combined.items()
+    })
+
+    ret_1m = pd.Series({
+      t: (_pct_change(d["Close"], TRADING_DAYS_MONTH) or 0)
+      for t, d in combined.items()
+    })
+
+    ret_3m = pd.Series({
+      t: (_pct_change(d["Close"], TRADING_DAYS_QUARTER) or 0)
+      for t, d in combined.items()
+    })
+
+    print("RS START")
+    rs_now = eng.rs_rating_per_market(combined, ticker_meta)
+    print("RS DONE")
+
     theme_map = {t: m["theme"] for t, m in ticker_meta.items()}
-    themes    = eng.theme_returns(ret_1d/100, ret_1m/100, ret_3m/100, theme_map)
+
+    themes = eng.theme_returns(
+      ret_1d / 100,
+      ret_1m / 100,
+      ret_3m / 100,
+      theme_map
+    )
     theme_rows = []
     for theme, row in themes.head(THEME_TOP_N).iterrows():
         members = [t for t, th in theme_map.items() if th == theme]
@@ -230,14 +289,14 @@ def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
     bear_override = len(bear_markets) >= BREADTH_BEAR_MIN_MKT
 
     watch = sorted([t for t, s in ticker_signal.items() if s["confluence"]],
-        key=lambda t: (ticker_signal[t]["count"], int(rs_now.get(t, 0))), reverse=True)[:WATCHLIST_TOP_N]
+        key=lambda t: (ticker_signal[t]["count"], int(float(rs_now.get(t, 0) or 0))), reverse=True)[:WATCHLIST_TOP_N]
     watchlist = []
     for t in watch:
         meta = ticker_meta[t]; d = combined[t]
         watchlist.append({"ticker": t.split(".")[0], "full_ticker": t,
             "name": meta["name"], "theme": meta["theme"],
             "patterns": [k for k in SIGNAL_NAMES if ticker_signal[t]["rolled"].get(k)],
-            "pct1d": _pct_change(d["Close"], 1) or 0.0, "rs": int(rs_now.get(t, 0)),
+            "pct1d": _pct_change(d["Close"], 1) or 0.0, "rs": int(float(rs_now.get(t, 0) or 0)),
             "market": meta["market"],
             "drawdown_pct": eng.current_drawdown_from_peak(d["Close"]),
             "max_dd_pct":   eng.max_drawdown(d["Close"])})
@@ -248,18 +307,34 @@ def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
         spark = [round(float(v), 4) for v in combined[t]["Close"].tail(10).tolist()
                  if not (np.isnan(v) or np.isinf(v))]
         rs_movers.append({"ticker": t.split(".")[0], "full_ticker": t,
-            "rs": int(row["RS"]), "drs7": int(row["dRS_7D"]), "spark": spark})
+            "rs": int(float(row["RS"] or 0)),
+            "drs7": int(float(row["dRS_7D"] or 0)), "spark": spark})
 
     _upd(stage="done")
     log.info("compute_dashboard DONE")
+
+    combined = {k: v.replace([np.inf, -np.inf], np.nan).fillna(0) if hasattr(v, "replace") else v for k, v in combined.items()}
+
     return {
-        "ok": True, "updated": now_str,
+        "ok": True,
+        "updated": now_str,
         "universe_loaded": len(combined),
         "universe_total": sum(len(v) for v in active.values()),
-        "sync": sync, "breadth": breadth_rows,
+        "sync": sync,
+        "breadth": breadth_rows,
         "breadth_history_us": breadth_history,
         "breadth_history_all": breadth_history_all,
         "stat_cards": {**signal_count_5d, "total": len(combined)},
-        "watchlist": watchlist, "theme_movers": theme_rows, "rs_movers": rs_movers,
-        "bear_override": bear_override, "rs_scope": "per-market",
+        "watchlist": watchlist,
+        "theme_movers": theme_rows,
+        "rs_movers": rs_movers,
+        "bear_override": bear_override,
+        "rs_scope": "per-market",
+        "markets": {
+    m: [
+        t for t in combined.keys()
+        if ticker_meta.get(t, {}).get("market") == m
+    ]
+    for m in ["US", "HK", "JP", "KR", "CN"]
+},
     }
