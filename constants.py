@@ -1,8 +1,9 @@
-"""
-constants.py — Central config for all magic numbers
-v5.2: PIPELINE_BATCH_SIZE 60→20, FETCH_CHUNK_SIZE 60→20
-      (per Incident Report Fix #5: smaller batches = easier debug + less Yahoo timeout)
-"""
+# @title
+#"""
+#constants.py — Central config for all magic numbers
+#v5.2: PIPELINE_BATCH_SIZE 60→20, FETCH_CHUNK_SIZE 60→20
+#      (per Incident Report Fix #5: smaller batches = easier debug + less Yahoo timeout)
+#"""
 
 # ── Trading Calendar ──────────────────────────────────────────────────────────
 TRADING_DAYS_YEAR   = 252
@@ -82,7 +83,7 @@ CAL_LOOK_BACK_DAYS  = 7
 CAL_MAX_EVENTS      = 30
 
 # ── Pipeline / Universe ───────────────────────────────────────────────────────
-PIPELINE_BATCH_SIZE = 20       # ← v5.2: 60→20 (per Incident Report Fix #5)
+PIPELINE_BATCH_SIZE = 10       # ← v5.3: 60→20→10 (per Incident Report Fix #5)
 CORE_N = {"US": 40, "HK": 16, "JP": 16, "KR": 12, "CN": 12}
 
 # ── Breadth ───────────────────────────────────────────────────────────────────
