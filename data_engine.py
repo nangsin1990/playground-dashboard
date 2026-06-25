@@ -1,7 +1,8 @@
-"""
-data_engine.py — Pure Quant Engine (no network)
-v3: per-market RS rating, drawdown tracker, correlation prep
-"""
+# @title
+#"""
+#data_engine.py — Pure Quant Engine (no network)
+#v3: per-market RS rating, drawdown tracker, correlation prep
+#"""
 
 from __future__ import annotations
 import numpy as np
@@ -82,7 +83,7 @@ def confluence_flags(signals: dict[str, pd.Series],
         name: s.rolling(rolling_days, min_periods=1).max().fillna(0).astype(bool)
         for name, s in signals.items()
     }
-    count      = sum(r.astype(int) for r in rolled.values())
+    count = sum(r.fillna(False).astype(int) for r in rolled.values())
     confluence = count >= min_signals
     return rolled, confluence, count
 
@@ -119,10 +120,17 @@ def blended_return(close: pd.Series) -> float:
 
 
 def rs_rating_table(blended_returns: pd.Series) -> pd.Series:
-    """Rank 1-99 within the supplied universe (call separately per market)."""
     pct = blended_returns.rank(pct=True, method="average")
-    return (pct * 98 + 1).round().astype(int).clip(1, 99)
 
+    pct = pct.replace([np.inf, -np.inf], np.nan).fillna(0)
+
+    return (
+        (pct * 98 + 1)
+        .round()
+        .fillna(1)
+        .astype(int)
+        .clip(1, 99)
+    )
 
 def rs_rating_per_market(combined: dict, ticker_meta: dict) -> pd.Series:
     """
