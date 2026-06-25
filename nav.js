@@ -1,3 +1,4 @@
+# @title
 /**
  * nav.js — Shared UX utilities (NO nav injection — nav is in each HTML)
  *
