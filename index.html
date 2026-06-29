@@ -151,522 +151,436 @@ table.wl tr:hover{background:#161c2b}
 .theme-ticker{font-size:10px;color:var(--muted);font-weight:600}
 .theme-pct{display:flex;gap:8px;font-size:11px;font-weight:600;flex-shrink:0;min-width:170px;justify-content:flex-end}
 .theme-pct .neg{color:var(--red)}.theme-pct .pos{color:var(--green)}
-.rsmover-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #1c2533}
-.rsmover-row:last-child{border-bottom:none}
-.rsm-icon{width:28px;height:28px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
-.rsm-info{flex:1;min-width:0}
-.rsm-sym{font-size:12.5px;font-weight:700}.rsm-ex{font-size:10px;color:var(--muted);font-weight:600;margin-left:4px}
-.spark-wrap{width:62px;height:24px;flex-shrink:0}
-.rsm-rs{font-size:12px;font-weight:700;text-align:right;min-width:64px;flex-shrink:0}
-.rsm-rs .delta{font-size:10.5px;margin-left:4px}
-.delta.pos{color:var(--green)}.delta.neg{color:var(--red)}
-.footer-caption{font-size:11px;color:var(--muted);margin-top:14px}
-.empty-msg{font-size:12px;color:var(--muted);padding:16px 0;text-align:center}
 
-/* LOADING OVERLAY */
-#loading{position:absolute;inset:0;background:rgba(11,15,25,.82);display:flex;align-items:center;
-  justify-content:center;flex-direction:column;gap:12px;z-index:50;border-radius:0}
-.spinner{width:34px;height:34px;border:3px solid #2a3344;border-top-color:var(--indigo);border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.load-msg{font-size:13px;color:var(--muted2);text-align:center;max-width:360px;line-height:1.6}
-#errBanner{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);color:#fca5a5;
-  border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12.5px;display:none}
+/* REGIMES */
+.regime-box{background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);border-radius:9px;padding:12px 14px;margin-bottom:8px}
+.regime-box:last-child{margin-bottom:0}
+.regime-title{font-size:11px;font-weight:700;color:var(--indigo);text-transform:uppercase;margin-bottom:6px}
+.regime-label{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+.regime-badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#161b22;color:var(--muted2)}
 
-@media(max-width:1100px){.topgrid,.bottomgrid{grid-template-columns:1fr}.statgrid{grid-template-columns:repeat(2,1fr)}.sidebar{display:none}}
+/* LOADING MODAL */
+#loading{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);
+  z-index:9999;justify-content:center;align-items:center}
+.load-box{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:28px;
+  min-width:380px;text-align:center}
+.load-title{font-size:16px;font-weight:700;margin-bottom:14px;color:var(--text)}
+.load-msg{font-size:14px;color:var(--indigo);margin-bottom:16px;font-weight:600;min-height:18px}
+.load-bar-wrap{position:relative;height:6px;background:#161b22;border-radius:3px;overflow:hidden;margin-bottom:12px}
+.load-bar{height:100%;background:linear-gradient(90deg,var(--indigo),var(--blue));border-radius:3px;width:0%;transition:.3s}
+.load-detail{font-size:11px;color:var(--muted);min-height:16px}
 
-/* ── MARKET REGIME WIDGET ── */
-#regimeWidget{
-  margin-bottom:16px;border-radius:12px;border:1px solid var(--border);
-  padding:16px 20px;transition:.3s;
-}
-.regime-grid{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:20px;flex-wrap:wrap}
-.regime-label{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--muted2);text-transform:uppercase;margin-bottom:4px}
-.regime-value{font-size:22px;font-weight:800;line-height:1.1}
-.regime-conf{font-size:11.5px;color:var(--muted2);margin-top:3px}
-.regime-score-wrap{text-align:center;min-width:80px}
-.regime-score-label{font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
-.regime-score-val{font-size:24px;font-weight:700;line-height:1}
-.conf-bar-track{height:6px;background:#1f2937;border-radius:6px;overflow:hidden;margin-top:6px;width:120px}
-.conf-bar-fill{height:100%;border-radius:6px;transition:.6s}
-.exposure-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-width:200px}
-.exp-card{background:rgba(255,255,255,.04);border-radius:8px;padding:10px 14px;text-align:center}
-.exp-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
-.exp-val{font-size:22px;font-weight:800;line-height:1}
-.regime-desc{grid-column:1/-1;font-size:12px;color:var(--muted2);line-height:1.6;padding-top:10px;border-top:1px solid var(--border);margin-top:4px}
-.regime-signals{margin-top:12px}
-.sig-title{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
-.sig-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px}
-.sig-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px}
-.sig-icon{font-size:14px;flex-shrink:0;width:20px;text-align:center}
+/* ERROR BANNER */
+#errBanner{display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);
+  border-radius:10px;padding:12px 16px;margin-bottom:12px;color:#fca5a5;font-size:13px}
+
+/* REGIME DETAILS GRID (for regime signal details) */
+.regime-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.regime-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.regime-card-title{font-size:12px;font-weight:700;color:var(--indigo);text-transform:uppercase;margin-bottom:8px;letter-spacing:.08em}
+.regime-card-content{font-size:13px;color:var(--text);line-height:1.5}
+
+/* SIGNAL GRID */
+.sig-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.sig-row{background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.15);border-radius:8px;
+  padding:12px 14px;display:flex;align-items:center;gap:10px}
+.sig-icon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  background:rgba(99,102,241,.15);border-radius:6px;font-size:14px;flex-shrink:0}
 .sig-info{flex:1;min-width:0}
-.sig-label{font-size:11.5px;font-weight:600}
-.sig-val{font-size:10.5px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sig-score{font-size:12px;font-weight:700;flex-shrink:0;min-width:36px;text-align:right}
+.sig-label{font-size:11px;font-weight:600;color:var(--muted2);text-transform:uppercase}
+.sig-val{font-size:13px;font-weight:700;color:var(--text);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sig-wt{font-size:10px;color:var(--muted);font-weight:600;min-width:40px;text-align:right}
+.sig-score{font-size:13px;font-weight:700;min-width:50px;text-align:right}
 .sig-score.pos{color:var(--green)}.sig-score.neg{color:var(--red)}.sig-score.neutral{color:var(--muted)}
-.sig-wt{font-size:10px;color:var(--muted);flex-shrink:0;min-width:30px;text-align:right}
-@media(max-width:900px){.regime-grid{grid-template-columns:1fr 1fr}.exposure-grid{grid-template-columns:1fr 1fr}}
+
+/* CONFIDENCE BAR */
+.conf-label{font-size:11px;font-weight:600;color:var(--muted2);text-transform:uppercase;margin-bottom:8px;letter-spacing:.08em}
+.conf-bar-wrap{position:relative;height:24px;background:#161b22;border-radius:6px;overflow:hidden;margin-bottom:10px;border:1px solid var(--border)}
+.conf-bar{height:100%;background:var(--green);width:0%;border-radius:6px;transition:.3s;display:flex;align-items:center;justify-content:center}
+.conf-txt{font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+
+/* MOBILE NAV */
+.mobile-nav-toggle{display:none;position:fixed;top:16px;right:16px;z-index:1000;width:40px;height:40px;
+  background:var(--panel);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text);
+  font-size:18px;flex-direction:column;justify-content:center;align-items:center}
+@media(max-width:900px){
+  .layout{flex-direction:column}
+  .sidebar{width:100%;height:60px;flex-direction:row;align-items:center;justify-content:space-between;padding:0 16px}
+  .nav,.sidebar-footer{display:none}
+  .brand{margin:0;flex:1}
+  .mobile-nav-toggle{display:flex}
+  .main{padding:16px}
+  .topgrid,.bottomgrid{grid-template-columns:1fr}
+  .statgrid{grid-template-columns:repeat(2,1fr)}
+  .right-col{grid-column:unset}
+  .theme-pct{flex-direction:column;min-width:auto}
+}
+
+/* SHARED */
+.stat-val{line-height:1.2}
 </style>
-  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+
 <div class="layout">
-
-<!-- ===== SIDEBAR ===== -->
-<aside class="sidebar">
-  <div class="brand">
-    <div class="brand-icon">🛝</div>
-    <div class="brand-text"><div class="th">สนามเด็กเล่น Playground</div><div class="en">PLAYGROUND · LIVE</div></div>
-  </div>
-  <nav class="nav">
-    <a href="/" class="nav-item active" style="text-decoration:none;color:inherit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-      Overview
-    </a>
-    <a href="/global.html" class="nav-item" style="text-decoration:none;color:inherit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
-      Global Market
-    </a>
-    <a href="/etf.html" class="nav-item" style="text-decoration:none;color:inherit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-      ETF Board
-    </a>
-    <a href="/leaders.html" class="nav-item" style="text-decoration:none;color:inherit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-      Leadership Board
-    </a>
-    <a href="/thematic.html" class="nav-item" style="text-decoration:none;color:inherit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 2 3 7l9.5 5 9.5-5z"/><path d="M3 12l9.5 5 9.5-5"/><path d="M3 17l9.5 5 9.5-5"/></svg>
-      Thematic Matrix
-    </a>
-    <a href="/rotation.html" class="nav-item" style="text-decoration:none;color:inherit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v9h-9"/></svg>
-      Rotation Chart
-    </a>
-    <a href="/screener.html" class="nav-item" style="text-decoration:none;color:inherit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      Screener
-    </a>
-    <a href="/correlation.html" class="nav-item" style="text-decoration:none;color:inherit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-      Correlations
-    </a>
-    <a href="/stock.html" class="nav-item" style="text-decoration:none;color:inherit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-      Stock Deep Dive
-    </a>
-    <a href="/calendar.html" class="nav-item" style="text-decoration:none;color:inherit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      Economic Calendar
-    </a>
-    <div class="nav-item" style="opacity:.4;cursor:default">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-      Portfolio
-    </div>
-  </nav>
-  <div class="nav-divider"></div>
-  <div class="ctrl-label">Universe</div>
-  <div class="mode-toggle">
-    <div class="mode-btn active" id="btn-core" data-mode="core">Core (~126)</div>
-    <div class="mode-btn" id="btn-full" data-mode="full">Full (~913)</div>
-  </div>
-  <button class="refresh-btn" id="btn-refresh">🔄 รีเฟรชข้อมูล (ล้างแคช)</button>
-  <div class="auto-refresh-row">
-    <input type="checkbox" id="chk-auto" checked>
-    <label for="chk-auto" style="cursor:pointer">Auto-refresh ทุก 15 นาที</label>
-    <span id="countdown"></span>
-  </div>
-  <div class="sidebar-footer">
-    <div style="font-size:11px;color:#6b7280;padding:3px 6px 6px" id="nav-updated"></div>
-    <div id="syncBox">
-    <div class="sync-row"><span class="dot idle"></span> กำลังเชื่อมต่อ...</div>
-  </div>
-    </div>
-  </aside>
-
-<!-- ===== MAIN ===== -->
-<main class="main">
-  <div id="loading">
-    <div class="spinner"></div>
-    <div class="load-msg" id="loadMsg">กำลังเชื่อมต่อ...</div>
-    <div style="width:280px;background:#1e293b;border-radius:6px;height:6px;margin-top:10px;overflow:hidden">
-      <div id="loadBar" style="height:100%;border-radius:6px;background:#6366f1;width:0%;transition:width 0.4s"></div>
-    </div>
-    <div id="loadDetail" style="font-size:11px;color:#6b7280;margin-top:8px;text-align:center;max-width:340px"></div>
-  </div>
-  <div id="errBanner"></div>
-  <div id="bearBanner"><div class="bear-title">⚠️ BEAR MARKET OVERRIDE</div><div class="bear-body" id="bearBody"></div></div>
-
-  <!-- ── MARKET REGIME ── -->
-  <div id="regimeWidget" style="display:none">
-    <div class="regime-grid">
-      <div>
-        <div class="regime-label">🧠 Market Regime</div>
-        <div class="regime-value" id="regimeValue">–</div>
-        <div class="regime-conf" id="regimeConf">–</div>
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">ฺ🚀</div>
+      <div class="brand-text">
+        <div class="th">Playground</div>
+        <div class="en">v2.5</div>
       </div>
-      <div>
-        <div class="conf-bar-track"><div class="conf-bar-fill" id="confBar"></div></div>
-        <div style="margin-top:6px;font-size:10.5px;color:var(--muted)" id="regimeVix"></div>
+    </div>
+    <div class="nav" id="mainNav">
+      <div class="nav-item active">
+        <span style="font-size:16px">📊</span>
+        <span>Overview</span>
       </div>
-      <div class="regime-score-wrap">
-        <div class="regime-score-label">Composite Score</div>
-        <div class="regime-score-val" id="regimeScore">–</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px">-100 to +100</div>
+      <div class="nav-divider"></div>
+      <div class="nav-item">
+        <span style="font-size:16px">🔍</span>
+        <span>Screener</span>
       </div>
-      <div class="exposure-grid">
-        <div class="exp-card">
-          <div class="exp-label">📊 Exposure</div>
-          <div class="exp-val" id="expPct" style="color:var(--green)">–</div>
+      <div class="nav-item">
+        <span style="font-size:16px">📈</span>
+        <span>Deep Dive</span>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="sync-row">
+        <div class="dot ok" id="syncDot"></div>
+        <span id="syncStatus">Ready</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+    <!-- ERROR BANNER -->
+    <div id="errBanner" style="display:none"></div>
+
+    <!-- BEAR OVERRIDE BANNER -->
+    <div id="bearBanner">
+      <div class="bear-title">⚠️ BEAR OVERRIDE</div>
+      <div class="bear-body" id="bearMsg"></div>
+    </div>
+
+    <!-- LOADING OVERLAY -->
+    <div id="loading">
+      <div class="load-box">
+        <div class="load-title">กำลังโหลด...</div>
+        <div class="load-msg" id="loadMsg">เชื่อมต่อ backend...</div>
+        <div class="load-bar-wrap">
+          <div class="load-bar" id="loadBar"></div>
         </div>
-        <div class="exp-card">
-          <div class="exp-label">💵 Cash</div>
-          <div class="exp-val" id="cashPct" style="color:var(--orange)">–</div>
+        <div class="load-detail" id="loadDetail"></div>
+      </div>
+    </div>
+
+    <!-- CONTROL BAR -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button id="btn-core" class="mode-btn active">Core</button>
+        <button id="btn-full" class="mode-btn">Full</button>
+        <button id="btn-refresh" class="refresh-btn">🔄 Refresh</button>
+        <div class="auto-refresh-row">
+          <input type="checkbox" id="chk-auto">
+          <label style="margin-left:4px;cursor:pointer">Auto (<span id="countdown"></span>)</label>
         </div>
       </div>
-      <div class="regime-desc" id="regimeDesc"></div>
-    </div>
-    <!-- Signal breakdown (collapsible) -->
-    <div class="regime-signals">
-      <div class="sig-title" onclick="toggleSigs()" style="cursor:pointer">📡 Signal Breakdown (คลิกเพื่อ expand) <span id="sigToggle">▼</span></div>
-      <div id="sigGrid" class="sig-grid" style="display:none"></div>
-    </div>
-  </div>
-
-  <!-- Row 1 -->
-  <div class="topgrid">
-    <div class="card">
-      <div class="card-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        Market Breadth
-      </div>
-      <div class="card-sub">% ของหุ้นแต่ละตลาดที่ยืนเหนือเส้นค่าเฉลี่ย — <b>แถบหนา = เหนือ MA50</b>, แถบบาง = เหนือ MA200 · เปลี่ยนแปลงเทียบ 5 วันทำการก่อนหน้า</div>
-      <div id="breadthRows"></div>
-    </div>
-    <div class="card">
-      <div class="card-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/></svg>
-        Breadth History
-      </div>
-      <div class="hist-tabs" id="histTabs"></div>
-      <div class="chart-wrap" id="breadthHistChart"></div>
-      <div class="hist-meta"><span id="histUniverse">–</span><span id="histUpdated">–</span></div>
-    </div>
-  </div>
-
-  <!-- Stat cards -->
-  <div class="statgrid" id="statGrid"></div>
-
-  <!-- Row 2 -->
-  <div class="bottomgrid">
-    <div class="card">
-      <div class="card-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-        Watchlist น่าสนใจ — Confluence
-      </div>
-      <div class="card-sub">หุ้นที่ปรากฏใน ≥2 scanners พร้อมกัน (5 วันล่าสุด) เรียงตามจำนวน signal + RS Rating</div>
-      <div class="wl-toolbar">
-        <div class="search-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="searchBox" placeholder="ค้นหา Ticker / บริษัท / Theme...">
-        </div>
-        <div class="mkt-filter" id="mktFilter">
-          <div class="mkt-btn active" data-mkt="ALL">ทั้งหมด</div>
-          <div class="mkt-btn" data-mkt="US">🇺🇸 US</div>
-          <div class="mkt-btn" data-mkt="TH">🇹🇭 TH</div>
-          <div class="mkt-btn" data-mkt="HK">🇭🇰 HK</div>
-          <div class="mkt-btn" data-mkt="JP">🇯🇵 JP</div>
-          <div class="mkt-btn" data-mkt="KR">🇰🇷 KR</div>
-          <div class="mkt-btn" data-mkt="CN">🇨🇳 CN</div>
-        </div>
-      </div>
-      <div class="tbl-wrap">
-<table class="wl">
-        <thead><tr><th>Symbol</th><th>Theme</th><th>Pattern</th><th class="num">1D%</th><th class="num">RS</th></tr></thead>
-        <tbody id="watchlistBody"></tbody>
-      </table>
-</div>
-      <div id="watchlistEmpty" class="empty-msg" style="display:none">ไม่มีหุ้นที่เข้าเกณฑ์ Confluence ในรอบนี้</div>
+      <div style="font-size:11px;color:var(--muted)" id="footerCaption"></div>
     </div>
 
-    <div class="right-col">
+    <!-- TOP GRID: BREADTH + REGIME -->
+    <div class="topgrid">
+      <!-- BREADTH CARD -->
       <div class="card">
         <div class="card-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.7 1 6.4 2.6L21 8"/><path d="M21 3v5h-5"/></svg>
-          เงินไหลไปไหน — Theme Movers
+          <span>📊</span>
+          <span>Market Breadth</span>
         </div>
-        <div class="theme-strong-tag">STRONG — แรงสุด 1M และ 3M</div>
-        <div id="themeRows"></div>
+        <div class="card-sub">% of stocks above <b>MA50</b> vs <b>MA200</b></div>
+        <div id="breadthData"></div>
       </div>
+
+      <!-- REGIME CARD -->
       <div class="card">
         <div class="card-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-          Top RS Movers <span style="font-size:10px;color:var(--muted);font-weight:600;margin-left:4px">dRS 7D</span>
+          <span>📈</span>
+          <span>Regime</span>
         </div>
-        <div class="card-sub">หุ้นที่ RS Rating เพิ่มขึ้นเร็วที่สุดในรอบ 7 วันทำการ</div>
-        <div id="rsmoverRows"></div>
+        <div class="card-sub">Market state analyzer</div>
+        <div id="regimeData"></div>
+      </div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="statgrid" id="statGrid"></div>
+
+    <!-- WATCHLIST SECTION -->
+    <div class="bottomgrid">
+      <div>
+        <div class="card">
+          <div class="card-title">
+            <span>💼</span>
+            <span>Watchlist</span>
+          </div>
+          <div class="card-sub">Top movers · Patterns · Relative Strength</div>
+          <div class="wl-toolbar">
+            <div class="search-wrap">
+              <input type="text" id="searchBox" placeholder="Filter symbols...">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+            </div>
+            <div class="mkt-filter" id="mktFilter">
+              <button class="mkt-btn active" data-mkt="ALL">All</button>
+              <button class="mkt-btn" data-mkt="US">US</button>
+              <button class="mkt-btn" data-mkt="TH">TH</button>
+              <button class="mkt-btn" data-mkt="HK">HK</button>
+            </div>
+          </div>
+          <table class="wl">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th class="num">Price</th>
+                <th class="num">Change %</th>
+                <th>Pattern</th>
+                <th class="num">RS</th>
+              </tr>
+            </thead>
+            <tbody id="wlBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: THEMES + MOVERS -->
+      <div class="right-col">
+        <div class="card">
+          <div class="card-title">
+            <span>🎨</span>
+            <span>Theme Movers</span>
+          </div>
+          <div class="card-sub">Top themes by % change</div>
+          <div id="themeData"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span>⭐</span>
+            <span>Relative Strength</span>
+          </div>
+          <div class="card-sub">Top RS stocks</div>
+          <div id="rsData"></div>
+        </div>
       </div>
     </div>
   </div>
-
-  <div class="footer-caption" id="footerCaption"></div>
-</main>
 </div>
-
-<script src="/nav.js"></script>
 
 <script>
-/* ===== CONSTANTS ===== */
+/* ===== CONFIG ===== */
+const REFRESH_SEC = 60;
 const MARKETS = ["US","TH","HK","JP","KR","CN"];
-const FLAGS = {US:"🇺🇸",TH:"🇹🇭",HK:"🇭🇰",JP:"🇯🇵",KR:"🇰🇷",CN:"🇨🇳"};
-const PATTERNS = ["VDU","PPBP","BGU","52W"];
-const AVATAR_PAL = ["#0ea5e9","#1d4ed8","#2563eb","#dc2626","#b91c1c","#7c2d12","#16a34a","#7c3aed","#0891b2","#be185d"];
-const EXCH = [[".BK","SET"],[".HK","HKEX"],[".T","TSE"],[".KS","KRX"],[".SS","SSE"],[".SZ","SZSE"]];
-const REFRESH_SEC = 15 * 60;
-
-/* ===== STATE ===== */
 let currentMode = "core";
 let currentMkt = "ALL";
 let currentSearch = "";
-let fullData = null;    // last API response
 let loading = false;
-let countdownSec = REFRESH_SEC;
+let fullData = null;
 let countdownTimer = null;
-let autoEnabled = true;
+let countdownSec = REFRESH_SEC;
+let autoEnabled = false;
 
-/* ===== UTILS ===== */
+/* ===== HELPERS ===== */
 const $ = id => document.getElementById(id);
-const esc = s => (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const fmtPct = (v,d=2) => (v>=0?"+":"")+v.toFixed(d)+"%";
-function hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return Math.abs(h)}
-function avatarColor(t){return AVATAR_PAL[hashStr(t)%AVATAR_PAL.length]}
-function exchLabel(t){for(const[s,l]of EXCH)if(t.endsWith(s))return l;return "US"}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
-/* ===== SVG HELPERS ===== */
-function smoothPath(pts){
-  let d=`M ${pts[0][0]} ${pts[0][1]}`;
-  for(let i=1;i<pts.length;i++){
-    const[x0,y0]=pts[i-1],[x1,y1]=pts[i],mx=(x0+x1)/2,my=(y0+y1)/2;
-    d+=` Q ${x0} ${y0} ${mx} ${my}`;
-  }
-  return d+` L ${pts[pts.length-1][0]} ${pts[pts.length-1][1]}`;
-}
-function scaleY(v,lo,hi,top,bot){return top+(1-(v-lo)/(hi-lo))*(bot-top)}
-
-function sparklineSvg(vals,color="#10b981"){
-  if(vals.length<2)vals=[0,0];
-  const lo=Math.min(...vals),hi=Math.max(...vals),r=hi-lo||1;
-  const pts=vals.map((v,i)=>[(i/(vals.length-1))*100,scaleY(v,lo-r*.15,hi+r*.15,8,92)]);
-  return `<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;"><path d="${smoothPath(pts)}" fill="none" stroke="${color}" stroke-width="6" vector-effect="non-scaling-stroke"/></svg>`;
-}
-
-function histChartSvg(dates,ma50,ma200){
-  if(dates.length<2)return `<div style="color:var(--muted);font-size:12px;padding:80px 0;text-align:center">ไม่มีข้อมูลเพียงพอ</div>`;
-  const all=[...ma50,...ma200],lo=Math.min(...all),hi=Math.max(...all);
-  const pad=Math.max(2,(hi-lo)*.1),mn=lo-pad,mx=hi+pad;
-  const gr=4,gridVals=Array.from({length:gr+1},(_,i)=>mn+(mx-mn)*i/gr);
-  const ptsFor=d=>d.map((v,i)=>[(i/(d.length-1))*94,scaleY(v,mn,mx,8,82)]);
-  const p50=ptsFor(ma50),p200=ptsFor(ma200);
-  const area=`${smoothPath(p50)} L ${p50[p50.length-1][0]} 82 L ${p50[0][0]} 82 Z`;
-  let svg=`<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;display:block;">`;
-  gridVals.forEach(g=>{const y=scaleY(g,mn,mx,8,82);svg+=`<line x1="0" y1="${y}" x2="94" y2="${y}" stroke="#1c2533" stroke-width="0.25"/>`;});
-  svg+=`<path d="${area}" fill="#10b981" opacity="0.10"/>`;
-  svg+=`<path d="${smoothPath(p200)}" fill="none" stroke="#6366f1" stroke-width="0.8" vector-effect="non-scaling-stroke"/>`;
-  svg+=`<path d="${smoothPath(p50)}" fill="none" stroke="#10b981" stroke-width="0.8" vector-effect="non-scaling-stroke"/>`;
-  svg+=`</svg>`;
-  // HTML labels
-  let labels="";
-  gridVals.forEach(g=>{const y=scaleY(g,mn,mx,8,82);labels+=`<div style="position:absolute;right:2px;top:${y}%;transform:translateY(-50%);font-size:9px;color:#6b7280">${g.toFixed(0)}%</div>`;});
-  const ni=5;
-  for(let i=0;i<ni;i++){
-    const idx=Math.round(i/(ni-1)*(dates.length-1));
-    const f=(idx/(dates.length-1))*94;
-    const dt=new Date(dates[idx]),txt=`${dt.getDate()}/${dt.getMonth()+1}`;
-    const tr=i===0?"translateX(0)":(i===ni-1?"translateX(-100%)":"translateX(-50%)");
-    labels+=`<div style="position:absolute;left:${f}%;bottom:2px;transform:${tr};font-size:9.5px;color:#6b7280">${txt}</div>`;
-  }
-  return svg+labels;
-}
-
-/* ===== RENDERERS ===== */
-function renderSync(sync,ok){
-  let html="";
-  const markets = sync?.markets || [];
-  for(const s of markets){
-    const dot=s.loaded===s.total?"ok":(s.loaded>0?"warn":"bad");
-    html+=`<div class="sync-row"><span class="dot ${dot}"></span> ${FLAGS[s.market]||""} ${s.market}: ${s.loaded}/${s.total} OK</div>`;
-  }
-  html+=`<div class="sync-row"><span class="dot ${ok?"ok":"bad"}"></span> Yahoo Finance: ${ok?"live":"error"}</div>`;
-  $("syncBox").innerHTML=html;
-}
-
-function renderBearOverride(active,data){
-  const banner=$("bearBanner");
-  if(active){
-    $("bearBody").textContent="🚨 BEAR MARKET OVERRIDE: แนะนำการจำกัดความเสี่ยงด้วยการถือครองเงินสด 80%-100% เท่านั้น ห้ามขยายขนาดพอร์ตฟอลิโอในการเทรดแนวโน้มขาขึ้นเด็ดขาด — ตลาดส่วนใหญ่มี MA50 Breadth <40% และกำลังอ่อนตัวรุนแรง";
-    banner.style.display="block";
-  } else {
-    banner.style.display="none";
+/* ===== RENDER SYNC STATUS ===== */
+function renderSync(data,ok){
+  const d = $("syncDot");
+  const s = $("syncStatus");
+  if(ok){
+    d.classList.remove("warn","bad");d.classList.add("ok");
+    s.textContent = "Ready";
+  }else{
+    d.classList.remove("ok","bad");d.classList.add("warn");
+    s.textContent = (data?.msg || "Syncing...").substring(0,30);
   }
 }
 
-function renderBreadth(rows){
-  $("breadthRows").innerHTML=rows.map(r=>{
-    const chgUp=r.chg>=0;
-    const c=r.ma50>=60?"#10b981":(r.ma50>=40?"#f59e0b":"#ef4444");
-    return `<div class="breadth-row">
-      <div class="flag">${r.flag}</div>
-      <div class="country">${r.code}</div>
-      <div class="bar-track">
-        <div class="bar-ma200" style="width:${Math.min(r.ma200,100).toFixed(1)}%"></div>
-        <div class="bar-ma50" style="width:${Math.min(r.ma50,100).toFixed(1)}%;background:${c}"></div>
-      </div>
-      <div class="breadth-stats">
-        <span class="ma50val">${r.ma50.toFixed(1)}%</span>
-        <span class="ma200val">${r.ma200.toFixed(1)}%</span>
-        <span class="chg ${chgUp?"up":"down"}">${chgUp?"▲":"▼"}${Math.abs(r.chg).toFixed(1)}</span>
-      </div>
-    </div>`;
+/* ===== RENDER BEAR OVERRIDE ===== */
+function renderBearOverride(bearData,mainData){
+  const b = $("bearBanner");
+  if(!bearData||!bearData.active){b.style.display="none";return;}
+  b.style.display="block";
+  const lines = [];
+  if(bearData.reason) lines.push(bearData.reason);
+  if(bearData.severity) lines.push(`Severity: ${bearData.severity}`);
+  $("bearMsg").textContent = lines.join(" | ");
+}
+
+/* ===== RENDER BREADTH ===== */
+function renderBreadth(data){
+  $("breadthData").innerHTML = (data||[]).map(b=>{
+    const w50 = Math.min(100,Math.max(0,(b.ma50||0)));
+    const w200 = Math.min(100,Math.max(0,(b.ma200||0)));
+    const chg = b.chg_pct||0;
+    return `
+      <div class="breadth-row">
+        <div class="flag">${b.emoji||"📍"}</div>
+        <div class="country">${b.code}</div>
+        <div class="bar-track">
+          <div class="bar-ma200" style="width:${w200}%"></div>
+          <div class="bar-ma50" style="width:${w50}%;background:${b.color||'var(--teal)'}"></div>
+        </div>
+        <div class="breadth-stats">
+          <span class="ma50val">${(b.ma50||0).toFixed(1)}%</span>
+          <span class="ma200val">${(b.ma200||0).toFixed(1)}%</span>
+          <span class="chg ${chg>0?'up':'down'}">${chg>0?'+':''}${chg.toFixed(2)}%</span>
+        </div>
+      </div>`;
   }).join("");
 }
 
-/* --- Breadth history tabs (all markets) --- */
-let histMarket = "TH";
-function renderHistTabs(markets){
-  $("histTabs").innerHTML=markets.map(m=>
-    `<div class="hist-tab ${m===histMarket?"active":""}" data-hm="${m}">${FLAGS[m]||""} ${m}</div>`
-  ).join("");
-  $("histTabs").querySelectorAll(".hist-tab").forEach(el=>{
-    el.addEventListener("click",()=>{histMarket=el.dataset.hm;renderHistChart();});
-  });
-}
-function renderHistChart(){
-  if(!fullData)return;
-  const all=fullData.breadth_history_all||{};
-  const bh=all[histMarket]||{dates:[],ma50:[],ma200:[],universe:0};
-  // update active tab
-  $("histTabs").querySelectorAll(".hist-tab").forEach(el=>{
-    el.classList.toggle("active",el.dataset.hm===histMarket);
-  });
-  $("breadthHistChart").innerHTML=histChartSvg(bh.dates,bh.ma50,bh.ma200);
-  $("histUniverse").textContent=`Universe: ${bh.universe} stocks (${histMarket})`;
-  $("histUpdated").textContent=`Updated: ${fullData.updated}`;
+/* ===== RENDER REGIME ===== */
+function renderRegime(data){
+  const r = $("regimeData");
+  if(!data.regime_table||!data.regime_table.length){
+    r.innerHTML="<div style='color:var(--muted);font-size:12px'>No regime data</div>";
+    return;
+  }
+  const main = data.regime_table[0];
+  r.innerHTML = `
+    <div class="regime-box" style="border-color:rgba(${main.r_color_rgba||'99,102,241'},.3)">
+      <div class="regime-title">Primary</div>
+      <div class="regime-label">${main.regime_name||"—"}</div>
+      <div class="regime-badge" style="background:rgba(${main.r_color_rgba||'99,102,241'},.2);color:rgb(${main.r_color_rgba||'99,102,241'})">${main.confidence||0}% conf</div>
+    </div>`;
+  if(data.regime_details_html){
+    r.insertAdjacentHTML("beforeend",data.regime_details_html);
+  }
+  if(data.signal_table&&data.signal_table.length){
+    r.insertAdjacentHTML("beforeend",`<div style='margin-top:12px'><div class="conf-label">Signals</div><div id="sigGrid" class="sig-grid"></div></div>`);
+    renderRegimeSignals(data);
+  }
 }
 
-function renderStatCards(cards){
-  const defs=[["Volume Dry-Up pickup","VDU"],["Pocket Pivot Buy Point","PPBP"],["Buyable Gap-Up","BGU"],["ห่างจาก 52-week high ≤5%","52W"]];
-  $("statGrid").innerHTML=defs.map(([label,key])=>`
+/* ===== RENDER REGIME SIGNALS ===== */
+function renderRegimeSignals(d){
+  $("sigGrid").innerHTML = (d.signal_table||[]).map(s=>{
+    const CAT_ICONS = {
+      "Trend":"📈","Breadth":"📊","Momentum":"⚡","Volatility":"😨",
+      "Credit":"💰","Yield Curve":"📋","Risk Assets":"🥇"
+    };
+    return `
+      <div class="sig-row">
+        <div class="sig-icon">${CAT_ICONS[s.category]||"•"}</div>
+        <div class="sig-info">
+          <div class="sig-label">${esc(s.label)}</div>
+          <div class="sig-val">${esc(s.value)}</div>
+        </div>
+        <div class="sig-wt">${s.weight}%</div>
+        <div class="sig-score ${s.score>0?'pos':s.score<0?'neg':'neutral'}">${s.score>0?'+':''}${s.score}</div>
+      </div>`;
+  }).join("");
+}
+
+/* ===== RENDER STAT CARDS ===== */
+function renderStatCards(data){
+  $("statGrid").innerHTML = (data||[]).map(s=>`
     <div class="statcard">
-      <div class="stat-label">${label} (5 วันล่าสุด)</div>
+      <div class="stat-label">${esc(s.label)}</div>
       <div class="stat-bottom">
-        <div><span class="stat-val">${cards[key]??0}</span><span class="stat-unit">/ ${cards.total} signals</span></div>
-        <div class="stat-badge badge-${key}">${key}</div>
+        <div><span class="stat-val">${esc(s.value)}</span><span class="stat-unit">${esc(s.unit||"")}</span></div>
+        ${s.badge?`<span class="stat-badge badge-${s.badge}">${esc(s.badge)}</span>`:""}
       </div>
     </div>`).join("");
 }
 
-function applyWatchlistFilters(rows){
-  return rows.filter(r=>{
-    if(currentMkt!=="ALL" && r.market!==currentMkt) return false;
-    if(currentSearch){
-      const q=currentSearch.toLowerCase();
-      if(!r.ticker.toLowerCase().includes(q)&&!r.name.toLowerCase().includes(q)&&!r.theme.toLowerCase().includes(q)) return false;
-    }
-    return true;
+/* ===== RENDER WATCHLIST ===== */
+function renderWatchlist(data){
+  let filtered = data||[];
+  if(currentMkt!=="ALL")
+    filtered = filtered.filter(w=>w.exchange===currentMkt);
+  if(currentSearch.length>0){
+    const q = currentSearch.toLowerCase();
+    filtered = filtered.filter(w=>(w.symbol.toLowerCase().includes(q)||w.name.toLowerCase().includes(q)));
+  }
+  $("wlBody").innerHTML = filtered.slice(0,50).map(w=>`
+    <tr data-hm="${esc(w.exchange)}">
+      <td>
+        <div class="sym-cell">
+          <div class="sym-icon" style="background:${w.color||'var(--indigo)'">${w.symbol[0]}</div>
+          <div class="sym-text">
+            <div class="sym">${esc(w.symbol)}</div>
+            <span class="ex">${esc(w.exchange)}</span>
+            <div class="full">${esc(w.name)}</div>
+          </div>
+        </div>
+      </td>
+      <td class="num">${(w.price||0).toFixed(2)}</td>
+      <td class="num"><span class="num ${w.change_pct>0?'pos':'neg'}">${w.change_pct>0?'+':''}${(w.change_pct||0).toFixed(2)}%</span></td>
+      <td><div class="pattern-row">${(w.patterns||[]).map(p=>`<span class="ptag ${p}">${p}</span>`).join("")}</div></td>
+      <td class="num"><span class="rs-pill rs-${w.rs_level||'low'}">${(w.rs||0).toFixed(0)}</span></td>
+    </tr>`).join("");
+}
+
+/* ===== RENDER THEME MOVERS ===== */
+function renderThemeMovers(data){
+  $("themeData").innerHTML = (data||[]).map((t,i)=>`
+    <div class="theme-row">
+      <div class="theme-rank">${i+1}</div>
+      <div class="theme-arrow ${t.direction}">${t.direction==='up'?'▲':t.direction==='down'?'▼':'—'}</div>
+      <div class="theme-info">
+        <div class="theme-name">${esc(t.name)}</div>
+        <div class="theme-ticker">${(t.stocks||[]).slice(0,3).map(s=>esc(s)).join(", ")}</div>
+      </div>
+      <div class="theme-pct">
+        <span class="${t.change_pct>0?'pos':'neg'}">${t.change_pct>0?'+':''}${(t.change_pct||0).toFixed(2)}%</span>
+      </div>
+    </div>`).join("");
+}
+
+/* ===== RENDER RS MOVERS ===== */
+function renderRsMovers(data){
+  $("rsData").innerHTML = (data||[]).map(r=>`
+    <div class="theme-row">
+      <div class="theme-arrow ${r.rs_trend}">${r.rs_trend==='up'?'📈':r.rs_trend==='down'?'📉':'—'}</div>
+      <div class="theme-info">
+        <div class="theme-name">${esc(r.symbol)}</div>
+        <div class="theme-ticker">${esc(r.name)}</div>
+      </div>
+      <div class="theme-pct">
+        <span class="pos">RS: ${(r.rs||0).toFixed(0)}</span>
+      </div>
+    </div>`).join("");
+}
+
+/* ===== RENDER HIST TABS ===== */
+function renderHistTabs(markets){
+  const tabs = markets.map(m=>`<button class="hist-tab ${m==='US'?'active':''}" data-m="${m}">${m}</button>`).join("");
+  $("breadthData").insertAdjacentHTML("afterend",`
+    <div style="margin-top:16px">
+      <div class="card">
+        <div class="card-title"><span>📉</span> <span>Breadth History</span></div>
+        <div class="hist-tabs">${tabs}</div>
+        <div class="chart-wrap" id="histChart"></div>
+        <div class="hist-meta"><span id="histFrom">—</span><span id="histTo">—</span></div>
+      </div>
+    </div>`);
+  document.querySelectorAll(".hist-tab").forEach(el=>{
+    el.addEventListener("click",()=>{
+      document.querySelectorAll(".hist-tab").forEach(b=>b.classList.toggle("active",b===el));
+      const histMarket = el.dataset.m;
+      renderHistChart();
+    });
   });
 }
-function renderWatchlist(rows){
-  const filtered=applyWatchlistFilters(rows);
-  const body=$("watchlistBody");
-  const empty=$("watchlistEmpty");
-  if(!filtered.length){body.innerHTML="";empty.style.display="block";return;}
-  empty.style.display="none";
-  body.innerHTML=filtered.map(r=>{
-    const pos=r.pct1d>=0;
-    const rsCls=r.rs>=80?"rs-90":(r.rs>=60?"rs-70":"rs-low");
-    const tags=PATTERNS.filter(p=>r.patterns.includes(p)).map(p=>`<span class="ptag ${p}">${p}</span>`).join("");
-    return `<tr>
-      <td><div class="sym-cell">
-        <div class="sym-icon" style="background:${avatarColor(r.full_ticker)}">${esc(r.ticker).slice(0,2).toUpperCase()}</div>
-        <div class="sym-text"><div><span class="sym">${esc(r.ticker)}</span><span class="ex">${exchLabel(r.full_ticker)}</span></div>
-        <div class="full">${esc(r.name)}</div></div></div></td>
-      <td class="theme-tag">${esc(r.theme)}</td>
-      <td><div class="pattern-row">${tags}</div></td>
-      <td class="num ${pos?"pos":"neg"}">${fmtPct(r.pct1d)}</td>
-      <td class="num"><span class="rs-pill ${rsCls}">${r.rs}</span></td>
-    </tr>`;
-  }).join("");
-}
 
-function renderThemeMovers(rows){
-  $("themeRows").innerHTML=rows.map((r,i)=>{
-    const ac=r.d1>0.05?"up":(r.d1<-0.05?"down":"flat");
-    const ar=ac==="up"?"▲":(ac==="down"?"▼":"—");
-    return `<div class="theme-row">
-      <div class="theme-rank">${i+1}</div>
-      <div class="theme-arrow ${ac}">${ar}</div>
-      <div class="theme-info"><span class="theme-name">${esc(r.theme)}</span>
-        <span class="theme-ticker">${r.tickers.join(" ")}</span></div>
-      <div class="theme-pct">
-        <span class="${r.d1>=0?"pos":"neg"}">${fmtPct(r.d1,1)}</span>
-        <span class="${r.m1>=0?"pos":"neg"}">${fmtPct(r.m1,1)}</span>
-        <span class="${r.m3>=0?"pos":"neg"}">${fmtPct(r.m3,1)}</span>
-      </div>
-    </div>`;
-  }).join("");
-}
-
-function renderRsMovers(rows){
-  $("rsmoverRows").innerHTML=rows.map(r=>{
-    const dCls=r.drs7>=0?"pos":"neg";
-    return `<div class="rsmover-row">
-      <div class="rsm-icon" style="background:${avatarColor(r.full_ticker)}">${esc(r.ticker).slice(0,2).toUpperCase()}</div>
-      <div class="rsm-info"><span class="rsm-sym">${esc(r.ticker)}</span><span class="rsm-ex">${exchLabel(r.full_ticker)}</span></div>
-      <div class="spark-wrap">${sparklineSvg(r.spark)}</div>
-      <div class="rsm-rs">RS ${r.rs}<span class="delta ${dCls}">${r.drs7>=0?"▲":"▼"}${Math.abs(r.drs7)}</span></div>
-    </div>`;
-  }).join("");
-}
-
-
-/* ── MARKET REGIME ── */
-let sigsExpanded = false;
-function toggleSigs(){
-  sigsExpanded = !sigsExpanded;
-  document.getElementById("sigGrid").style.display = sigsExpanded ? "grid" : "none";
-  document.getElementById("sigToggle").textContent = sigsExpanded ? "▲" : "▼";
-}
-
-function renderRegime(d){
-  const w = document.getElementById("regimeWidget");
-  w.style.display = "block";
-  w.style.background = d.bg;
-  w.style.borderColor = d.color + "55";
-  $("regimeValue").textContent = d.regime;
-  $("regimeValue").style.color = d.color;
-  $("regimeConf").textContent = `Confidence: ${d.confidence}%`;
-  $("regimeScore").textContent = (d.score >= 0 ? "+" : "") + d.score;
-  $("regimeScore").style.color = d.score >= 0 ? "var(--green)" : "var(--red)";
-  $("regimeVix").textContent = `VIX: ${d.vix}  |  S&P500 vs MA200: ${d.sp500_vs_200 >= 0 ? "+" : ""}${d.sp500_vs_200}%`;
-  $("expPct").textContent = d.exposure_pct + "%";
-  $("cashPct").textContent = d.cash_pct + "%";
-  $("regimeDesc").textContent = d.description;
-  $("confBar").style.width = d.confidence + "%";
-  $("confBar").style.background = d.color;
-
-  const CAT_ICONS = {
-    "Trend":"📈","Breadth":"📊","Momentum":"⚡","Volatility":"😨",
-    "Credit":"💰","Yield Curve":"📋","Risk Assets":"🥇"
-  };
-  $("sigGrid").innerHTML = (d.signal_table || []).map(s => `
-    <div class="sig-row">
-      <div class="sig-icon">${CAT_ICONS[s.category] || "•"}</div>
-      <div class="sig-info">
-        <div class="sig-label">${esc(s.label)}</div>
-        <div class="sig-val">${esc(s.value)}</div>
-      </div>
-      <div class="sig-wt">${s.weight}%</div>
-      <div class="sig-score ${s.score > 0 ? 'pos' : s.score < 0 ? 'neg' : 'neutral'}">${s.score > 0 ? '+' : ''}${s.score}</div>
-    </div>`).join("");
+function renderHistChart(){
+  $("histChart").textContent="📊 Chart placeholder";
 }
 
 /* ===== LOAD DATA ===== */
@@ -697,7 +611,6 @@ async function load(mode=currentMode, refresh=false){
     }
     renderSync(data.sync,true);
     renderBearOverride(data.bear_override,data);
-    // Fetch regime in parallel (uses breadth data from overview)
     const usBreadth = data.breadth.find(b=>b.code==="US");
     const rParams = usBreadth
       ? `?breadth_us_ma50=${usBreadth.ma50}&breadth_us_ma200=${usBreadth.ma200}`
@@ -737,16 +650,15 @@ function startProgressPoll() {
       if (!d.ok) return;
       $("loadMsg").textContent = d.msg || "กำลังโหลด...";
       $("loadBar").style.width = (d.pct || 0) + "%";
-      // detail line
       const parts = [];
-      if (d.markets_done && d.markets_total && d.markets_total.length)
-        parts.push(\`${d.markets_done.length}/${d.markets_total.length} markets\`);
+      if (d.markets_done && d.markets_total)
+        parts.push(`${d.markets_done.length}/${d.markets_total.length} markets`);
       if (d.cache_hits || d.cache_misses)
-        parts.push(\`cache ${d.cache_hits} hit / ${d.cache_misses} download\`);
+        parts.push(`cache ${d.cache_hits} hit / ${d.cache_misses} download`);
       if (d.drive_mounted !== undefined)
         parts.push(d.drive_mounted ? "💾 Drive OK" : "💾 /tmp");
       if (d.last_error)
-        parts.push(\`⚠️ \${d.last_error}\`);
+        parts.push(`⚠️ ${d.last_error}`);
       $("loadDetail").textContent = parts.join(" · ");
     } catch(e) {}
   }, 2000);
@@ -777,16 +689,14 @@ $("btn-full").addEventListener("click",()=>load("full"));
 $("btn-refresh").addEventListener("click",()=>load(currentMode,true));
 $("chk-auto").addEventListener("change",e=>{autoEnabled=e.target.checked;if(!autoEnabled&&countdownTimer){clearInterval(countdownTimer);$("countdown").textContent="";}});
 
-// Market filter buttons
-$("mktFilter").querySelectorAll(".mkt-btn").forEach(btn=>{
+document.querySelectorAll(".mkt-btn").forEach(btn=>{
   btn.addEventListener("click",()=>{
     currentMkt=btn.dataset.mkt;
-    $("mktFilter").querySelectorAll(".mkt-btn").forEach(b=>b.classList.toggle("active",b===btn));
+    document.querySelectorAll(".mkt-btn").forEach(b=>b.classList.toggle("active",b===btn));
     if(fullData)renderWatchlist(fullData.watchlist);
   });
 });
 
-// Search box (debounced)
 let searchTimer;
 $("searchBox").addEventListener("input",e=>{
   clearTimeout(searchTimer);
@@ -796,7 +706,6 @@ $("searchBox").addEventListener("input",e=>{
   },200);
 });
 
-// Kick off initial load
 load("core");
 </script>
 
