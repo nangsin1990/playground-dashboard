@@ -170,7 +170,7 @@ def search(q: str, mode: str = "core"):
         "results": []
     })
 
-📱 NS: # =========================
+# =========================
 # STATIC (MUST BE LAST)
 # =========================
 STATIC_DIR = Path(__file__).parent
