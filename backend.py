@@ -397,5 +397,6 @@ def correlation_matrix(refresh: bool = Query(False)):
 
 
 # ── Static frontend (LAST) ────────────────────────────────────────────────────
-STATIC_DIR = Path(__file__).parent / "static"
+STATIC_DIR = Path(__file__).parent
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+
