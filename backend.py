@@ -169,7 +169,148 @@ def search(q: str, mode: str = "core"):
         "query": q,
         "results": []
     })
+# =========================
+# EXTRA API ENDPOINTS
+# =========================
 
+@app.get("/api/leadership")
+def leadership_api(mode: str = Query("core")):
+    return _resp(_cached_leadership(mode))
+
+
+@app.get("/api/global")
+def global_api(mode: str = Query("core")):
+    try:
+        if hasattr(gm, "build_global_market_board"):
+            return _resp(gm.build_global_market_board())
+        elif hasattr(gm, "get_global_market"):
+            return _resp(gm.get_global_market())
+        return _resp({"ok": False, "error": "global_market endpoint not implemented"})
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
+
+
+@app.get("/api/calendar")
+def calendar_api():
+    try:
+        if hasattr(ec, "build_economic_calendar"):
+            return _resp(ec.build_economic_calendar())
+        elif hasattr(ec, "get_calendar"):
+            return _resp(ec.get_calendar())
+        return _resp({"ok": False, "error": "calendar endpoint not implemented"})
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
+
+
+@app.get("/api/correlation")
+def correlation_api(mode: str = Query("core")):
+    try:
+        if hasattr(corr, "build_correlation_matrix"):
+            return _resp(corr.build_correlation_matrix())
+        elif hasattr(corr, "get_correlation"):
+            return _resp(corr.get_correlation())
+        return _resp({"ok": False, "error": "correlation endpoint not implemented"})
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
+
+
+@app.get("/api/etf")
+def etf_api(mode: str = Query("core")):
+    try:
+        if hasattr(eb, "build_etf_board"):
+            return _resp(eb.build_etf_board())
+        elif hasattr(eb, "get_etf_board"):
+            return _resp(eb.get_etf_board())
+        return _resp({"ok": False, "error": "etf endpoint not implemented"})
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
+
+
+@app.get("/api/rotation")
+def rotation_api(mode: str = Query("core")):
+    try:
+        if hasattr(rrg, "build_rotation_board"):
+            return _resp(rrg.build_rotation_board())
+        elif hasattr(rrg, "build_rrg"):
+            return _resp(rrg.build_rrg())
+        return _resp({"ok": False, "error": "rotation endpoint not implemented"})
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
+
+
+@app.get("/api/screener")
+def screener_api(mode: str = Query("core")):
+    try:
+        if hasattr(scr, "build_screener"):
+            return _resp(scr.build_screener())
+        elif hasattr(scr, "run_screener"):
+            return _resp(scr.run_screener())
+        return _resp({"ok": False, "error": "screener endpoint not implemented"})
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
+
+
+@app.get("/api/thematic")
+def thematic_api(mode: str = Query("core")):
+    try:
+        if hasattr(tm, "build_thematic_matrix"):
+            return _resp(tm.build_thematic_matrix())
+        elif hasattr(tm, "get_thematic_matrix"):
+            return _resp(tm.get_thematic_matrix())
+        return _resp({"ok": False, "error": "thematic endpoint not implemented"})
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
+
+
+@app.get("/api/technicals")
+def technicals_api(ticker: str):
+    try:
+        if hasattr(ta, "build_technicals"):
+            return _resp(ta.build_technicals(ticker))
+        elif hasattr(ta, "get_technicals"):
+            return _resp(ta.get_technicals(ticker))
+        return _resp({"ok": False, "error": "technicals endpoint not implemented"})
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
+
+
+@app.get("/api/sector_rs")
+def sector_rs_api(ticker: str, theme: str = ""):
+    try:
+        return _resp({
+            "ok": True,
+            "ticker": ticker,
+            "theme": theme,
+            "rs": None
+        })
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
+
+@app.get("/api/earnings")
+def earnings_api(ticker: str):
+    return _resp({
+        "ok": True,
+        "ticker": ticker,
+        "earnings": []
+    })
+
+
+@app.get("/api/dividends")
+def dividends_api(ticker: str):
+    return _resp({
+        "ok": True,
+        "ticker": ticker,
+        "dividends": []
+    })
+
+
+@app.get("/api/options_iv")
+def options_iv_api(ticker: str):
+    return _resp({
+        "ok": True,
+        "ticker": ticker,
+        "iv": None
+    })
 # =========================
 # STATIC (MUST BE LAST)
 # =========================
