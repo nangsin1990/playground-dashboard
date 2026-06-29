@@ -56,7 +56,7 @@ function coldStartBanner() {
 }
 
 /** "+1.23%" with .pos / .neg span */
-function fmtPct(v, digits = 2) {
+function fmtPctNav(v, digits = 2) {
   if (v === null || v === undefined || isNaN(v))
     return '<span class="neutral">—</span>';
   const cls = v > 0 ? "pos" : v < 0 ? "neg" : "neutral";
