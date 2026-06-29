@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ETF Board | Playground</title>
-<style><style>
+<style>
 
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI','Noto Sans Thai',system-ui,sans-serif;
@@ -116,7 +116,7 @@ tbody tr:hover{background:#161c2b}
 .empty{text-align:center;padding:30px 0;color:var(--muted);font-size:12.5px}
 
 @media(max-width:800px){.two-col{grid-template-columns:1fr}.cat-grid{grid-template-columns:repeat(2,1fr)}}
-</style></style>
+</style>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -139,7 +139,9 @@ tbody tr:hover{background:#161c2b}
     <a class="nav-link" href="/stock.html">🔬 Stock</a>
   </div>
   <div class="nav-right">
-    <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
+    <span id="updTime" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
+    <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap;margin-left:8px"></span>
+    <button id="btnRefresh" class="btn-refresh" style="margin-left:8px">↻ Refresh</button>
     <span id="nav-loading" style="display:none">⏳</span>
   </div>
 </nav>

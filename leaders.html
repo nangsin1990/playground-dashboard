@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Leadership Board | Playground</title>
-<style><style>
+<style>
 
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI','Noto Sans Thai',system-ui,sans-serif;
@@ -131,7 +131,7 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
   .tab{padding:6px 10px;font-size:11.5px}
 }
 .data-lag-banner{background:#1e293b;border-left:3px solid #f59e0b;padding:6px 14px;border-radius:4px;font-size:11px;color:#94a3b8;margin-bottom:14px;}
-</style></style>
+</style>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -154,7 +154,9 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
     <a class="nav-link" href="/stock.html">🔬 Stock</a>
   </div>
   <div class="nav-right">
+    <span id="updTime" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
     <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
+    <button id="btnRefresh" class="btn-refresh" style="margin-left:8px">↻ Refresh</button>
     <span id="nav-loading" style="display:none">⏳</span>
   </div>
 </nav>
@@ -243,7 +245,7 @@ const fmtNum = (v,d=2) => v==null ? '–' : Number(v).toFixed(d);
 
 const MKT_COLORS = {US:"#6366f1",TH:"#10b981",HK:"#f59e0b",JP:"#3b82f6",KR:"#8b5cf6",CN:"#ef4444"};
 const EXCH = [[".BK","SET"],[".HK","HKEX"],[".T","TSE"],[".KS","KRX"],[".SS","SSE"],[".SZ","SZSE"]];
-function exchLabel(t){for(const [s,l] of EXCH) if(t.endsWith(s)) return l; return "NYSE/NQ";}
+function exchLabel(t){for(const [s,l] of EXCH) if((t||"").endsWith(s)) return l; return "NYSE/NQ";}
 
 const TAB_DEFS = {
   overall:      {icon:"🏆", label:"Overall Leaders",      desc:"<strong>Leadership Score รวม (0-100)</strong> — คำนวณจาก RS Rating 25% + Trend Template 20% + Accumulation 15% + Proximity to 52W High 15% + Base Tightness 10% + dRS7D 8% + Volume 7% — เรียงจากสูงสุด เหมาะใช้เป็น Starting Point ทุกวัน"},
@@ -306,7 +308,7 @@ function symCell(r){
   return `<div class="sym-cell">
     <div class="mkt-dot" style="background:${col}"></div>
     <div class="sym-text">
-      <div><span class="sym">${esc(r.symbol)}</span><span class="ex-tag">${exch}</span></div>
+      <div><span class="sym">${esc(r.symbol||r.ticker)}</span><span class="ex-tag">${exch}</span></div>
       <div class="full" title="${esc(r.name)}">${esc(r.name)}</div>
     </div>
   </div>`;

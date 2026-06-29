@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Economic Calendar | Playground</title>
-<style><style>
+<style>
 :root{
   --purple:#a855f7;--pink:#ec4899;
 }
@@ -115,7 +115,7 @@ a{text-decoration:none;color:inherit}
 .conn-pill{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
 .conn-ok{background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.2)}
 .conn-warn{background:rgba(245,158,11,.1);color:var(--orange);border:1px solid rgba(245,158,11,.2)}
-</style></style>
+</style>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -140,9 +140,39 @@ a{text-decoration:none;color:inherit}
   </div>
   <div class="nav-right">
     <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
+    <button id="btnRefresh" class="btn-refresh" style="margin-left:8px" onclick="loadData(true)">↻ Refresh</button>
     <span id="nav-loading" style="display:none">⏳</span>
   </div>
 </nav>
+
+    <!-- LOADER / ERROR / FOMC HERO (required by JS) -->
+    <div id="loader" style="text-align:center;padding:60px 20px;color:#94a3b8;">
+      <div class="loader-spin" style="width:36px;height:36px;border:3px solid #1e293b;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px"></div>
+      <div>กำลังโหลด Economic Calendar...</div>
+    </div>
+    <div id="errorBox" style="display:none;background:#1a0c0c;border:1px solid #7f1d1d;border-radius:10px;padding:20px;color:#fca5a5;text-align:center;margin-bottom:16px">
+      <span id="errorMsg"></span>
+    </div>
+
+    <!-- FOMC HERO -->
+    <div id="fomcHero" class="fomc-hero" style="display:none">
+      <div class="fomc-countdown">
+        <div class="fomc-days" id="fomcDays">–</div>
+        <div class="fomc-days-label">วัน</div>
+      </div>
+      <div class="fomc-divider"></div>
+      <div class="fomc-info">
+        <div class="fomc-badge">🏦 FOMC</div>
+        <div class="fomc-title" id="fomcTitle">–</div>
+        <div class="fomc-sub" id="fomcSub">–</div>
+      </div>
+      <div class="fomc-date-badge">
+        <div class="fomc-date-big" id="fomcDateBig">–</div>
+        <div class="fomc-date-sub" id="fomcDateSub">–</div>
+      </div>
+    </div>
+
+    <div id="mainContent" style="display:none">
 
     <!-- CONTROLS -->
     <div class="controls">
@@ -162,6 +192,8 @@ a{text-decoration:none;color:inherit}
     <div class="timeline" id="timeline"></div>
 
     <!-- STATUS -->
+    </div><!-- /mainContent -->
+
     <div class="status-bar" id="statusBar">
       <span class="status-dot"></span>
       <span id="statusText">—</span>

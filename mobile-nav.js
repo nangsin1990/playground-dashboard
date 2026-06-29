@@ -1,10 +1,9 @@
-# @title
 /**
-# * mobile-nav.js — Injects hamburger + drawer into every page
-# * Include AFTER nav markup. Works with .topnav pages and index.html sidebar.
-# *
-# * Auto-detects current page to mark active drawer link.
-# */
+ * mobile-nav.js — Injects hamburger + drawer into every page
+ * Include AFTER nav markup. Works with .topnav pages and index.html sidebar.
+ *
+ * Auto-detects current page to mark active drawer link.
+ */
 
 (function () {
   const LINKS = [

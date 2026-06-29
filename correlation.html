@@ -180,8 +180,8 @@ function render(d) {
   const topCorr = d.top_pairs[0];
   const minCorr = [...d.top_pairs].sort((a,b) => a.corr - b.corr)[0];
   document.getElementById("statGrid").innerHTML = [
-    { label: "Assets Tracked", val: d.n_tickers, sub: "tickers" },
-    { label: "Lookback Period", val: d.period_days + "d", sub: "~3 months" },
+    { label: "Assets Tracked", val: d.labels ? d.labels.length : 0, sub: "tickers" },
+    { label: "Lookback Period", val: (d.period_days || 63) + "d", sub: "~3 months" },
     { label: "Highest Corr", val: topCorr ? "+" + topCorr.corr.toFixed(2) : "—", sub: topCorr ? topCorr.a + "/" + topCorr.b : "" },
     { label: "Lowest Corr",  val: minCorr ? minCorr.corr.toFixed(2) : "—",  sub: minCorr ? minCorr.a + "/" + minCorr.b : "" },
   ].map(s => `<div class="stat-mini"><div class="label">${s.label}</div><div class="val">${s.val}</div><div class="sub">${s.sub}</div></div>`).join("");

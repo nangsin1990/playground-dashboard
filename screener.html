@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Screener — Playground</title>
-<link rel="stylesheet" href="style.css">
-<script src="nav.js" defer></script>
+<link rel="stylesheet" href="/style.css">
+<script src="/nav.js" defer></script>
 <style>
 :root{--panel-bg:#0d1117;--border:#1e293b;--indigo:#6366f1;--green:#10b981;--red:#ef4444;--orange:#f59e0b;--muted:#64748b;--muted2:#94a3b8;--text:#e2e8f0;}
 
@@ -358,7 +358,12 @@ function resetFilters(){
 function fmtPct(v){ return v==null?"—":`<span class="${v>0?"up":v<0?"dn":"neu"}">${v>0?"+":""}${v.toFixed(1)}%</span>`; }
 function rsClass(v){ return v>=90?"rs-90":v>=80?"rs-80":v>=70?"rs-70":"rs-low"; }
 function trendDots(r){
-  return `<div class="trend-dots">${["c1_above_50","c2_above_150","c3_above_200","c4_slope_up"].map(c=>`<div class="td ${r[c]?"td-on":"td-off"}"></div>`).join("")}</div>`;
+  return `<div class="trend-dots">${[
+    r.trend_c1 ?? r["c1_above_50"],
+    r.trend_c2 ?? r["c2_above_150"],
+    r.trend_c3 ?? r["c3_above_200"],
+    r.trend_c4 ?? r["c4_slope_up"]
+  ].map(c=>`<div class="td ${c?"td-on":"td-off"}"></div>`).join("")}</div>`;
 }
 function lsBar(v){ return `<div class="ls-bar-wrap"><div class="ls-bar-fill" style="width:${v}%"></div></div><span style="font-size:10px;color:var(--muted2);margin-left:4px;">${v}</span>`; }
 function sigTags(r){

@@ -13,7 +13,7 @@ echo "╚═══════════════════════�
 echo ""
 
 # 1. Python deps
-if ! python3 -c "import fastapi,uvicorn,yfinance,pandas,numpy" 2>/dev/null; then
+if ! python3 -c "import fastapi,uvicorn,yfinance,pandas,numpy,aiofiles" 2>/dev/null; then
   echo "📦  Installing Python dependencies..."
   pip install -r requirements.txt --break-system-packages -q
 fi

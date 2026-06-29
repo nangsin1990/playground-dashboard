@@ -52,11 +52,38 @@ body  { background: var(--bg); color: var(--text); font-family: var(--font);
 
 /* ── Common layout ──────────────────────────────────────────────────────────── */
 .page       { max-width: 1400px; margin: 0 auto; padding: 20px 16px 40px; }
+.container  { max-width: 1400px; margin: 0 auto; padding: 20px 16px 40px; }
 .panel      { background: var(--panel); border: 1px solid var(--border);
               border-radius: var(--radius-lg); padding: 16px; }
 .section-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
 
-/* ── Responsive tables ──────────────────────────────────────────────────────── */
+/* ── Page / panel headers ───────────────────────────────────────────────────── */
+.page-header  { display: flex; align-items: center; justify-content: space-between;
+                flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.page-header h1 { font-size: 20px; font-weight: 700; }
+.panel-header { display: flex; align-items: center; justify-content: space-between;
+                margin-bottom: 10px; }
+.panel-title  { font-size: 13px; font-weight: 700; color: var(--text); }
+
+/* ── Loading / error states ─────────────────────────────────────────────────── */
+.loading-dot { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.loading-state { text-align: center; padding: 60px 20px; color: var(--muted);
+                 font-size: 13px; }
+.error-state   { text-align: center; padding: 40px 20px; color: var(--red);
+                 font-size: 13px; }
+.error-box { background: #ef444415; border: 1px solid #ef444440;
+             border-radius: var(--radius); padding: 16px; color: var(--red); }
+
+/* ── Refresh button ─────────────────────────────────────────────────────────── */
+.btn-refresh {
+  background: rgba(99,102,241,.12); border: 1px solid rgba(99,102,241,.3);
+  color: #a5b4fc; padding: 5px 12px; border-radius: var(--radius);
+  font-size: 11px; font-weight: 600; cursor: pointer; transition: background .12s;
+  font-family: var(--font);
+}
+.btn-refresh:hover { background: rgba(99,102,241,.22); }
 .tbl-wrap   { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table       { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
 th          { text-align: left; color: var(--muted); font-weight: 500;
@@ -135,7 +162,11 @@ tr:hover td { background: var(--panel2); }
   display: flex; align-items: center; gap: 0;
   padding: 0 20px; z-index: 1000; overflow-x: auto;
 }
-.topnav .brand        { margin-right: 24px; }
+.topnav .brand        { display: flex; align-items: center; gap: 8px; margin-right: 24px; text-decoration: none; }
+.topnav .brand-icon   { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+                        background: linear-gradient(135deg,#6366f1,#312e81); border-radius: 7px;
+                        font-size: 14px; flex-shrink: 0; }
+.topnav .brand-text   { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; }
 .topnav .nav-links    { display: flex; gap: 2px; flex: 1; overflow-x: auto; }
 .topnav .nav-right    { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
 

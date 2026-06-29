@@ -490,9 +490,10 @@ function histChartSvg(dates,ma50,ma200){
 /* ===== RENDERERS ===== */
 function renderSync(sync,ok){
   let html="";
-  for(const[m,s]of Object.entries(sync||{})){
-    const dot=s.ok===s.total?"ok":(s.ok>0?"warn":"bad");
-    html+=`<div class="sync-row"><span class="dot ${dot}"></span> ${FLAGS[m]||""} ${m}: ${s.ok}/${s.total} OK</div>`;
+  const markets = sync?.markets || [];
+  for(const s of markets){
+    const dot=s.loaded===s.total?"ok":(s.loaded>0?"warn":"bad");
+    html+=`<div class="sync-row"><span class="dot ${dot}"></span> ${FLAGS[s.market]||""} ${s.market}: ${s.loaded}/${s.total} OK</div>`;
   }
   html+=`<div class="sync-row"><span class="dot ${ok?"ok":"bad"}"></span> Yahoo Finance: ${ok?"live":"error"}</div>`;
   $("syncBox").innerHTML=html;

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Global Market | Playground</title>
-<style><style>
+<style>
 
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI','Noto Sans Thai',system-ui,sans-serif;
@@ -119,7 +119,7 @@ a{text-decoration:none;color:inherit}
 
 @media(max-width:700px){.two-col,.three-col{grid-template-columns:1fr}.sessions-grid{flex-direction:column}}
 .data-lag-banner{background:#1e293b;border-left:3px solid #f59e0b;padding:6px 14px;border-radius:4px;font-size:11px;color:#94a3b8;margin-bottom:14px;}
-</style></style>
+</style>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -144,6 +144,8 @@ a{text-decoration:none;color:inherit}
   </div>
   <div class="nav-right">
     <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
+    <span id="updateTime" style="font-size:11px;color:#6b7280;white-space:nowrap;margin-left:8px"></span>
+    <button id="btnRefresh" class="btn-refresh" style="margin-left:8px">↻ Refresh</button>
     <span id="nav-loading" style="display:none">⏳</span>
   </div>
 </nav>
