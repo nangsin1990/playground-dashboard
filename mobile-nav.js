@@ -1,89 +1,84 @@
 /**
- * mobile-nav.js — Injects hamburger + drawer into every page
- * Include AFTER nav markup. Works with .topnav pages and index.html sidebar.
- *
- * Auto-detects current page to mark active drawer link.
+ * mobile-nav.js — Mobile hamburger menu toggle
+ * Handles sidebar show/hide on mobile screens
  */
 
-(function () {
-  const LINKS = [
-    { href: "/",               icon: "📊", label: "Overview" },
-    { href: "/global.html",    icon: "🌐", label: "Global Market" },
-    { href: "/etf.html",       icon: "📦", label: "ETF Board" },
-    { href: "/leaders.html",   icon: "🏆", label: "Leadership Board" },
-    { href: "/thematic.html",  icon: "🧩", label: "Thematic Matrix" },
-    { href: "/rotation.html",  icon: "🔄", label: "Rotation Chart" },
-    { href: "/screener.html",  icon: "🔍", label: "Screener" },
-    { href: "/correlation.html",icon:"📈", label: "Correlations" },
-    { href: "/calendar.html",  icon: "📅", label: "Economic Calendar" },
-    { href: "/stock.html",     icon: "🔬", label: "Stock Deep Dive" },
-  ];
+document.addEventListener('DOMContentLoaded', function() {
+  const sidebar = document.querySelector('.sidebar');
+  const main = document.querySelector('.main');
+  let toggleBtn = document.querySelector('.mobile-nav-toggle');
 
-  function currentPath() {
-    const p = window.location.pathname;
-    if (p === "/" || p === "/index.html") return "/";
-    return p.split("/").pop() ? "/" + p.split("/").pop() : p;
+  // Create toggle button if not exists
+  if (!toggleBtn && window.innerWidth <= 900) {
+    toggleBtn = document.createElement('button');
+    toggleBtn.className = 'mobile-nav-toggle';
+    toggleBtn.innerHTML = '☰';
+    toggleBtn.type = 'button';
+    document.body.appendChild(toggleBtn);
   }
 
-  function buildDrawer() {
-    const path   = currentPath();
-    const overlay = document.createElement("div");
-    overlay.className = "nav-overlay";
-    overlay.id        = "navOverlay";
+  // Store state
+  let sidebarOpen = false;
 
-    const drawer = document.createElement("div");
-    drawer.className  = "nav-drawer";
-    drawer.id         = "navDrawer";
-    drawer.innerHTML  = `
-      <div class="nav-drawer-brand">
-        <div class="brand-icon">🛝</div>
-        <div>
-          <div class="brand-text">สนามเด็กเล่น</div>
-          <div class="brand-sub">Playground · Live</div>
-        </div>
-      </div>
-      <div class="nav-drawer-links">
-        ${LINKS.map(l => `
-          <a class="nav-drawer-link${l.href === path ? " active" : ""}" href="${l.href}">
-            <span class="icon">${l.icon}</span>
-            <span>${l.label}</span>
-          </a>`).join("")}
-      </div>`;
-
-    document.body.appendChild(overlay);
-    document.body.appendChild(drawer);
-    return { overlay, drawer };
+  // Toggle function
+  function toggleSidebar() {
+    sidebarOpen = !sidebarOpen;
+    if (sidebar) {
+      sidebar.style.display = sidebarOpen ? 'flex' : 'none';
+    }
+    if (toggleBtn) {
+      toggleBtn.innerHTML = sidebarOpen ? '✕' : '☰';
+      toggleBtn.style.zIndex = sidebarOpen ? '999' : '1000';
+    }
   }
 
-  function buildHamburger() {
-    const btn = document.createElement("button");
-    btn.className = "nav-hamburger";
-    btn.id        = "navHamburger";
-    btn.setAttribute("aria-label", "Menu");
-    btn.innerHTML = "<span></span><span></span><span></span>";
-    return btn;
+  // Close sidebar when clicking on nav items
+  if (sidebar) {
+    sidebar.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        if (window.innerWidth <= 900) {
+          sidebarOpen = false;
+          sidebar.style.display = 'none';
+          if (toggleBtn) toggleBtn.innerHTML = '☰';
+        }
+      });
+    });
   }
 
-  function init() {
-    const topnav = document.querySelector(".topnav");
-    if (!topnav) return; // index.html has sidebar — handled separately
+  // Close sidebar when clicking outside
+  document.addEventListener('click', (e) => {
+    if (sidebarOpen && sidebar && toggleBtn) {
+      if (!sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
+        sidebarOpen = false;
+        sidebar.style.display = 'none';
+        if (toggleBtn) toggleBtn.innerHTML = '☰';
+      }
+    }
+  });
 
-    const { overlay, drawer } = buildDrawer();
-    const btn = buildHamburger();
-    topnav.appendChild(btn);
-
-    function open()  { drawer.classList.add("open"); overlay.classList.add("open"); btn.classList.add("open"); document.body.style.overflow = "hidden"; }
-    function close() { drawer.classList.remove("open"); overlay.classList.remove("open"); btn.classList.remove("open"); document.body.style.overflow = ""; }
-
-    btn.addEventListener("click", () => drawer.classList.contains("open") ? close() : open());
-    overlay.addEventListener("click", close);
-    drawer.querySelectorAll("a").forEach(a => a.addEventListener("click", close));
-    document.addEventListener("keydown", e => e.key === "Escape" && close());
+  // Attach event listener to toggle button
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleSidebar();
+    });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
+  // Handle window resize
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 900) {
+      sidebarOpen = false;
+      if (sidebar) sidebar.style.display = 'flex';
+      if (toggleBtn) toggleBtn.style.display = 'none';
+    } else {
+      if (toggleBtn) toggleBtn.style.display = 'flex';
+      if (sidebar && !sidebarOpen) sidebar.style.display = 'none';
+    }
+  });
+
+  // Initial state on mobile
+  if (window.innerWidth <= 900) {
+    if (sidebar) sidebar.style.display = 'none';
+    if (toggleBtn) toggleBtn.style.display = 'flex';
   }
-})();
+});
