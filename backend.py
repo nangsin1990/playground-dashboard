@@ -176,7 +176,7 @@ def search(q: str, mode: str = "core"):
 # =========================
 # STATIC FRONTEND (IMPORTANT - MUST BE LAST)
 # =========================
-STATIC_DIR = Path(file).parent
+STATIC_DIR = Path(__file__).parent
 app.mount(
     "/",
     StaticFiles(directory=str(STATIC_DIR), html=True),
