@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 # =========================
-# SAFE IMPORT WRAPPER (กัน crash ตอน startup)
+# SAFE IMPORTS
 # =========================
 try:
     from cache_utils import ttl_cache
@@ -31,7 +31,7 @@ try:
 except Exception:
     CACHE_TTL_DATA = 300
 
-# core modules (กัน import พัง)
+# core modules
 try:
     import data_io
     import pipeline
@@ -48,7 +48,6 @@ try:
     import data_engine as eng
     import pandas as pd
 except Exception as e:
-    # กัน server crash ตอน import
     print("IMPORT WARNING:", e)
 
 # =========================
@@ -59,6 +58,7 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(message)s",
     datefmt="%H:%M:%S",
 )
+
 log = logging.getLogger("playground")
 
 app = FastAPI(title="Playground Dashboard API", version="5.0")
@@ -71,13 +71,13 @@ app.add_middleware(
 )
 
 # =========================
-# GLOBAL STATE
+# STATE
 # =========================
 _boot_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 _last_call = {"time": None}
 
 # =========================
-# GLOBAL EXCEPTION HANDLER
+# EXCEPTION HANDLER
 # =========================
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -94,7 +94,7 @@ def _resp(data: dict):
     )
 
 # =========================
-# CACHE DASHBOARD
+# CACHE
 # =========================
 @ttl_cache(CACHE_TTL_DATA)
 def _cached_dashboard(mode: str):
@@ -109,7 +109,10 @@ def _cached_leadership(mode: str):
     if not combined:
         return {"ok": False, "error": "No data"}
 
-    blended = pd.Series({t: eng.blended_return(d["Close"]) for t, d in combined.items()})
+    blended = pd.Series({
+        t: eng.blended_return(d["Close"])
+        for t, d in combined.items()
+    })
 
     rs_now = eng.rs_rating_per_market(combined, ticker_meta)
 
@@ -118,7 +121,7 @@ def _cached_leadership(mode: str):
     )
 
 # =========================
-# HEALTH
+# API
 # =========================
 @app.get("/api/health")
 def health():
@@ -133,9 +136,6 @@ def status():
         "now": datetime.now().isoformat()
     }
 
-# =========================
-# DASHBOARD
-# =========================
 @app.get("/api/dashboard")
 def dashboard(
     mode: str = Query("core"),
@@ -157,9 +157,6 @@ def dashboard(
 
     return _resp(result)
 
-# =========================
-# SEARCH
-# =========================
 @app.get("/api/search")
 def search(q: str, mode: str = "core"):
     result = _cached_dashboard(mode)
@@ -173,10 +170,11 @@ def search(q: str, mode: str = "core"):
         "results": []
     })
 
-# =========================
-# STATIC FRONTEND (IMPORTANT - MUST BE LAST)
+📱 NS: # =========================
+# STATIC (MUST BE LAST)
 # =========================
 STATIC_DIR = Path(__file__).parent
+
 app.mount(
     "/",
     StaticFiles(directory=str(STATIC_DIR), html=True),
