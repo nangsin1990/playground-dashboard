@@ -1,211 +1,132 @@
 # @title
+#"""
+#constants.py — Central config for all magic numbers
+#v5.2: PIPELINE_BATCH_SIZE 60→20, FETCH_CHUNK_SIZE 60→20
+#      (per Incident Report Fix #5: smaller batches = easier debug + less Yahoo timeout)
+#"""
 
-from __future__ import annotations
-import logging
-import time
-import threading
-_yfinance_lock = threading.Lock()
-import concurrent.futures
-from datetime import datetime
-from typing import Optional
+# ── Trading Calendar ──────────────────────────────────────────────────────────
+TRADING_DAYS_YEAR   = 252
+TRADING_DAYS_MONTH  = 21
+TRADING_DAYS_QUARTER= 63
+TRADING_DAYS_HALFYR = 126
+TRADING_DAYS_3QTR   = 189
+TRADING_WEEKS_YEAR  = 52
 
-import numpy as np
-import pandas as pd
-import yfinance as yf
+# ── Indicator Windows ─────────────────────────────────────────────────────────
+SMA_SHORT   = 10
+SMA_MID     = 50
+SMA_TREND   = 150
+SMA_LONG    = 200
+VOL_SMA     = 50
+HIGH_52W    = TRADING_DAYS_YEAR
 
-from constants import (
-    FETCH_PERIOD, FETCH_TIMEOUT, FETCH_CHUNK_SIZE, FETCH_MIN_ROWS,
-    FETCH_RETRY_MAX, FETCH_RETRY_BASE,
-)
+# ── Scanner Parameters ────────────────────────────────────────────────────────
+VDU_VOL_LOW         = 0.40
+VDU_VOL_HIGH        = 0.60
+BGU_GAP_PCT         = 1.5
+BGU_VOL_MULT        = 2.5
+W52_PROXIMITY       = 0.95
+PPBP_VOL_LOOKBACK   = 10
+CONFLUENCE_DAYS     = 5
+CONFLUENCE_MIN      = 2
 
-log = logging.getLogger("playground.data_io")
+# ── RS Rating ─────────────────────────────────────────────────────────────────
+RS_BLEND_3M_WT  = 0.40
+RS_BLEND_6M_WT  = 0.20
+RS_BLEND_9M_WT  = 0.20
+RS_BLEND_12M_WT = 0.20
 
-_cache: dict[tuple, dict] = {}
-_lock  = threading.Lock()
+# ── Cache TTL ─────────────────────────────────────────────────────────────────
+CACHE_TTL_DATA     = 15 * 60   # 15 min
+CACHE_TTL_CALENDAR = 30 * 60   # 30 min
 
-REQUIRED_COLS = ["Open", "High", "Low", "Close", "Volume"]
+# ── Data Fetch ────────────────────────────────────────────────────────────────
+FETCH_PERIOD        = "18mo"   # yfinance history period
+FETCH_TIMEOUT       = 30       # seconds per batch
+FETCH_CHUNK_SIZE    = 20       # ← v5.2: 60→20 (Yahoo จัดการได้ดีขึ้น)
+FETCH_MIN_ROWS      = 60
+FETCH_RATE_DELAY    = 0.3      # ← v5.2: 0.5→0.3s (batch เล็กลงแล้ว ลด delay ได้)
+FETCH_RETRY_MAX     = 3
+FETCH_RETRY_BASE    = 2.0
 
+# ── Leadership Board ──────────────────────────────────────────────────────────
+LB_TREND_LOOKBACK   = 21
+LB_ACCUM_LOOKBACK   = 20
+LB_TIGHTNESS_WEEKS  = 6
+LB_UD_RATIO_LOOKBACK= 10
+LB_VOL_WINDOW       = 51
+LB_BREAKOUT_PROX    = 5.0
+LB_ACCUM_MIN        = 0.2
+LB_UD_MIN           = 1.3
+LB_VOL_MIN          = 1.5
+LB_TOP_N            = 20
 
-def chunk(lst, n):
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+# ── RRG ──────────────────────────────────────────────────────────────────────
+RRG_SMOOTHING       = 14
+RRG_ROLL_MIN        = 10
+RRG_TAIL_WEEKS      = 16
+RRG_TAIL_STEP       = 5
+RRG_CLAMP_LO        = 90.0
+RRG_CLAMP_HI        = 115.0
+RRG_ROC_SHIFT       = 14
+RRG_MIN_TICKERS     = 1
+RRG_MIN_HISTORY     = 30
 
+# ── Thematic Matrix ───────────────────────────────────────────────────────────
+THEMATIC_TOP_TICKERS    = 4
+THEMATIC_MAX_MEMBERS    = 30
 
-def _do_download(tickers_str: str, period: str, timeout: int) -> Optional[pd.DataFrame]:
-    return yf.download(
-        tickers_str,
-        period=period,
-        auto_adjust=True,
-        progress=False,
-        timeout=timeout,
-    )
+# ── Economic Calendar ─────────────────────────────────────────────────────────
+CAL_LOOK_AHEAD_DAYS = 120
+CAL_LOOK_BACK_DAYS  = 7
+CAL_MAX_EVENTS      = 30
 
+# ── Pipeline / Universe ───────────────────────────────────────────────────────
+PIPELINE_BATCH_SIZE = 10       # ← v5.3: 60→20→10 (per Incident Report Fix #5)
+CORE_N = {"US": 40, "HK": 16, "JP": 16, "KR": 12, "CN": 12}
 
-def _download_with_retry(tickers_str: str, period: str, timeout: int) -> Optional[pd.DataFrame]:
-    for attempt in range(FETCH_RETRY_MAX):
-        try:
-            ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-            future = ex.submit(_do_download, tickers_str, period, timeout)
-            try:
-                raw = future.result(timeout=timeout + 5)
-            except concurrent.futures.TimeoutError:
-                future.cancel()
-                log.warning("TIMEOUT attempt %d tickers=%s", attempt + 1, tickers_str[:60])
-                if attempt < FETCH_RETRY_MAX - 1:
-                    time.sleep(FETCH_RETRY_BASE ** attempt)
-                continue
-            finally:
-                # FIX: shutdown(wait=False, cancel_futures=True) — ไม่ค้าง
-                ex.shutdown(wait=False, cancel_futures=True)
+# ── Breadth ───────────────────────────────────────────────────────────────────
+BREADTH_HISTORY_DAYS    = 20
+BREADTH_BEAR_THRESHOLD  = 40.0
+BREADTH_BEAR_FALL       = -5.0
+BREADTH_BEAR_MIN_MKT    = 3
 
-            # FIX: กัน empty hard fail (KR/CN)
-            if raw is None or getattr(raw, "empty", False):
-                log.warning("EMPTY yf.download result (attempt %d) tickers=%s",
-                            attempt + 1, tickers_str[:60])
-                if attempt < FETCH_RETRY_MAX - 1:
-                    time.sleep(FETCH_RETRY_BASE ** attempt)
-                continue
+# ── Watchlist ─────────────────────────────────────────────────────────────────
+WATCHLIST_TOP_N         = 10
+THEME_TOP_N             = 5
+RS_MOVERS_TOP_N         = 5
 
-            return raw
+# ── Correlation Matrix ────────────────────────────────────────────────────────
+CORR_TICKERS = [
+    "SPY", "QQQ", "IWM", "DIA",
+    "XLK", "XLF", "XLE", "XLV",
+    "TLT", "IEF", "HYG",
+    "GLD", "SLV", "USO",
+    "DXY", "UUP",
+    "VXX",
+]
+CORR_PERIOD_DAYS = 63
+CORR_BENCHMARK   = "SPY"
 
-        except Exception as e:
-            err_str = str(e).lower()
-            is_rate = any(k in err_str for k in ["too many", "rate", "429", "throttle"])
-            wait = FETCH_RETRY_BASE ** attempt * (2 if is_rate else 1)
-            log.warning("ERROR attempt %d: %s", attempt + 1, e)
-            if attempt < FETCH_RETRY_MAX - 1:
-                time.sleep(wait)
-            continue
-
-    return None
-
-
-def _parse_result(raw: pd.DataFrame, tickers: tuple[str, ...]) -> dict[str, Optional[pd.DataFrame]]:
-    result = {t: None for t in tickers}
-
-    if raw is None or raw.empty:
-        return result
-
-    # ── single ticker fallback ─────────────────────────────
-    if not isinstance(raw.columns, pd.MultiIndex):
-        if len(tickers) == 1:
-            t = tickers[0]
-            df = raw.copy()
-
-            if "Close" in df.columns:
-                for c in REQUIRED_COLS:
-                    if c not in df.columns:
-                        df[c] = np.nan
-
-                df = df[REQUIRED_COLS].dropna(how="all")
-
-                if len(df) >= FETCH_MIN_ROWS:
-                    result[t] = df
-
-        return result
-
-    # ── MultiIndex handling ───────────────────────────────
-    ticker_axis = raw.columns.get_level_values(-1)
-    tickers_in_data = set(ticker_axis)
-
-    level = raw.columns.names[1] if isinstance(raw.columns, pd.MultiIndex) else 1
-
-    for t in tickers:
-        try:
-            if t not in tickers_in_data:
-                continue
-
-            try:
-                df = raw.xs(t, axis=1, level=level).copy()
-            except Exception:
-                df = raw.xs(t, axis=1, level=1).copy()
-
-            if df is None or df.empty:
-                continue
-
-            # ── must-have rule ───────────────────────────
-            if "Close" not in df.columns:
-                continue
-
-            # ── fill missing columns instead of dropping ──
-            for c in REQUIRED_COLS:
-                if c not in df.columns:
-                    df[c] = np.nan
-
-            df = df[REQUIRED_COLS]
-
-            result[t] = df
-
-        except Exception as e:
-            log.debug("parse failed %s: %s", t, e)
-
-    ok_count = sum(1 for v in result.values() if v is not None)
-    log.info("parse_result OK %d/%d", ok_count, len(tickers))
-
-    return result
-
-def fetch_batch(tickers: tuple[str, ...]) -> dict[str, Optional[pd.DataFrame]]:
-    print("FETCH_BATCH CALLED", tickers)
-
-    #tickers = tuple(t for t in tickers if isinstance(t, str) and len(t) > 0)
-    tickers = tuple(t for t in tickers if isinstance(t, str) and len(t) > 0 and t != "BF.B")
-
-    key = tuple(tickers)
-    with _lock:
-        if key in _cache:
-            return _cache[key]
-
-    tickers_str = ",".join(tickers)
-    result: dict[str, Optional[pd.DataFrame]] = {t: None for t in tickers}
-
-    with _yfinance_lock:
-        raw = _download_with_retry(tickers_str, FETCH_PERIOD, FETCH_TIMEOUT)
-
-    print("TICKERS =", tickers)
-    print("RAW EMPTY =", raw is None or getattr(raw, "empty", False))
-    print("RAW COLS =", getattr(raw, "columns", None))
-
-    log.info("RAW SHAPE %s | tickers=%s", getattr(raw, "shape", None), tickers)
-
-    if raw is not None and not raw.empty:
-        result = _parse_result(raw, tickers)
-    else:
-        print("[RAW FAILED] no data from download")
-
-    print("[BATCH OUTPUT]", len([v for v in result.values() if v is not None]))
-
-    with _lock:
-        _cache[key] = result
-
-    return result
-
-
-def clear_cache():
-    with _lock:
-        _cache.clear()
-
-
-def cache_info() -> dict:
-    with _lock:
-        n = len(_cache)
-    return {"mem_batches": n, "drive_mounted": False, "disk_files": 0, "disk_mb": 0}
-
-
-def sync_report(fetch_results: dict, active: dict) -> dict:
-    rows = []
-    now  = datetime.now()
-    for market, tickers in active.items():
-        loaded = len(fetch_results.get(market, {}))
-        total  = len(tickers)
-        rows.append({
-            "market": market,
-            "loaded": loaded,
-            "total":  total,
-            "pct":    round(loaded / total * 100, 1) if total else 0,
-        })
-    return {
-        "markets":          rows,
-        "timestamp":        now.strftime("%d/%m/%Y %H:%M"),
-        "data_lag_note":    "⏱ yfinance data delayed ~15 min during market hours",
-        "data_lag_minutes": 15,
-    }
+# ── Sector ETF Map ────────────────────────────────────────────────────────────
+SECTOR_ETF_MAP = {
+    "Information Technology":  "XLK",
+    "Financials":              "XLF",
+    "Energy":                  "XLE",
+    "Health Care":             "XLV",
+    "Industrials":             "XLI",
+    "Consumer Discretionary":  "XLY",
+    "Consumer Staples":        "XLP",
+    "Utilities":               "XLU",
+    "Materials":               "XLB",
+    "Communication Services":  "XLC",
+    "Real Estate":             "IYR",
+    "Semiconductors":          "SMH",
+    "Biotech":                 "XBI",
+    "Electronic Technology":   "XLK",
+    "ETF - Broad Market":      "SPY",
+    "ETF - Sector Equity":     "XLK",
+    "ETF - Fixed Income":      "TLT",
+    "ETF - Commodity":         "GLD",
+}
