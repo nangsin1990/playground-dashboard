@@ -32,28 +32,10 @@ def _get_all_rows(mode: str) -> list[dict]:
     """Build the full screener row set (cached same as leadership)."""
     import leadership as lb
 
-    active                     = pipeline.active_universe(mode)
-    combined, ticker_meta, _   = pipeline.fetch_universe(active)
+    # ✨ FIX: แก้ไขการเรียกใช้ `build_leadership_board` ให้ถูกต้อง
+    # ฟังก์ชันนี้จัดการการดึงข้อมูลและคำนวณทั้งหมดด้วยตัวเองแล้ว
+    result = lb.build_leadership_board(mode=mode)
 
-    if not combined:
-        return []
-
-    blended  = pd.Series({t: eng.blended_return(d["Close"]) for t, d in combined.items()})
-    rs_now   = eng.rs_rating_per_market(combined, ticker_meta)
-    blended7 = pd.Series({t: eng.blended_return(d["Close"].iloc[:-7])
-                           for t, d in combined.items() if len(d) > 7})
-    rs_7     = eng.rs_rating_table(blended7).reindex(rs_now.index).fillna(rs_now)
-
-    ticker_signal = {}
-    for t, d in combined.items():
-        sig         = eng.run_scanners(d)
-        rolled, conf, count = eng.confluence_flags(sig)
-        ticker_signal[t] = {
-            "count":  int(count.iloc[-1]),
-            "rolled": {k: bool(v.iloc[-1]) for k, v in rolled.items()},
-        }
-
-    result = lb.build_leadership_board(combined, ticker_meta, rs_now, rs_7, ticker_signal)
     if not result.get("ok"):
         return []
 
@@ -62,12 +44,12 @@ def _get_all_rows(mode: str) -> list[dict]:
     for key in ["overall", "top_rs", "top_momentum", "near_breakout",
                 "institutional", "volume_surge", "trend_template"]:
         for r in result.get(key, []):
+            # ใช้ ticker เต็ม (เช่น 'AAPL') เป็น unique key
             t = r["ticker"]
             if t not in seen:
                 seen.add(t)
                 rows.append(r)
     return rows
-
 
 def apply_filters(rows: list[dict], params: dict) -> list[dict]:
     """Apply screener filter params to row list."""
