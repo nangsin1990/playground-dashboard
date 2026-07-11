@@ -199,26 +199,27 @@ tbody tr:hover{background:#161c2b}
     </select>
   </div>
   <div class="tbl-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>ETF</th>
-          <th class="num" style="cursor:pointer" onclick="setSort('rs')">RS ▾</th>
-          <th class="num" onclick="setSort('chg1d')">1D%</th>
-          <th class="num" onclick="setSort('r1w')">1W%</th>
-          <th class="num" onclick="setSort('r1m')">1M%</th>
-          <th class="num" onclick="setSort('r3m')">3M%</th>
-          <th class="num" onclick="setSort('r_ytd')">YTD%</th>
-          <th class="num" onclick="setSort('vol_ratio')">Volume</th>
-          <th>Category</th>
-          <th class="num">ER%</th>
-          <th class="num">AUM $B</th>
-          <th>Underlying Index</th>
-        </tr>
-      </thead>
-      <tbody id="screenerBody"></tbody>
-    </table>
-  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>ETF</th>
+        <!-- 👇 นี่คือส่วนที่มี onclick ครับ -->
+        <th class="num" style="cursor:pointer" onclick="setSort('rs')">RS ▾</th>
+        <th class="num" onclick="setSort('chg1d')">1D%</th>
+        <th class="num" onclick="setSort('r1w')">1W%</th>
+        <th class="num" onclick="setSort('r1m')">1M%</th>
+        <th class="num" onclick="setSort('r3m')">3M%</th>
+        <th class="num" onclick="setSort('r_ytd')">YTD%</th>
+        <th class="num" onclick="setSort('vol_ratio')">Volume</th>
+        <th>Category</th>
+        <th class="num">ER%</th>
+        <th class="num">AUM $B</th>
+        <th>Underlying Index</th>
+      </tr>
+    </thead>
+    <tbody id="screenerBody"></tbody>
+  </table>
+</div>
 
   <div style="height:30px"></div>
 </div>
