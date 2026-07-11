@@ -181,10 +181,17 @@ def leadership_api(mode: str = Query("core")):
 @app.get("/api/global")
 def global_api(mode: str = Query("core")):
     try:
-        if hasattr(gm, "build_global_market_board"):
+        # ⚡ FIX: เปลี่ยนไปเรียกฟังก์ชันที่ถูกต้องคือ `fetch_global_market`
+        # ฟังก์ชันเดิมที่เรียก (build_global_market_board, get_global_market) ไม่มีอยู่จริงใน `global_market.py`
+        if hasattr(gm, "fetch_global_market"):
+            return _resp(gm.fetch_global_market())
+
+        # Fallback เก่าเผื่อไว้ แต่ไม่น่าจะได้ใช้
+        elif hasattr(gm, "build_global_market_board"):
             return _resp(gm.build_global_market_board())
         elif hasattr(gm, "get_global_market"):
             return _resp(gm.get_global_market())
+
         return _resp({"ok": False, "error": "global_market endpoint not implemented"})
     except Exception as e:
         return _resp({"ok": False, "error": str(e)})
