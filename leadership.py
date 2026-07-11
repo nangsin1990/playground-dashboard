@@ -5,14 +5,16 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
+import pipeline # ✨ FIX: Import pipeline เพื่อดึงข้อมูล
+import data_engine as eng
 from cache_utils import ttl_cache
 from constants import (
     CACHE_TTL_DATA, LB_TREND_LOOKBACK, LB_ACCUM_LOOKBACK, LB_TIGHTNESS_WEEKS,
     LB_UD_RATIO_LOOKBACK, LB_VOL_WINDOW, LB_BREAKOUT_PROX, LB_ACCUM_MIN,
     LB_UD_MIN, LB_VOL_MIN, LB_TOP_N,
 )
-import data_engine as eng
 
+# ... (ฟังก์ชัน Helper _calc_trend_template, _calc_accumulation, _calc_volatility เหมือนเดิม) ...
 def _calc_trend_template(df: pd.DataFrame) -> dict:
     """Calculates Mark Minervini's Trend Template score (0-4)."""
     if len(df) < 200:
@@ -23,7 +25,6 @@ def _calc_trend_template(df: pd.DataFrame) -> dict:
     c2 = last["Close"] > last.get("SMA200", 0)
     c3 = last.get("SMA50", 0) > last.get("SMA200", 0)
 
-    # SMA200 slope
     sma200_tail = df["SMA200"].tail(LB_TREND_LOOKBACK)
     c4 = sma200_tail.iloc[-1] > sma200_tail.iloc[0] if len(sma200_tail) > 1 else False
 
@@ -39,9 +40,8 @@ def _calc_accumulation(df: pd.DataFrame) -> dict:
     change = tail["Close"].diff()
     up_vol = tail["Volume"][change > 0].sum()
     down_vol = tail["Volume"][change <= 0].sum()
-    ud_ratio = up_vol / down_vol if down_vol > 0 else 5.0 # Avoid division by zero
+    ud_ratio = up_vol / down_vol if down_vol > 0 else 5.0
 
-    # Accumulation/Distribution Score
     ad = ((df['Close'] - df['Low']) - (df['High'] - df['Close'])) / (df['High'] - df['Low']).replace(0, np.nan) * df['Volume']
     ad_smooth = ad.ewm(span=LB_ACCUM_LOOKBACK, adjust=False).mean()
     vol_smooth = df['Volume'].ewm(span=LB_ACCUM_LOOKBACK, adjust=False).mean()
@@ -52,7 +52,6 @@ def _calc_accumulation(df: pd.DataFrame) -> dict:
 
 def _calc_volatility(df: pd.DataFrame) -> dict:
     """Calculates Base Tightness and recent Volume Surge."""
-    # Base Tightness (% volatility over X weeks)
     lookback = LB_TIGHTNESS_WEEKS * 5
     if len(df) < lookback:
         return {"base_tight": 100.0, "vol_ratio": 1.0}
@@ -60,14 +59,47 @@ def _calc_volatility(df: pd.DataFrame) -> dict:
     tail = df["Close"].tail(lookback)
     base_tight = (tail.max() - tail.min()) / tail.min() * 100
 
-    # Volume Ratio
     vol_tail = df["Volume"].tail(LB_VOL_WINDOW)
     vol_ratio = vol_tail.iloc[-1] / vol_tail.iloc[:-1].mean() if len(vol_tail) > 1 else 1.0
 
     return {"base_tight": round(float(base_tight), 2), "vol_ratio": round(float(vol_ratio), 1)}
 
+
 @ttl_cache(CACHE_TTL_DATA)
-def build_leadership_board(combined: dict, ticker_meta: dict, rs_now: pd.Series, rs_7: pd.Series, ticker_signal: dict) -> dict:
+def build_leadership_board(mode: str = "core") -> dict:
+    """
+    ✨ FIX: Refactored to be self-contained.
+    It now fetches its own data using the pipeline based on the `mode`.
+    """
+    # 1. Fetch all necessary data using the pipeline
+    active = pipeline.active_universe(mode)
+    combined_raw, ticker_meta, _ = pipeline.fetch_universe(active)
+
+    if not combined_raw:
+        return {"ok": False, "error": "Failed to fetch universe data."}
+
+    # 2. Prepare data (add indicators, calculate signals and RS)
+    combined = {t: eng.add_indicators(df) for t, df in combined_raw.items()}
+
+    ticker_signal = {}
+    for t, d in combined.items():
+        try:
+            sig = eng.run_scanners(d)
+            rolled, _, _ = eng.confluence_flags(sig)
+            last_rolled = {k: bool(v.iloc[-1]) for k, v in rolled.items() if v is not None and not v.empty}
+            ticker_signal[t] = {"rolled": last_rolled}
+        except Exception:
+            ticker_signal[t] = {"rolled": {}}
+
+    rs_now = eng.rs_rating_per_market(combined, ticker_meta)
+
+    rs_7_data = {}
+    for t, d in combined.items():
+        if len(d) > 7:
+            rs_7_data[t] = eng.blended_return(d["Close"].iloc[:-7])
+    rs_7 = eng.rs_rating_table(pd.Series(rs_7_data)).reindex(rs_now.index).fillna(rs_now)
+
+    # 3. Build the leadership board rows
     all_stocks = []
     for ticker, df in combined.items():
         if len(df) < 50:
@@ -76,21 +108,19 @@ def build_leadership_board(combined: dict, ticker_meta: dict, rs_now: pd.Series,
         meta = ticker_meta.get(ticker, {})
         last = df.iloc[-1]
 
-        # Calculations
         trend_data = _calc_trend_template(df)
         accum_data = _calc_accumulation(df)
         vol_data = _calc_volatility(df)
 
-        prox_52w = (last["Close"] / last.get("HIGH_52W", last["Close"]) - 1) * 100
+        prox_52w = (last["Close"] / last.get("HIGH_52W", last["Close"]) - 1) * 100 if last.get("HIGH_52W") else 0
         drawdown_pct = eng.current_drawdown_from_peak(df["Close"])
 
         rs_val = int(rs_now.get(ticker, 0))
         drs7_val = int(rs_val - rs_7.get(ticker, rs_val))
 
-        # Leadership Score (weighted average)
         ls_rs = rs_val * 0.25
         ls_trend = (trend_data["score"] / 4) * 100 * 0.20
-        ls_prox = max(0, 100 - abs(prox_52w * 4)) * 0.15 # Stronger score closer to high
+        ls_prox = max(0, 100 - abs(prox_52w * 4)) * 0.15
         ls_accum = min(1, max(0, accum_data["accum_score"] / 0.5)) * 100 * 0.15
         ls_tight = max(0, 100 - vol_data["base_tight"] * 2) * 0.10
         ls_drs7 = min(100, max(0, drs7_val * 5)) * 0.08
@@ -98,6 +128,11 @@ def build_leadership_board(combined: dict, ticker_meta: dict, rs_now: pd.Series,
         ls_total = int(ls_rs + ls_trend + ls_prox + ls_accum + ls_tight + ls_drs7 + ls_vol)
 
         signals = ticker_signal.get(ticker, {})
+
+        # Calculate returns
+        r1d_val = (df['Close'].iloc[-1] / df['Close'].iloc[-2] - 1) * 100 if len(df['Close']) > 1 else 0
+        r1m_val = (df['Close'].iloc[-1] / df['Close'].iloc[-22] - 1) * 100 if len(df['Close']) > 21 else None
+        r3m_val = (df['Close'].iloc[-1] / df['Close'].iloc[-64] - 1) * 100 if len(df['Close']) > 63 else None
 
         all_stocks.append({
             "ticker": ticker,
@@ -112,30 +147,23 @@ def build_leadership_board(combined: dict, ticker_meta: dict, rs_now: pd.Series,
             **accum_data,
             **vol_data,
             "prox_52w": abs(round(prox_52w, 1)),
-            "drawdown_pct": round(drawdown_pct,1),
-            "r1d": eng.rs_vs_benchmark(df['Close'], df['Close'], [1]).get('periods', {}).get('p1',{}).get('stock_ret',0),
-            "r1m": eng.rs_vs_benchmark(df['Close'], df['Close'], [21]).get('periods', {}).get('p21',{}).get('stock_ret',0),
-            "r3m": eng.rs_vs_benchmark(df['Close'], df['Close'], [63]).get('periods', {}).get('p63',{}).get('stock_ret',0),
+            "drawdown_pct": drawdown_pct,
+            "r1d": round(r1d_val, 2),
+            "r1m": round(r1m_val, 2) if r1m_val is not None else None,
+            "r3m": round(r3m_val, 2) if r3m_val is not None else None,
             "is_vdu": signals.get("rolled", {}).get("VDU", False),
             "is_pocket": signals.get("rolled", {}).get("PPBP", False),
             "is_bgu": signals.get("rolled", {}).get("BGU", False),
             "is_near_52w": signals.get("rolled", {}).get("52W", False),
         })
 
-    # Sort and filter for different tabs
-    # Overall
+    # 4. Sort and filter for different tabs
     overall = sorted(all_stocks, key=lambda x: x["ls"], reverse=True)[:LB_TOP_N * 2]
-    # Top RS
     top_rs = sorted([s for s in all_stocks if s["rs"] >= 90], key=lambda x: x["rs"], reverse=True)[:LB_TOP_N]
-    # Momentum
     top_momentum = sorted([s for s in all_stocks if s["drs7"] > 0], key=lambda x: x["drs7"], reverse=True)[:LB_TOP_N]
-    # Near Breakout
     near_breakout = sorted([s for s in all_stocks if s["prox_52w"] <= LB_BREAKOUT_PROX and s["trend_score"] >= 3], key=lambda x: x["prox_52w"])[:LB_TOP_N]
-    # Institutional Buying
     institutional = sorted([s for s in all_stocks if s["accum_score"] >= LB_ACCUM_MIN and s["ud_ratio"] >= LB_UD_MIN], key=lambda x: x["accum_score"], reverse=True)[:LB_TOP_N]
-    # Volume Surge
     volume_surge = sorted([s for s in all_stocks if s["vol_ratio"] >= LB_VOL_MIN], key=lambda x: x["vol_ratio"], reverse=True)[:LB_TOP_N]
-    # Trend Template
     trend_template = sorted([s for s in all_stocks if s["trend_score"] == 4 and s["rs"] > 70], key=lambda x: x["rs"], reverse=True)[:LB_TOP_N]
 
     return {
