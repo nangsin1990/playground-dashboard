@@ -94,7 +94,7 @@ def _resp(data: dict):
 # =========================
 # ✨ REFACTOR: สร้าง Dependency เพื่อจัดการการล้าง Cache จากส่วนกลาง
 # ทำให้ไม่ต้องเขียน logic `if refresh:` ซ้ำๆ ในทุก endpoint
-cclass CacheRefresher:
+class CacheRefresher:
     def __init__(self, refresh: bool = False):
         self.refresh = refresh
 
