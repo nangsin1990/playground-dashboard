@@ -225,5 +225,9 @@ def options_iv_api(ticker: str, _: None = Depends(get_cache_clearer(ta.fetch_opt
 # =========================
 # STATIC FILES (MUST BE LAST)
 # =========================
-STATIC_DIR = Path(__file__).parent / "static"
+# ✨ FIX: ใช้ Path แบบ Relative ('static') แทน Path(__file__).parent
+# เพื่อแก้ปัญหา Path Discrepancy ใน Google Colab Environment
+# Notebook ได้ตั้ง CWD (Current Working Directory) ไว้ที่ /content/playground แล้ว
+# ดังนั้น 'static' จะถูก resolve เป็น /content/playground/static โดยอัตโนมัติ
+STATIC_DIR = Path("static")
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
