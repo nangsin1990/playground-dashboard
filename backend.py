@@ -222,4 +222,9 @@ def dividends_api(ticker: str, _: None = Depends(get_cache_clearer(ta.fetch_divi
 def options_iv_api(ticker: str, _: None = Depends(get_cache_clearer(ta.fetch_options_iv.cache_clear))):
     return _resp(ta.fetch_options_iv(ticker=ticker))
 
-{"detail":"Not Found"}
+import os # <-- เพิ่ม import os ที่ต้นไฟล์ถ้ายังไม่มี
+
+# ... เลื่อนไปส่วนท้ายสุดของไฟล์ ...
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
