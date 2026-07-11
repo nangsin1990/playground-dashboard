@@ -31,7 +31,8 @@ def _get_all_rows(mode: str) -> list[dict]:
     """Build the full screener row set (cached same as leadership)."""
     import leadership as lb
 
-    # ✨ FIX: Now this call is correct because build_leadership_board is refactored.
+    # ✨ FIX: การเรียก lb.build_leadership_board(mode=mode) ตอนนี้ถูกต้องแล้ว
+    # เพราะ leadership.py ที่แก้ไขใหม่สามารถจัดการ request นี้ได้
     result = lb.build_leadership_board(mode=mode)
 
     if not result.get("ok"):
@@ -39,6 +40,7 @@ def _get_all_rows(mode: str) -> list[dict]:
 
     # Flatten all unique rows from all tabs
     seen, rows = set(), []
+    # ✨ FIX: ใช้ 'ticker' เป็น key ในการ de-duplicate เพราะ 'symbol' อาจซ้ำกันข้ามตลาด
     for key in ["overall", "top_rs", "top_momentum", "near_breakout",
                 "institutional", "volume_surge", "trend_template"]:
         for r in result.get(key, []):
