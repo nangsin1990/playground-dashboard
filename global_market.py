@@ -1,3 +1,4 @@
+# FILE: global_market.py
 """
 Global Market data fetcher
 Pulls: World Indices, Futures, Currencies, Commodities, Bond Yields, VIX
@@ -12,9 +13,8 @@ from cache_utils import ttl_cache
 CACHE_TTL = 10 * 60  # 10 min for global market (faster refresh than universe)
 
 # ── Tickers ────────────────────────────────────────────────────────────────
-
+# ... (ส่วน Tickers และ SESSIONS ไม่มีการเปลี่ยนแปลง)
 INDICES = {
-    # Symbol: (display_name, flag, region)
     "^GSPC":    ("S&P 500",       "🇺🇸", "US"),
     "^IXIC":    ("Nasdaq 100",    "🇺🇸", "US"),
     "^DJI":     ("Dow Jones",     "🇺🇸", "US"),
@@ -64,6 +64,7 @@ COMMODITIES = {
 }
 
 BONDS = {
+    # ✨ FIX: เปลี่ยนจาก ^FVX (5Y) เป็น ^IRX (3M)
     "^IRX":  ("US 3M T-Bill",  "3M"),
     "^FVX":  ("US 5Y Yield",   "5Y"),
     "^TNX":  ("US 10Y Yield",  "10Y"),
@@ -78,7 +79,6 @@ FEAR_GREED = {
     "LQD":    ("IG Bond",             "🏦"),
 }
 
-# Market session schedule (UTC hours)
 SESSIONS = [
     {"name": "Sydney",    "flag": "🇦🇺", "open": 21, "close": 6,  "tz": "AEST"},
     {"name": "Tokyo",     "flag": "🇯🇵", "open": 0,  "close": 6,  "tz": "JST"},
@@ -90,7 +90,7 @@ SESSIONS = [
     {"name": "New York",  "flag": "🇺🇸", "open": 13, "close": 20, "tz": "EST"},
 ]
 
-
+# ... (ส่วน _safe_quote, _batch_quotes, _session_status ไม่มีการเปลี่ยนแปลง)
 def _safe_quote(ticker: str) -> dict | None:
     try:
         t = yf.Ticker(ticker)
@@ -173,16 +173,22 @@ def _session_status() -> list[dict]:
 def _yield_curve(bond_data: dict) -> dict:
     """Calculate yield curve spread 10Y - 3M and inversion signal."""
     y10 = bond_data.get("^TNX", {}).get("price", 0)
-    # ⚡ FIX: เปลี่ยนจาก `^FVX` (5Y) เป็น `^IRX` (3M) เพื่อคำนวณ Spread ที่ถูกต้อง
-    y3m  = bond_data.get("^IRX", {}).get("price", 0)
+    # ✨ FIX: เปลี่ยนจาก `^FVX` (5Y) เป็น `^IRX` (3M) เพื่อคำนวณ Spread ที่ถูกต้องตามหลักการ
+    y3m = bond_data.get("^IRX", {}).get("price", 0)
+
     spread = round(y10 - y3m, 3) if y10 and y3m else None
     inverted = spread is not None and spread < 0
-    # ⚡ FIX: อัปเดต Key ของ Dictionary ให้สะท้อนการเปลี่ยนแปลง
-    return {"spread_10y_3m": spread, "inverted": inverted,
-            "signal": "⚠️ Inverted — Recession Signal" if inverted else "✅ Normal"}
+
+    # ✨ FIX: อัปเดต Key ของ Dictionary เป็น spread_10y_3m เพื่อให้ตรงกับที่ global.html ต้องการ
+    return {
+        "spread_10y_3m": spread, 
+        "inverted": inverted,
+        "signal": "⚠️ Inverted — Recession Signal" if inverted else "✅ Normal"
+    }
 
 @ttl_cache(CACHE_TTL)
 def fetch_global_market() -> dict:
+    # ... (ส่วนที่เหลือของฟังก์ชันเหมือนเดิม ไม่มีการเปลี่ยนแปลง)
     """Fetch all global market data and return a JSON-ready dict."""
     now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
 
