@@ -198,12 +198,19 @@ def global_api(mode: str = Query("core")):
 
 
 @app.get("/api/calendar")
-def calendar_api():
+def calendar_api(refresh: bool = False): # ⚡ CHANGE: เพิ่มพารามิเตอร์ refresh
     try:
-        if hasattr(ec, "build_economic_calendar"):
-            return _resp(ec.build_economic_calendar())
-        elif hasattr(ec, "get_calendar"):
-            return _resp(ec.get_calendar())
+        # ⚡ CHANGE: เพิ่ม Logic การเคลียร์ Cache
+        if refresh:
+            if hasattr(ec, "fetch_economic_calendar") and hasattr(ec.fetch_economic_calendar, "cache_clear"):
+                ec.fetch_economic_calendar.cache_clear()
+                log.info("Economic calendar cache cleared.")
+
+        # ⚡ CHANGE: แก้ไขให้เรียกฟังก์ชันที่ถูกต้อง คือ fetch_economic_calendar()
+        if hasattr(ec, "fetch_economic_calendar"):
+            return _resp(ec.fetch_economic_calendar())
+
+        # ลบ Fallback ที่ไม่เคยถูกเรียกออกไป เพื่อความสะอาด
         return _resp({"ok": False, "error": "calendar endpoint not implemented"})
     except Exception as e:
         return _resp({"ok": False, "error": str(e)})
