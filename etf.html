@@ -202,15 +202,15 @@ tbody tr:hover{background:#161c2b}
   <table>
     <thead>
       <tr>
+        <!-- 🎨 REFACTOR: ลบ onclick และ style ที่ไม่จำเป็นออกจาก th ทั้งหมด -->
         <th>ETF</th>
-        <!-- 👇 นี่คือส่วนที่มี onclick ครับ -->
-        <th class="num" style="cursor:pointer" onclick="setSort('rs')">RS ▾</th>
-        <th class="num" onclick="setSort('chg1d')">1D%</th>
-        <th class="num" onclick="setSort('r1w')">1W%</th>
-        <th class="num" onclick="setSort('r1m')">1M%</th>
-        <th class="num" onclick="setSort('r3m')">3M%</th>
-        <th class="num" onclick="setSort('r_ytd')">YTD%</th>
-        <th class="num" onclick="setSort('vol_ratio')">Volume</th>
+        <th class="num">RS ▾</th>
+        <th class="num">1D%</th>
+        <th class="num">1W%</th>
+        <th class="num">1M%</th>
+        <th class="num">3M%</th>
+        <th class="num">YTD%</th>
+        <th class="num">Volume</th>
         <th>Category</th>
         <th class="num">ER%</th>
         <th class="num">AUM $B</th>
