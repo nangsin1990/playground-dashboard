@@ -1,3 +1,5 @@
+# FILE: etf_board.py
+
 """
 ETF Board Data Fetcher
 ดึงข้อมูล ETF ทั้งหมดจาก yfinance แล้วคำนวณ:
@@ -159,6 +161,7 @@ def fetch_etf_board() -> dict:
     sector_etfs = [r for r in rows if r["cat"] == "Sector" and r["r1m"] is not None]
     sector_rotation = sorted(sector_etfs, key=lambda x: x["r1m"], reverse=True)
 
+    # Category summary
     cat_summary = {}
     for cat in CATEGORIES:
         cat_rows = [r for r in rows if r["cat"] == cat]
@@ -181,8 +184,17 @@ def fetch_etf_board() -> dict:
             "top":   [{"symbol":r["symbol"],"rs":r["rs"],"chg1d":r["chg1d"]} for r in top],
             "direction": "up" if avg1d >= 0 else "down",
         }
-            "color": CAT_COLORS.get(cat, "#6b7280"),
-            "top":   [{"symbol":r["symbol"],"rs":r["rs"],"chg1d":r["chg1d"]} for r in top],
-            "direction": "up" if avg1d >= 0 else "down",
-        }
 
+    # ✨ FIX: ลบโค้ดบล็อกที่ซ้ำซ้อนและมี Indent ผิดพลาดออกไปแล้ว
+
+    return {
+        "ok": True,
+        "updated": now_str,
+        "total": len(rows),
+        "screener": rows_sorted,
+        "gainers": gainers,
+        "losers": losers,
+        "volume_surge": surge,
+        "sector_rotation": sector_rotation,
+        "category": cat_summary
+    }
