@@ -64,9 +64,9 @@ COMMODITIES = {
 }
 
 BONDS = {
-    # ✨ FIX: เปลี่ยนจาก ^FVX (5Y) เป็น ^IRX (3M)
+    # ✨ FIX: เปลี่ยนจาก ^FVX (5Y) เป็น ^IRX (3M) เพื่อคำนวณ Spread ที่ถูกต้อง
     "^IRX":  ("US 3M T-Bill",  "3M"),
-    "^FVX":  ("US 5Y Yield",   "5Y"),
+    # "^FVX":  ("US 5Y Yield",   "5Y"), # Removed
     "^TNX":  ("US 10Y Yield",  "10Y"),
     "^TYX":  ("US 30Y Yield",  "30Y"),
 }
