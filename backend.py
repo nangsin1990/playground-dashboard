@@ -240,14 +240,27 @@ def etf_api(mode: str = Query("core")):
 
 
 @app.get("/api/rotation")
-def rotation_api(mode: str = Query("core")):
+def rotation_api(mode: str = Query("core"), refresh: bool = False):
+    """
+    Endpoint for Relative Rotation Graph (RRG) data.
+    """
     try:
-        if hasattr(rrg, "build_rotation_board"):
-            return _resp(rrg.build_rotation_board())
-        elif hasattr(rrg, "build_rrg"):
-            return _resp(rrg.build_rrg())
+        # ⚡ FIX: Added refresh capability for consistency.
+        if refresh:
+            # Ensure the cache for the fetch function is cleared.
+            if hasattr(rrg, "fetch_rotation") and hasattr(rrg.fetch_rotation, "cache_clear"):
+                rrg.fetch_rotation.cache_clear()
+
+        # ⚡ FIX: Changed to call the correct existing function `fetch_rotation`.
+        # The previous functions `build_rotation_board` or `build_rrg` did not exist.
+        if hasattr(rrg, "fetch_rotation"):
+            return _resp(rrg.fetch_rotation(mode=mode))
+
+        # Fallback if function is still not found (defensive coding)
         return _resp({"ok": False, "error": "rotation endpoint not implemented"})
+
     except Exception as e:
+        log.exception("Error in /api/rotation for mode=%s", mode)
         return _resp({"ok": False, "error": str(e)})
 
 
