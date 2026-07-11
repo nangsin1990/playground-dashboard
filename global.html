@@ -277,12 +277,12 @@ function renderYieldCurve(bonds, yc) {
     </div>`;
   }).join("");
 
-  const sigCls = yc.inverted ? "inverted" : "normal";
+const sigCls = yc.inverted ? "inverted" : "normal";
   document.getElementById("yieldCurve").innerHTML = `
     <div class="yc-bars">${bars}</div>
     <div class="yc-signal ${sigCls}">${yc.signal}</div>
-    // ✨ FIX: อัปเดต Label และ Key ให้ตรงกับ Backend ใหม่ (10y_3m)
-    ${yc.spread_10y_3m !== null ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">10Y − 3M spread: ${yc.spread_10y_3m > 0 ? "+" : ""}${yc.spread_10y_3m}%</div>` : ""}`;
+    // ✨ FIX: อัปเดต Label และ Key ให้ตรงกับ Backend ใหม่ (spread_10y_3m)
+    ${yc.spread_10y_3m !== null ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">10Y − 3M spread: ${yc.spread_10y_3m > 0 ? "+" : ""}${yc.spread_10y_3m.toFixed(3)}%</div>` : ""}`;
 }
   
 async function load(refresh=false) {
