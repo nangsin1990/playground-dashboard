@@ -424,6 +424,33 @@ def options_iv_api(ticker: str, refresh: bool = False):
         return _resp({"ok": False, "error": "options_iv endpoint not implemented"})
     except Exception as e:
         return _resp({"ok": False, "error": str(e)})
+
+@app.get("/api/progress")
+def progress_api():
+    # ✨ NEW: Endpoint สำหรับให้ Frontend ดึงสถานะการโหลดข้อมูล
+    from pipeline import get_fetch_state
+    return _resp(get_fetch_state())
+
+
+@app.get("/api/regime")
+def regime_api(
+    breadth_us_ma50: Optional[float] = Query(None),
+    breadth_us_ma200: Optional[float] = Query(None)
+):
+    # ✨ NEW: Endpoint สำหรับคำนวณ Market Regime
+    import market_regime as rg
+    try:
+        return _resp(rg.compute_market_regime(
+            breadth_us_ma50=breadth_us_ma50,
+            breadth_us_ma200=breadth_us_ma200
+        ))
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
+
+
+@app.get("/api/search")
+def search(q: str, mode: str = "core"):
+    
 # =========================
 # STATIC (MUST BE LAST)
 # =========================
