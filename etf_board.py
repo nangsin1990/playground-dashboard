@@ -159,12 +159,12 @@ def fetch_etf_board() -> dict:
     sector_etfs = [r for r in rows if r["cat"] == "Sector" and r["r1m"] is not None]
     sector_rotation = sorted(sector_etfs, key=lambda x: x["r1m"], reverse=True)
 
-    # Category summary
+        # Category summary
     cat_summary = {}
     for cat in CATEGORIES:
         cat_rows = [r for r in rows if r["cat"] == cat]
 
-        # ⚡ FIX: เพิ่ม Guard clause ป้องกัน Division by Zero กรณีที่ไม่มี ETF ใน category นั้นๆ
+        # ✨ FIX: เพิ่ม Guard clause ป้องกัน Division by Zero กรณีที่ไม่มี ETF ใน category นั้นๆ
         if not cat_rows:
             continue
 
