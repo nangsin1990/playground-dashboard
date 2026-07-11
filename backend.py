@@ -210,16 +210,25 @@ def calendar_api():
 
 
 @app.get("/api/correlation")
-def correlation_api(mode: str = Query("core")):
+def correlation_api(
+    mode: str = Query("core"), 
+    refresh: bool = False  # ⚡ CHANGE: เพิ่ม parameter `refresh`
+):
     try:
-        if hasattr(corr, "build_correlation_matrix"):
-            return _resp(corr.build_correlation_matrix())
-        elif hasattr(corr, "get_correlation"):
-            return _resp(corr.get_correlation())
+        # ⚡ CHANGE: เพิ่ม Logic การเคลียร์ Cache เมื่อมีการร้องขอ
+        if refresh:
+            if hasattr(corr, "fetch_correlation") and hasattr(corr.fetch_correlation, "cache_clear"):
+                corr.fetch_correlation.cache_clear()
+                log.info("Correlation matrix cache cleared.")
+
+        # ⚡ CHANGE: แก้ชื่อฟังก์ชันที่เรียกให้ถูกต้องเป็น `fetch_correlation()`
+        # และลบ Fallback ที่ไม่จำเป็นออกไป
+        if hasattr(corr, "fetch_correlation"):
+            return _resp(corr.fetch_correlation())
+
         return _resp({"ok": False, "error": "correlation endpoint not implemented"})
     except Exception as e:
         return _resp({"ok": False, "error": str(e)})
-
 
 @app.get("/api/etf")
 def etf_api(mode: str = Query("core")):
