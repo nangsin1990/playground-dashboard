@@ -358,11 +358,13 @@ function resetFilters(){
 function fmtPct(v){ return v==null?"—":`<span class="${v>0?"up":v<0?"dn":"neu"}">${v>0?"+":""}${v.toFixed(1)}%</span>`; }
 function rsClass(v){ return v>=90?"rs-90":v>=80?"rs-80":v>=70?"rs-70":"rs-low"; }
 function trendDots(r){
+  // ⚡ CHANGE: ลบ Fallback logic ที่ซ้ำซ้อนออก (เช่น ?? r["c1_above_50"])
+  // ทำให้โค้ดสะอาดขึ้นและยึดตาม Data Contract ที่ควรจะเป็นจาก Backend
   return `<div class="trend-dots">${[
-    r.trend_c1 ?? r["c1_above_50"],
-    r.trend_c2 ?? r["c2_above_150"],
-    r.trend_c3 ?? r["c3_above_200"],
-    r.trend_c4 ?? r["c4_slope_up"]
+    r.trend_c1,
+    r.trend_c2,
+    r.trend_c3,
+    r.trend_c4
   ].map(c=>`<div class="td ${c?"td-on":"td-off"}"></div>`).join("")}</div>`;
 }
 function lsBar(v){ return `<div class="ls-bar-wrap"><div class="ls-bar-fill" style="width:${v}%"></div></div><span style="font-size:10px;color:var(--muted2);margin-left:4px;">${v}</span>`; }
