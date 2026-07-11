@@ -94,9 +94,9 @@ def _resp(data: dict):
 # =========================
 # ✨ REFACTOR: สร้าง Dependency เพื่อจัดการการล้าง Cache จากส่วนกลาง
 # ทำให้ไม่ต้องเขียน logic `if refresh:` ซ้ำๆ ในทุก endpoint
-class CacheRefresher:
-    def __init__(self, clear_function: Callable):
-        self.clear_function = clear_function
+cclass CacheRefresher:
+    def __init__(self, refresh: bool = False):
+        self.refresh = refresh
 
     def __call__(self, refresh: bool = False):
         if refresh:
@@ -268,14 +268,24 @@ def etf_api(
 @app.get("/api/rotation")
 def rotation_api(
     mode: str = Query("core"),
-    refresh: bool = False,
-    cache: None = Depends(CacheRefresher(rrg.fetch_rotation.cache_clear))
+    market: Optional[str] = Query("GLOBAL"), # <--- CHANGE 1: รับ market parameter, default เป็น GLOBAL
+    cache: CacheRefresher = Depends()
 ):
     try:
-        if hasattr(rrg, "fetch_rotation"):
-            return _resp(rrg.fetch_rotation(mode=mode))
-        return _resp({"ok": False, "error": "rotation endpoint not implemented"})
+        # <--- CHANGE 2: Logic การล้าง Cache
+        if cache.refresh:
+            if hasattr(rrg.fetch_rotation, "cache_clear_key"):
+                # เคลียร์ cache ของ key ที่ระบุเท่านั้น
+                rrg.fetch_rotation.cache_clear_key(mode=mode, market=market)
+            else:
+                # Fallback ถ้า decorator ไม่ใช่ตัว custom ของเรา
+                rrg.fetch_rotation.cache_clear()
+
+        # <--- CHANGE 3: ส่ง market parameter ไปให้ engine
+        return _resp(rrg.fetch_rotation(mode=mode, market=market))
+
     except Exception as e:
+        log.exception("rotation_api failed for market=%s", market)
         return _resp({"ok": False, "error": str(e)})
 
 @app.get("/api/screener")
