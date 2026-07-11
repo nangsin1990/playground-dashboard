@@ -153,10 +153,70 @@ a{text-decoration:none;color:inherit}
     <a class="nav-link" href="/stock.html">🔬 Stock</a>
   </div>
   <div class="nav-right">
-    <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
-    <span id="nav-loading" style="display:none">⏳</span>
+    <span class="badge-mode" id="modeLabel">CORE</span>
+    <button class="btn-refresh" onclick="loadData(true)">↻ Refresh</button>
   </div>
 </nav>
+
+<div class="main">
+  <!-- HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">🧩 Thematic Matrix</div>
+      <div class="page-sub">ติดตามเงินทุนว่ากำลังไหลไปกลุ่มอุตสาหกรรม/ธีมไหน โดยวัดจาก Momentum 1M+3M</div>
+    </div>
+  </div>
+  <div class="data-lag-banner">⏱ yfinance data delayed ~15 min · RS Rating ranked per-market (US vs US)</div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="filter-group" id="marketFilter">
+      <button class="filter-btn active" onclick="setMarket('ALL', this)">🌐 All</button>
+      <button class="filter-btn" onclick="setMarket('US', this)">🇺🇸 US</button>
+      <button class="filter-btn" onclick="setMarket('ETF', this)">📦 ETF</button>
+    </div>
+    <div class="filter-group" id="sortFilter">
+      <button class="filter-btn active" onclick="setSort('1m3m', this)">Score</button>
+      <button class="filter-btn" onclick="setSort('1m', this)">1M</button>
+      <button class="filter-btn" onclick="setSort('3m', this)">3M</button>
+      <button class="filter-btn" onclick="setSort('1d', this)">1D</button>
+      <button class="filter-btn" onclick="setSort('members', this)"># Stocks</button>
+    </div>
+    <input type="text" id="searchBox" class="search-box" placeholder="Search themes..." oninput="applyFilters()">
+    <div class="view-toggle" style="margin-left:auto">
+      <button class="view-btn active" onclick="setView('grid', this)">Grid</button>
+      <button class="view-btn" onclick="setView('table', this)">Table</button>
+    </div>
+  </div>
+
+  <!-- SUMMARY ROW -->
+  <div class="summary-row" id="summaryRow" style="display:none">
+    <div class="sum-card">
+      <div class="sum-label">Themes Tracked</div>
+      <div class="sum-val" id="sumThemes">—</div>
+      <div class="sum-sub" id="sumUniverse">— stocks</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Best 1D</div>
+      <div class="sum-val" style="color:var(--green)" id="sumBest1d">—</div>
+      <div class="sum-sub" id="sumBest1dName">—</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Best 1M</div>
+      <div class="sum-val" style="color:var(--green)" id="sumBest1m">—</div>
+      <div class="sum-sub" id="sumBest1mName">—</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Best 3M</div>
+      <div class="sum-val" style="color:var(--green)" id="sumBest3m">—</div>
+      <div class="sum-sub" id="sumBest3mName">—</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Worst 1M</div>
+      <div class="sum-val" style="color:var(--red)" id="sumWorst1m">—</div>
+      <div class="sum-sub" id="sumWorst1mName">—</div>
+    </div>
+  </div>
 
   <!-- DETAIL PANEL -->
   <div class="detail-panel" id="detailPanel">
@@ -187,22 +247,22 @@ a{text-decoration:none;color:inherit}
   <div id="tableView" style="display:none">
     <div class="heatmap-wrap">
       <div class="tbl-wrap">
-<table class="heatmap-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Theme / Sector</th>
-            <th>Stocks</th>
-            <th>1D Ret</th>
-            <th>1M Ret</th>
-            <th>3M Ret</th>
-            <th class="col-hide-sm">Momentum Score</th>
-            <th>Top Tickers</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-</div>
+        <table class="heatmap-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Theme / Sector</th>
+              <th>Stocks</th>
+              <th>1D Ret</th>
+              <th>1M Ret</th>
+              <th>3M Ret</th>
+              <th class="col-hide-sm">Momentum Score</th>
+              <th>Top Tickers</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -301,23 +361,24 @@ function renderSummary(data) {
   document.getElementById('sumThemes').textContent = themes.length;
   document.getElementById('sumUniverse').textContent = universeCount;
 
-  const sorted1d = [...themes].sort((a,b)=>b.d1-a.d1);
-  const sorted1m = [...themes].sort((a,b)=>b.m1-a.m1);
-  const sorted3m = [...themes].sort((a,b)=>b.m3-a.m3);
+  // ⚡ FIX: ใช้ Key r1d, r1m, r3m ให้ตรงกับ Python
+  const sorted1d = [...themes].sort((a,b)=>(b.r1d||-Infinity)-(a.r1d||-Infinity));
+  const sorted1m = [...themes].sort((a,b)=>(b.r1m||-Infinity)-(a.r1m||-Infinity));
+  const sorted3m = [...themes].sort((a,b)=>(b.r3m||-Infinity)-(a.r3m||-Infinity));
 
   const fmt = v => (v>=0?'+':'')+v.toFixed(2)+'%';
   if(sorted1d.length){
-    document.getElementById('sumBest1d').textContent = fmt(sorted1d[0].d1);
+    document.getElementById('sumBest1d').textContent = fmt(sorted1d[0].r1d);
     document.getElementById('sumBest1dName').textContent = sorted1d[0].theme;
   }
   if(sorted1m.length){
-    document.getElementById('sumBest1m').textContent = fmt(sorted1m[0].m1);
+    document.getElementById('sumBest1m').textContent = fmt(sorted1m[0].r1m);
     document.getElementById('sumBest1mName').textContent = sorted1m[0].theme;
-    document.getElementById('sumWorst1m').textContent = fmt(sorted1m[sorted1m.length-1].m1);
+    document.getElementById('sumWorst1m').textContent = fmt(sorted1m[sorted1m.length-1].r1m);
     document.getElementById('sumWorst1mName').textContent = sorted1m[sorted1m.length-1].theme;
   }
   if(sorted3m.length){
-    document.getElementById('sumBest3m').textContent = fmt(sorted3m[0].m3);
+    document.getElementById('sumBest3m').textContent = fmt(sorted3m[0].r3m);
     document.getElementById('sumBest3mName').textContent = sorted3m[0].theme;
   }
 }
@@ -347,17 +408,26 @@ function setView(v, btn) {
 function applyFilters() {
   const q = document.getElementById('searchBox').value.toLowerCase();
   let data = allThemes.filter(t => {
-    if(currentMarket!=='ALL' && t.market && t.market!==currentMarket) return false;
-    if(q && !t.theme.toLowerCase().includes(q)) return false;
+    // ⚡ FIX: ตรวจสอบ Group ของ Theme สำหรับฟิลเตอร์ ETF
+    const cfg = getCfg(t.theme);
+    if (currentMarket === 'US' && (!t.markets || !t.markets.includes('US'))) return false;
+    if (currentMarket === 'ETF' && cfg.group !== 'ETF') return false;
+
+    if (q && !t.theme.toLowerCase().includes(q)) return false;
     return true;
   });
 
   data.sort((a,b)=>{
-    if(currentSort==='1d') return b.d1-a.d1;
-    if(currentSort==='1m') return b.m1-a.m1;
-    if(currentSort==='3m') return b.m3-a.m3;
-    if(currentSort==='members') return b.count-a.count;
-    return (b.m1+b.m3)-(a.m1+a.m3); // score
+    // ⚡ FIX: ใช้ Key r1d, r1m, r3m ให้ตรงกับ Python
+    const a1m = a.r1m || -Infinity, b1m = b.r1m || -Infinity;
+    const a3m = a.r3m || -Infinity, b3m = b.r3m || -Infinity;
+    const a1d = a.r1d || -Infinity, b1d = b.r1d || -Infinity;
+
+    if(currentSort==='1d') return b1d-a1d;
+    if(currentSort==='1m') return b1m-a1m;
+    if(currentSort==='3m') return b3m-a3m;
+    if(currentSort==='members') return (b.count||0)-(a.count||0);
+    return (b1m + b3m) - (a1m + a3m); // default score
   });
 
   if(currentView==='grid') renderGrid(data);
@@ -366,6 +436,7 @@ function applyFilters() {
 
 // ── Color helpers ──
 function retColor(v) {
+  if (v == null) return '#9ca3af';
   if(v>=2) return '#10b981';
   if(v>=0.5) return '#34d399';
   if(v>=-0.5) return '#9ca3af';
@@ -373,6 +444,7 @@ function retColor(v) {
   return '#ef4444';
 }
 function heatBg(v) {
+  if (v == null) return 'rgba(156,163,175,.05)';
   if(v>=5) return 'rgba(16,185,129,.25)';
   if(v>=2) return 'rgba(16,185,129,.15)';
   if(v>=0.5) return 'rgba(16,185,129,.07)';
@@ -381,7 +453,10 @@ function heatBg(v) {
   if(v>=-5) return 'rgba(239,68,68,.15)';
   return 'rgba(239,68,68,.25)';
 }
-function fmt(v) { return (v>=0?'+':'')+v.toFixed(2)+'%'; }
+function fmt(v) {
+  if (v == null) return '—';
+  return (v>=0?'+':'')+v.toFixed(2)+'%';
+}
 function scoreWidth(score, allScores) {
   const mx = Math.max(...allScores.map(Math.abs), 1);
   return Math.min(100, Math.abs(score)/mx*100);
@@ -392,16 +467,17 @@ function renderGrid(data) {
   document.getElementById('matrixGrid').style.display='grid';
   document.getElementById('tableView').style.display='none';
 
-  const allScores = data.map(t=>t.m1+t.m3);
+  // ⚡ FIX: ใช้ Key r1m, r3m ให้ตรงกับ Python
+  const allScores = data.map(t=>(t.r1m||0)+(t.r3m||0));
   const maxScore = Math.max(...allScores.map(Math.abs), 1);
 
   const grid = document.getElementById('matrixGrid');
   grid.innerHTML = data.map((t,i)=>{
     const cfg = getCfg(t.theme);
-    const score = t.m1+t.m3;
+    const score = (t.r1m||0) + (t.r3m||0);
     const barW = Math.min(100, Math.abs(score)/maxScore*100);
     const barColor = score>=0?'var(--green)':'var(--red)';
-    const chips = (t.tickers||[]).map(tk=>`<span class="ticker-chip">${tk}</span>`).join('');
+    const chips = (t.top_tickers||[]).map(tk=>`<span class="ticker-chip">${tk}</span>`).join('');
     const rs = t.avg_rs||0;
     const rsCls = rs>=70?'':'rs-pill '+(rs>=40?'mid':'low');
     return `
@@ -411,9 +487,9 @@ function renderGrid(data) {
         <div class="theme-icon">${cfg.icon}</div>
       </div>
       <div class="card-returns">
-        <div class="ret-cell"><div class="ret-label">1D</div><div class="ret-val ${t.d1>=0?'pos':'neg'}">${fmt(t.d1)}</div></div>
-        <div class="ret-cell"><div class="ret-label">1M</div><div class="ret-val ${t.m1>=0?'pos':'neg'}">${fmt(t.m1)}</div></div>
-        <div class="ret-cell"><div class="ret-label">3M</div><div class="ret-val ${t.m3>=0?'pos':'neg'}">${fmt(t.m3)}</div></div>
+        <div class="ret-cell"><div class="ret-label">1D</div><div class="ret-val ${t.r1d>=0?'pos':'neg'}">${fmt(t.r1d)}</div></div>
+        <div class="ret-cell"><div class="ret-label">1M</div><div class="ret-val ${t.r1m>=0?'pos':'neg'}">${fmt(t.r1m)}</div></div>
+        <div class="ret-cell"><div class="ret-label">3M</div><div class="ret-val ${t.r3m>=0?'pos':'neg'}">${fmt(t.r3m)}</div></div>
       </div>
       <div class="card-bar"><div class="card-bar-fill" style="width:${barW}%;background:${barColor}"></div></div>
       <div class="card-tickers">${chips}</div>
@@ -427,23 +503,24 @@ function renderTable(data) {
   document.getElementById('matrixGrid').style.display='none';
   document.getElementById('tableView').style.display='block';
 
-  const allScores = data.map(t=>t.m1+t.m3);
+  // ⚡ FIX: ใช้ Key r1m, r3m ให้ตรงกับ Python
+  const allScores = data.map(t=>(t.r1m||0)+(t.r3m||0));
   const maxScore = Math.max(...allScores.map(Math.abs),1);
 
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = data.map((t,i)=>{
     const cfg = getCfg(t.theme);
-    const score = t.m1+t.m3;
+    const score = (t.r1m||0) + (t.r3m||0);
     const barW = Math.min(80, Math.abs(score)/maxScore*80);
     const barColor = score>=0?'var(--green)':'var(--red)';
-    const chips = (t.tickers||[]).slice(0,3).map(tk=>`<span class="ticker-chip">${tk}</span>`).join(' ');
+    const chips = (t.top_tickers||[]).slice(0,3).map(tk=>`<span class="ticker-chip">${tk}</span>`).join(' ');
     return `<tr>
       <td><span class="rank-badge ${i<3?'top':''}">${i+1}</span></td>
       <td><span style="margin-right:6px">${cfg.icon}</span><strong>${t.theme}</strong></td>
       <td style="color:var(--muted2)">${t.count}</td>
-      <td><span class="heat-cell" style="background:${heatBg(t.d1)};color:${retColor(t.d1)}">${fmt(t.d1)}</span></td>
-      <td><span class="heat-cell" style="background:${heatBg(t.m1)};color:${retColor(t.m1)}">${fmt(t.m1)}</span></td>
-      <td><span class="heat-cell" style="background:${heatBg(t.m3)};color:${retColor(t.m3)}">${fmt(t.m3)}</span></td>
+      <td><span class="heat-cell" style="background:${heatBg(t.r1d)};color:${retColor(t.r1d)}">${fmt(t.r1d)}</span></td>
+      <td><span class="heat-cell" style="background:${heatBg(t.r1m)};color:${retColor(t.r1m)}">${fmt(t.r1m)}</span></td>
+      <td><span class="heat-cell" style="background:${heatBg(t.r3m)};color:${retColor(t.r3m)}">${fmt(t.r3m)}</span></td>
       <td>
         <div class="score-track">
           <div class="score-bar-wrap"><div class="score-bar-fill" style="width:${barW}%;background:${barColor}"></div></div>
@@ -465,7 +542,8 @@ function showDetail(themeName) {
 
   const members = (theme.members||[]).slice(0,24);
   grid.innerHTML = members.map(m=>{
-    const ret1m = m.m1||0;
+    // ⚡ FIX: ใช้ Key r1m ให้ตรงกับ Python
+    const ret1m = m.r1m||0;
     return `<div class="member-row">
       <div class="member-info">
         <div class="member-ticker">${m.ticker}</div>
