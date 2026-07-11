@@ -129,23 +129,81 @@ a{text-decoration:none;color:inherit}
     <a class="nav-link" href="/stock.html">🔬 Stock</a>
   </div>
   <div class="nav-right">
-    <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
-    <span id="nav-loading" style="display:none">⏳</span>
+    <span class="badge-mode" id="modeLabel">CORE</span>
+    <button class="btn-refresh" onclick="loadData(true)">↻ Refresh</button>
   </div>
 </nav>
-          <div class="quad-item"><div class="quad-dot" style="background:#f59e0b"></div><div><div class="quad-name">Weakening 🟡</div><div class="quad-desc">High RS, losing momentum</div></div></div>
-          <div class="quad-item"><div class="quad-dot" style="background:#6366f1"></div><div><div class="quad-name">Improving 💜</div><div class="quad-desc">Low RS, gaining momentum</div></div></div>
-          <div class="quad-item"><div class="quad-dot" style="background:#ef4444"></div><div><div class="quad-name">Lagging 🔴</div><div class="quad-desc">Low RS, losing momentum</div></div></div>
-        </div>
-      </div>
 
-      <!-- RIGHT COLUMN -->
-      <div class="right-col">
-        <!-- TABLE -->
-        <div class="table-panel">
-          <div class="table-head">📋 Quadrant Rankings</div>
-          <div class="tbl-wrap">
-<table class="rrg-table">
+<div class="main">
+  <!-- HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">🔄 Relative Rotation Graph</div>
+      <div class="page-sub">วิเคราะห์การหมุนเวียนของเงินทุนระหว่างกลุ่มอุตสาหกรรมและธีมต่างๆเทียบกับตลาด (Benchmark)</div>
+    </div>
+  </div>
+  <div class="data-lag-banner">⏱ yfinance data is delayed ~15 minutes. RRG is calculated against US market (SPY).</div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <!-- ⚡ FIX: Simplified filters to what's available from backend (US Sectors & ETFs) -->
+    <div class="filter-group" id="marketFilter">
+      <button class="filter-btn active" onclick="setMarket('SECTOR', this)">🇺🇸 US Sectors</button>
+      <button class="filter-btn" onclick="setMarket('ETF', this)">📦 US ETFs</button>
+    </div>
+    <!-- ⚡ FIX: Removed confusing/unnecessary view toggle -->
+    <div class="tail-toggle" style="margin-left: auto;">
+      <span style="font-size:10px;color:var(--muted);align-self:center;margin-right:4px;">Tail:</span>
+      <button class="tail-btn" onclick="setTail(2, this)">2w</button>
+      <button class="tail-btn active" onclick="setTail(4, this)">4w</button>
+      <button class="tail-btn" onclick="setTail(8, this)">8w</button>
+      <button class="tail-btn" onclick="setTail(16, this)">16w</button>
+    </div>
+  </div>
+
+  <!-- TOOLTIP (hidden by default) -->
+  <div class="rrg-tooltip" id="tooltip">
+    <div class="tt-name" id="ttName"></div>
+    <div class="tt-row"><span>Quadrant:</span><span class="tt-val" id="ttQuad"></span></div>
+    <div class="tt-row"><span>RS Ratio:</span><span class="tt-val" id="ttRatio"></span></div>
+    <div class="tt-row"><span>RS Momentum:</span><span class="tt-val" id="ttMomentum"></span></div>
+    <div class="tt-row"><span>Avg. RS:</span><span class="tt-val" id="ttRS"></span></div>
+  </div>
+
+  <!-- LOADER/ERROR -->
+  <div class="loader" id="loader">
+    <div class="loader-spin"></div>
+    <div>Loading RRG data…</div>
+  </div>
+  <div class="error-box" id="errorBox" style="display:none">
+    <span id="errorMsg"></span>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="layout2col" id="mainContent" style="display:none">
+    <div class="rrg-panel">
+      <div class="rrg-title">
+        <span>Rotation vs <b id="benchmarkLabel">SPY</b></span>
+        <span style="font-size:10px;color:var(--muted)">Hover for details</span>
+      </div>
+      <div class="rrg-canvas-wrap">
+        <canvas id="rrgCanvas"></canvas>
+      </div>
+      <div class="quad-legend">
+        <div class="quad-item"><div class="quad-dot" style="background:#10b981"></div><div><div class="quad-name">Leading 🟢</div><div class="quad-desc">High RS, high momentum</div></div></div>
+        <div class="quad-item"><div class="quad-dot" style="background:#f59e0b"></div><div><div class="quad-name">Weakening 🟡</div><div class="quad-desc">High RS, losing momentum</div></div></div>
+        <div class="quad-item"><div class="quad-dot" style="background:#6366f1"></div><div><div class="quad-name">Improving 💜</div><div class="quad-desc">Low RS, gaining momentum</div></div></div>
+        <div class="quad-item"><div class="quad-dot" style="background:#ef4444"></div><div><div class="quad-name">Lagging 🔴</div><div class="quad-desc">Low RS, losing momentum</div></div></div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="right-col">
+      <!-- TABLE -->
+      <div class="table-panel">
+        <div class="table-head">📋 Quadrant Rankings</div>
+        <div class="tbl-wrap">
+          <table class="rrg-table">
             <thead><tr>
               <th>Theme/Sector</th>
               <th>Quadrant</th>
@@ -154,34 +212,33 @@ a{text-decoration:none;color:inherit}
             </tr></thead>
             <tbody id="rrgTable"></tbody>
           </table>
-</div>
-        </div>
-
-        <!-- INFO -->
-        <div class="info-panel">
-          <div class="info-title">How to Read RRG</div>
-          <div class="info-row"><span class="info-label">X-axis (RS Ratio)</span><span class="info-val">Relative Strength vs benchmark</span></div>
-          <div class="info-row"><span class="info-label">Y-axis (RS Momentum)</span><span class="info-val">Rate of change in RS Ratio</span></div>
-          <div class="info-row"><span class="info-label">Center = 100</span><span class="info-val">= Benchmark performance</span></div>
-          <div class="info-row"><span class="info-label">Tail direction</span><span class="info-val">Arrow shows recent trajectory</span></div>
-          <div class="info-row"><span class="info-label">Rotation</span><span class="info-val">Clockwise is typical cycle</span></div>
-        </div>
-
-        <!-- STATS -->
-        <div class="info-panel">
-          <div class="info-title">Quadrant Summary</div>
-          <div class="info-row"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#10b981"></div><span class="info-label">Leading</span></div><span class="info-val" id="countLeading">—</span></div>
-          <div class="info-row"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></div><span class="info-label">Weakening</span></div><span class="info-val" id="countWeakening">—</span></div>
-          <div class="info-row"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#ef4444"></div><span class="info-label">Lagging</span></div><span class="info-val" id="countLagging">—</span></div>
-          <div class="info-row"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#6366f1"></div><span class="info-label">Improving</span></div><span class="info-val" id="countImproving">—</span></div>
         </div>
       </div>
-    </div>
 
-    <div class="status-bar">
-      <span class="status-dot"></span>
-      <span id="statusText">—</span>
+      <!-- INFO -->
+      <div class="info-panel">
+        <div class="info-title">How to Read RRG</div>
+        <div class="info-row"><span class="info-label">X-axis (RS Ratio)</span><span class="info-val">Relative Strength vs benchmark</span></div>
+        <div class="info-row"><span class="info-label">Y-axis (RS Momentum)</span><span class="info-val">Rate of change in RS Ratio</span></div>
+        <div class="info-row"><span class="info-label">Center = 100</span><span class="info-val">= Benchmark performance</span></div>
+        <div class="info-row"><span class="info-label">Tail direction</span><span class="info-val">Arrow shows recent trajectory</span></div>
+        <div class="info-row"><span class="info-label">Rotation</span><span class="info-val">Clockwise is typical cycle</span></div>
+      </div>
+
+      <!-- STATS -->
+      <div class="info-panel">
+        <div class="info-title">Quadrant Summary</div>
+        <div class="info-row"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#10b981"></div><span class="info-label">Leading</span></div><span class="info-val" id="countLeading">—</span></div>
+        <div class="info-row"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></div><span class="info-label">Weakening</span></div><span class="info-val" id="countWeakening">—</span></div>
+        <div class="info-row"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#ef4444"></div><span class="info-label">Lagging</span></div><span class="info-val" id="countLagging">—</span></div>
+        <div class="info-row"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:#6366f1"></div><span class="info-label">Improving</span></div><span class="info-val" id="countImproving">—</span></div>
+      </div>
     </div>
+  </div>
+
+  <div class="status-bar">
+    <span class="status-dot"></span>
+    <span id="statusText">—</span>
   </div>
 </div>
 
@@ -192,8 +249,8 @@ document.getElementById('modeLabel').textContent = mode.toUpperCase();
 
 let rrgData = [];
 let tailWeeks = 4;
-let currentMarket = 'US';
-let currentView = 'theme';
+// ⚡ FIX: Default to SECTOR view which corresponds to the first button
+let currentMarket = 'SECTOR';
 let hoveredIdx = -1;
 let canvas, ctx, W, H;
 
@@ -231,16 +288,6 @@ function setTail(w, btn) {
   renderRRG();
 }
 
-function setView(v, btn) {
-  currentView = v;
-  document.querySelectorAll('.filter-btn').forEach(b=>{
-    if(b.textContent==='By Theme'||b.textContent==='By Ticker') b.classList.remove('active');
-  });
-  btn.classList.add('active');
-  renderRRG();
-  renderTable();
-}
-
 // ── Fetch ──
 async function loadData(forceRefresh=false) {
   document.getElementById('loader').style.display='block';
@@ -259,7 +306,7 @@ async function loadData(forceRefresh=false) {
     document.getElementById('benchmarkLabel').textContent = `vs ${data.benchmark}`;
 
     document.getElementById('loader').style.display='none';
-    document.getElementById('mainContent').style.display='block';
+    document.getElementById('mainContent').style.display='grid';
 
     initCanvas();
     renderRRG();
@@ -273,12 +320,16 @@ async function loadData(forceRefresh=false) {
 
 // ── Filter data ──
 function filteredData() {
+  // ⚡ FIX: Updated filtering logic to match the new, simplified buttons
   return rrgData.filter(d => {
-    if(currentMarket === 'US') return d.market==='US' && !d.theme.startsWith('ETF');
-    if(currentMarket === 'ETF') return d.theme.startsWith('ETF');
-    if(currentMarket === 'TH') return d.market==='TH';
-    if(currentMarket === 'GLOBAL') return ['US','TH','HK','JP','KR','CN'].includes(d.market);
-    return true;
+    // The backend only provides US-based themes/ETFs, so no need to filter by d.market
+    if (currentMarket === 'SECTOR') {
+      return !d.theme.startsWith('ETF');
+    }
+    if (currentMarket === 'ETF') {
+      return d.theme.startsWith('ETF');
+    }
+    return false; // Should not happen with the current buttons
   });
 }
 
@@ -298,7 +349,6 @@ function initCanvas() {
     document.getElementById('tooltip').style.display='none';
     renderRRG();
   });
-  canvas.addEventListener('click', onClick);
 }
 
 // ── Coord helpers ──
@@ -317,7 +367,7 @@ function renderRRG() {
   const cx=CX(), cy=CY();
   ctx.globalAlpha=0.04;
   ctx.fillStyle='#10b981'; ctx.fillRect(cx,PAD,W-PAD-cx,cy-PAD);       // Leading (top-right)
-  ctx.fillStyle='#f59e0b'; ctx.fillRect(cx,cy,W-PAD-cx,H-PAD-cy);      // Weakening (bot-right)
+  ctx.fillStyle='#f59e0b'; ctx.fillRect(cx,cy,W-PAD-cx,H-PAD-cy);      // Weakening is now bottom-right in this layout
   ctx.fillStyle='#ef4444'; ctx.fillRect(PAD,cy,cx-PAD,H-PAD-cy);       // Lagging (bot-left)
   ctx.fillStyle='#6366f1'; ctx.fillRect(PAD,PAD,cx-PAD,cy-PAD);        // Improving (top-left)
   ctx.globalAlpha=1;
@@ -438,9 +488,9 @@ function onMouseMove(e) {
   if(found>=0){
     const d=fd[found];
     document.getElementById('ttName').textContent=`${THEME_ICONS[d.theme]||''} ${d.theme}`;
+    document.getElementById('ttQuad').textContent=d.quadrant;
     document.getElementById('ttRatio').textContent=d.rs_ratio.toFixed(2);
     document.getElementById('ttMomentum').textContent=d.rs_momentum.toFixed(2);
-    document.getElementById('ttQuad').textContent=d.quadrant;
     document.getElementById('ttRS').textContent=d.avg_rs||'—';
     tt.style.display='block';
     tt.style.left=(e.clientX+14)+'px';
@@ -448,10 +498,6 @@ function onMouseMove(e) {
   } else {
     tt.style.display='none';
   }
-}
-
-function onClick(e) {
-  // future: open detail panel
 }
 
 // ── Table ──
