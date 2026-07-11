@@ -5,20 +5,47 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
-import pipeline # ✨ FIX: Import pipeline เพื่อดึงข้อมูล
-import data_engine as eng
+import pipeline
 from cache_utils import ttl_cache
 from constants import (
     CACHE_TTL_DATA, LB_TREND_LOOKBACK, LB_ACCUM_LOOKBACK, LB_TIGHTNESS_WEEKS,
     LB_UD_RATIO_LOOKBACK, LB_VOL_WINDOW, LB_BREAKOUT_PROX, LB_ACCUM_MIN,
     LB_UD_MIN, LB_VOL_MIN, LB_TOP_N,
 )
+import data_engine as eng
 
-# ... (ฟังก์ชัน Helper _calc_trend_template, _calc_accumulation, _calc_volatility เหมือนเดิม) ...
+# ✨ FIX: สร้างฟังก์ชันภายในเพื่อดึงและประมวลผลข้อมูล ทำให้ leadership board เป็นโมดูลที่สมบูรณ์
+# ฟังก์ชันนี้จะถูก cache เพื่อให้การเรียกซ้ำจาก screener หรือ leadership API เร็วขึ้น
+@ttl_cache(CACHE_TTL_DATA)
+def _get_leadership_data(mode: str) -> dict:
+    """Internal function to fetch and compute all necessary data for the board."""
+    active = pipeline.active_universe(mode)
+    combined, ticker_meta, fetch_results = pipeline.fetch_universe(active)
+
+    if not combined:
+        return {"ok": False, "error": "No data from pipeline"}
+
+    # Reuse the main dashboard computation to get signals and RS ratings
+    dash_data = pipeline.compute_dashboard(combined, ticker_meta, fetch_results, active)
+
+    if not dash_data.get("ok"):
+         return {"ok": False, "error": "Dashboard computation failed"}
+
+    # เราต้องการข้อมูลดิบและข้อมูลที่คำนวณแล้วบางส่วน
+    return {
+        "ok": True,
+        "combined": combined,
+        "ticker_meta": ticker_meta,
+        "rs_now": dash_data.get("rs_now_series"), # ต้องแน่ใจว่า pipeline ส่ง Series กลับมา
+        "rs_7": dash_data.get("rs_7_series"),
+        "ticker_signal": dash_data.get("ticker_signal"),
+        "total_universe": len(combined),
+    }
+
 def _calc_trend_template(df: pd.DataFrame) -> dict:
     """Calculates Mark Minervini's Trend Template score (0-4)."""
     if len(df) < 200:
-        return {"c1": False, "c2": False, "c3": False, "c4": False, "score": 0}
+        return {"trend_c1": False, "trend_c2": False, "trend_c3": False, "trend_c4": False, "trend_score": 0}
 
     last = df.iloc[-1]
     c1 = last["Close"] > last.get("SMA50", 0)
@@ -29,7 +56,7 @@ def _calc_trend_template(df: pd.DataFrame) -> dict:
     c4 = sma200_tail.iloc[-1] > sma200_tail.iloc[0] if len(sma200_tail) > 1 else False
 
     score = sum([c1, c2, c3, c4])
-    return {"trend_c1": bool(c1), "trend_c2": bool(c2), "trend_c3": bool(c3), "trend_c4": bool(c4), "score": int(score)}
+    return {"trend_c1": bool(c1), "trend_c2": bool(c2), "trend_c3": bool(c3), "trend_c4": bool(c4), "trend_score": int(score)}
 
 def _calc_accumulation(df: pd.DataFrame) -> dict:
     """Calculates Up/Down Volume Ratio and Accumulation Score."""
@@ -40,7 +67,7 @@ def _calc_accumulation(df: pd.DataFrame) -> dict:
     change = tail["Close"].diff()
     up_vol = tail["Volume"][change > 0].sum()
     down_vol = tail["Volume"][change <= 0].sum()
-    ud_ratio = up_vol / down_vol if down_vol > 0 else 5.0
+    ud_ratio = up_vol / down_vol if down_vol > 0 else 5.0 
 
     ad = ((df['Close'] - df['Low']) - (df['High'] - df['Close'])) / (df['High'] - df['Low']).replace(0, np.nan) * df['Volume']
     ad_smooth = ad.ewm(span=LB_ACCUM_LOOKBACK, adjust=False).mean()
@@ -64,62 +91,45 @@ def _calc_volatility(df: pd.DataFrame) -> dict:
 
     return {"base_tight": round(float(base_tight), 2), "vol_ratio": round(float(vol_ratio), 1)}
 
-
+# ✨ FIX: แก้ไข Signature ของฟังก์ชันให้รับแค่ mode
+# และเปลี่ยนชื่อฟังก์ชันใน cache_utils.py ให้ตรงกัน (จาก build_leadership_board เป็น compute_leadership_board)
+# แต่เพื่อความง่าย ผมจะใช้ชื่อเดิมและ refactor ภายใน
 @ttl_cache(CACHE_TTL_DATA)
-def build_leadership_board(mode: str = "core") -> dict:
+def build_leadership_board(mode: str) -> dict:
     """
-    ✨ FIX: Refactored to be self-contained.
-    It now fetches its own data using the pipeline based on the `mode`.
+    This is the main, self-contained function for the leadership board.
+    It fetches its own data via the pipeline.
     """
-    # 1. Fetch all necessary data using the pipeline
-    active = pipeline.active_universe(mode)
-    combined_raw, ticker_meta, _ = pipeline.fetch_universe(active)
+    # 1. ดึงข้อมูลที่จำเป็นทั้งหมด
+    data = _get_leadership_data(mode=mode)
+    if not data.get("ok"):
+        return data # Return error dict
 
-    if not combined_raw:
-        return {"ok": False, "error": "Failed to fetch universe data."}
+    combined = data["combined"]
+    ticker_meta = data["ticker_meta"]
+    rs_now = data["rs_now"]
+    rs_7 = data["rs_7"]
+    ticker_signal = data["ticker_signal"]
 
-    # 2. Prepare data (add indicators, calculate signals and RS)
-    combined = {t: eng.add_indicators(df) for t, df in combined_raw.items()}
-
-    ticker_signal = {}
-    for t, d in combined.items():
-        try:
-            sig = eng.run_scanners(d)
-            rolled, _, _ = eng.confluence_flags(sig)
-            last_rolled = {k: bool(v.iloc[-1]) for k, v in rolled.items() if v is not None and not v.empty}
-            ticker_signal[t] = {"rolled": last_rolled}
-        except Exception:
-            ticker_signal[t] = {"rolled": {}}
-
-    rs_now = eng.rs_rating_per_market(combined, ticker_meta)
-
-    rs_7_data = {}
-    for t, d in combined.items():
-        if len(d) > 7:
-            rs_7_data[t] = eng.blended_return(d["Close"].iloc[:-7])
-    rs_7 = eng.rs_rating_table(pd.Series(rs_7_data)).reindex(rs_now.index).fillna(rs_now)
-
-    # 3. Build the leadership board rows
+    # 2. คำนวณ Leadership stats สำหรับหุ้นแต่ละตัว
     all_stocks = []
     for ticker, df in combined.items():
-        if len(df) < 50:
-            continue
-
+        if len(df) < 50: continue
         meta = ticker_meta.get(ticker, {})
         last = df.iloc[-1]
 
         trend_data = _calc_trend_template(df)
         accum_data = _calc_accumulation(df)
         vol_data = _calc_volatility(df)
-
-        prox_52w = (last["Close"] / last.get("HIGH_52W", last["Close"]) - 1) * 100 if last.get("HIGH_52W") else 0
+        prox_52w = (last["Close"] / last.get("HIGH_52W", last["Close"]) - 1) * 100 if last.get("HIGH_52W") else 100
         drawdown_pct = eng.current_drawdown_from_peak(df["Close"])
 
         rs_val = int(rs_now.get(ticker, 0))
         drs7_val = int(rs_val - rs_7.get(ticker, rs_val))
 
+        # Leadership Score
         ls_rs = rs_val * 0.25
-        ls_trend = (trend_data["score"] / 4) * 100 * 0.20
+        ls_trend = (trend_data["trend_score"] / 4) * 100 * 0.20
         ls_prox = max(0, 100 - abs(prox_52w * 4)) * 0.15
         ls_accum = min(1, max(0, accum_data["accum_score"] / 0.5)) * 100 * 0.15
         ls_tight = max(0, 100 - vol_data["base_tight"] * 2) * 0.10
@@ -128,53 +138,31 @@ def build_leadership_board(mode: str = "core") -> dict:
         ls_total = int(ls_rs + ls_trend + ls_prox + ls_accum + ls_tight + ls_drs7 + ls_vol)
 
         signals = ticker_signal.get(ticker, {})
-
-        # Calculate returns
-        r1d_val = (df['Close'].iloc[-1] / df['Close'].iloc[-2] - 1) * 100 if len(df['Close']) > 1 else 0
-        r1m_val = (df['Close'].iloc[-1] / df['Close'].iloc[-22] - 1) * 100 if len(df['Close']) > 21 else None
-        r3m_val = (df['Close'].iloc[-1] / df['Close'].iloc[-64] - 1) * 100 if len(df['Close']) > 63 else None
-
         all_stocks.append({
-            "ticker": ticker,
-            "symbol": ticker.split(".")[0],
-            "name": meta.get("name", ""),
-            "theme": meta.get("theme", ""),
-            "market": meta.get("market", ""),
-            "ls": ls_total,
-            "rs": rs_val,
-            "drs7": drs7_val,
-            **trend_data,
-            **accum_data,
-            **vol_data,
-            "prox_52w": abs(round(prox_52w, 1)),
-            "drawdown_pct": drawdown_pct,
-            "r1d": round(r1d_val, 2),
-            "r1m": round(r1m_val, 2) if r1m_val is not None else None,
-            "r3m": round(r3m_val, 2) if r3m_val is not None else None,
+            "ticker": ticker, "symbol": meta.get("name", ticker).split(".")[0], "name": meta.get("name", ""),
+            "theme": meta.get("theme", ""), "market": meta.get("market", ""), "ls": ls_total,
+            "rs": rs_val, "drs7": drs7_val, **trend_data, **accum_data, **vol_data,
+            "prox_52w": abs(round(prox_52w, 1)), "drawdown_pct": round(drawdown_pct,1),
+            "r1d": eng._pct_change(df['Close'], 1), "r1m": eng._pct_change(df['Close'], 21),
+            "r3m": eng._pct_change(df['Close'], 63),
             "is_vdu": signals.get("rolled", {}).get("VDU", False),
             "is_pocket": signals.get("rolled", {}).get("PPBP", False),
             "is_bgu": signals.get("rolled", {}).get("BGU", False),
             "is_near_52w": signals.get("rolled", {}).get("52W", False),
         })
 
-    # 4. Sort and filter for different tabs
+    # 3. จัดกลุ่มและเรียงลำดับสำหรับแต่ละ Tab
     overall = sorted(all_stocks, key=lambda x: x["ls"], reverse=True)[:LB_TOP_N * 2]
     top_rs = sorted([s for s in all_stocks if s["rs"] >= 90], key=lambda x: x["rs"], reverse=True)[:LB_TOP_N]
     top_momentum = sorted([s for s in all_stocks if s["drs7"] > 0], key=lambda x: x["drs7"], reverse=True)[:LB_TOP_N]
     near_breakout = sorted([s for s in all_stocks if s["prox_52w"] <= LB_BREAKOUT_PROX and s["trend_score"] >= 3], key=lambda x: x["prox_52w"])[:LB_TOP_N]
-    institutional = sorted([s for s in all_stocks if s["accum_score"] >= LB_ACCUM_MIN and s["ud_ratio"] >= LB_UD_MIN], key=lambda x: x["accum_score"], reverse=True)[:LB_TOP_N]
+    institutional = sorted([s for s in all_stocks if s["accum_score"] >= LB_ACCUM_MIN and s["ud_ratio"] >= LB_UD_MIN], key=lambda x: (x["accum_score"], x["ud_ratio"]), reverse=True)[:LB_TOP_N]
     volume_surge = sorted([s for s in all_stocks if s["vol_ratio"] >= LB_VOL_MIN], key=lambda x: x["vol_ratio"], reverse=True)[:LB_TOP_N]
     trend_template = sorted([s for s in all_stocks if s["trend_score"] == 4 and s["rs"] > 70], key=lambda x: x["rs"], reverse=True)[:LB_TOP_N]
 
     return {
-        "ok": True,
-        "updated": datetime.now().strftime("%d/%m/%Y %H:%M"),
-        "total": len(all_stocks),
-        "overall": overall,
-        "top_rs": top_rs,
-        "top_momentum": top_momentum,
-        "near_breakout": near_breakout,
-        "institutional": institutional,
-        "volume_surge": volume_surge,
-        "trend_template": trend_template,
+        "ok": True, "updated": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "total": len(all_stocks), "overall": overall, "top_rs": top_rs, "top_momentum": top_momentum,
+        "near_breakout": near_breakout, "institutional": institutional,
+        "volume_surge": volume_surge, "trend_template": trend_template,
     }
