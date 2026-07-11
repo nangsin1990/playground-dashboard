@@ -159,6 +159,7 @@ def fetch_etf_board() -> dict:
     sector_etfs = [r for r in rows if r["cat"] == "Sector" and r["r1m"] is not None]
     sector_rotation = sorted(sector_etfs, key=lambda x: x["r1m"], reverse=True)
 
+    
     # Category summary
     cat_summary = {}
     for cat in CATEGORIES:
@@ -182,3 +183,4 @@ def fetch_etf_board() -> dict:
             "top":   [{"symbol":r["symbol"],"rs":r["rs"],"chg1d":r["chg1d"]} for r in top],
             "direction": "up" if avg1d >= 0 else "down",
         }
+
