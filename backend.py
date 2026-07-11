@@ -265,14 +265,46 @@ def rotation_api(mode: str = Query("core"), refresh: bool = False):
 
 
 @app.get("/api/screener")
-def screener_api(mode: str = Query("core")):
+async def screener_api(
+    request: Request, # ⚡ CHANGE: ใช้ Request object เพื่อดึง query parameters ทั้งหมด
+    mode: str = Query("core"),
+    refresh: bool = False
+):
+    """
+    Handles screener requests by collecting all query parameters
+    and passing them to the screener engine.
+    """
     try:
-        if hasattr(scr, "build_screener"):
-            return _resp(scr.build_screener())
-        elif hasattr(scr, "run_screener"):
-            return _resp(scr.run_screener())
-        return _resp({"ok": False, "error": "screener endpoint not implemented"})
+        # ⚡ CHANGE: แปลง QueryParams ทั้งหมดเป็น dict เพื่อส่งให้ engine
+        # ทำให้รองรับ filter ได้ทุกตัวที่ frontend ส่งมา
+        params = dict(request.query_params)
+        sort_by = params.get("sort_by", "ls")
+        sort_desc = params.get("sort_desc", "true").lower() == "true"
+
+        # ⚡ CHANGE: เพิ่ม Logic การล้าง Cache เฉพาะส่วน screener
+        if refresh:
+            # Import screener module here to access its functions
+            import screener as scr
+            # The data source for the screener is _get_all_rows
+            if hasattr(scr, "_get_all_rows") and hasattr(scr._get_all_rows, "cache_clear"):
+                 scr._get_all_rows.cache_clear()
+                 log.info("Screener cache cleared.")
+
+        # ⚡ CHANGE: เรียกใช้ฟังก์ชันที่ถูกต้อง (`fetch_screener`) พร้อมส่ง parameters ทั้งหมด
+        # จากเดิมที่เรียก `build_screener` หรือ `run_screener` แบบไม่มีพารามิเตอร์เลย
+        if hasattr(scr, "fetch_screener"):
+            result = scr.fetch_screener(
+                mode=mode, 
+                params=params, 
+                sort_by=sort_by, 
+                sort_desc=sort_desc
+            )
+            return _resp(result)
+
+        return _resp({"ok": False, "error": "screener.fetch_screener endpoint not implemented"})
+
     except Exception as e:
+        log.exception("Screener API failed")
         return _resp({"ok": False, "error": str(e)})
 
 
