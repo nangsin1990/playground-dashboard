@@ -159,19 +159,10 @@ def search(q: str, mode: str = "core"):
 
 @app.get("/api/leadership")
 def leadership_api(mode: str = Query("core"), _: None = Depends(get_cache_clearer(lb.build_leadership_board.cache_clear))):
-    # NOTE: Leadership data is derived from the main pipeline, clearing its cache is complex.
-    # A full refresh is best done via /api/dashboard?refresh=true which clears the root source.
-    # For now, we reuse the dashboard's cached data implicitly.
-    # A proper fix would involve a more granular dependency graph.
-    dashboard_data = _cached_dashboard(mode=mode)
-    # This is a simplification; a real app might need to re-run parts of leadership calc.
-    # We will assume leadership is re-calculated inside the compute_dashboard for now.
-    # The user's original code for _cached_leadership was separate, let's call the proper lb function
-    active = pipeline.active_universe(mode)
-    combined, ticker_meta, _ = pipeline.fetch_universe(active)
-    rs_now = eng.rs_rating_per_market(combined, ticker_meta)
-    return _resp(lb.build_leadership_board(combined, ticker_meta, rs_now, rs_now, {}))
-
+    # ✨ FIX: โค้ดส่วนนี้ไม่ต้องแก้แล้ว เพราะตอนนี้ lb.build_leadership_board มี .cache_clear ให้เรียกแล้ว
+    # เราจะเรียกฟังก์ชันที่ถูกแก้ไขใหม่โดยตรงเลย
+    # มันจะไปจัดการดึงข้อมูลและคำนวณทุกอย่างข้างในเอง
+    return _resp(lb.build_leadership_board(mode=mode))
 
 @app.get("/api/global")
 def global_api(_: None = Depends(get_cache_clearer(gm.fetch_global_market.cache_clear))):
