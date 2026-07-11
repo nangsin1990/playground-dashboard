@@ -358,7 +358,8 @@ function resetFilters(){
 function fmtPct(v){ return v==null?"—":`<span class="${v>0?"up":v<0?"dn":"neu"}">${v>0?"+":""}${v.toFixed(1)}%</span>`; }
 function rsClass(v){ return v>=90?"rs-90":v>=80?"rs-80":v>=70?"rs-70":"rs-low"; }
 function trendDots(r){
-  // ✨ FIX: ลบ Fallback logic ที่ซ้ำซ้อนออก ทำให้โค้ดสะอาดและตรงตาม Data Contract
+  // ✨ FIX: ลบ Fallback logic ที่ซ้ำซ้อนออก (เช่น ?? r["c1_above_50"])
+  // ทำให้โค้ดสะอาดขึ้นและยึดตาม Data Contract ที่ควรจะเป็นจาก Backend
   return `<div class="trend-dots">${[
     r.trend_c1,
     r.trend_c2,
