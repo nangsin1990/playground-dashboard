@@ -266,10 +266,16 @@ def screener_api(mode: str = Query("core")):
 @app.get("/api/thematic")
 def thematic_api(mode: str = Query("core")):
     try:
-        if hasattr(tm, "build_thematic_matrix"):
+        # ⚡ FIX: เปลี่ยนไปเรียกฟังก์ชัน `fetch_thematic` ที่มีอยู่จริง และส่งพารามิเตอร์ `mode` เข้าไปด้วย
+        if hasattr(tm, "fetch_thematic"):
+            return _resp(tm.fetch_thematic(mode=mode))
+
+        # Fallback เก่า (ไม่น่าจะได้ใช้แล้ว)
+        elif hasattr(tm, "build_thematic_matrix"):
             return _resp(tm.build_thematic_matrix())
         elif hasattr(tm, "get_thematic_matrix"):
             return _resp(tm.get_thematic_matrix())
+
         return _resp({"ok": False, "error": "thematic endpoint not implemented"})
     except Exception as e:
         return _resp({"ok": False, "error": str(e)})
