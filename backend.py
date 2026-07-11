@@ -224,10 +224,16 @@ def correlation_api(mode: str = Query("core")):
 @app.get("/api/etf")
 def etf_api(mode: str = Query("core")):
     try:
-        if hasattr(eb, "build_etf_board"):
+        # ⚡ FIX: เปลี่ยนไปเรียกฟังก์ชันที่ถูกต้องคือ `fetch_etf_board`
+        if hasattr(eb, "fetch_etf_board"):
+            return _resp(eb.fetch_etf_board())
+
+        # Fallback เก่าเผื่อไว้
+        elif hasattr(eb, "build_etf_board"):
             return _resp(eb.build_etf_board())
         elif hasattr(eb, "get_etf_board"):
             return _resp(eb.get_etf_board())
+
         return _resp({"ok": False, "error": "etf endpoint not implemented"})
     except Exception as e:
         return _resp({"ok": False, "error": str(e)})
