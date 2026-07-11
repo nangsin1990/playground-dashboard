@@ -361,7 +361,7 @@ function renderSummary(data) {
   document.getElementById('sumThemes').textContent = themes.length;
   document.getElementById('sumUniverse').textContent = universeCount;
 
-  // ⚡ FIX: ใช้ Key r1d, r1m, r3m ให้ตรงกับ Python
+  // ✨ FIX: ใช้ Key r1d, r1m, r3m ให้ตรงกับ Python Backend
   const sorted1d = [...themes].sort((a,b)=>(b.r1d||-Infinity)-(a.r1d||-Infinity));
   const sorted1m = [...themes].sort((a,b)=>(b.r1m||-Infinity)-(a.r1m||-Infinity));
   const sorted3m = [...themes].sort((a,b)=>(b.r3m||-Infinity)-(a.r3m||-Infinity));
@@ -408,17 +408,12 @@ function setView(v, btn) {
 function applyFilters() {
   const q = document.getElementById('searchBox').value.toLowerCase();
   let data = allThemes.filter(t => {
-    // ⚡ FIX: ตรวจสอบ Group ของ Theme สำหรับฟิลเตอร์ ETF
-    const cfg = getCfg(t.theme);
-    if (currentMarket === 'US' && (!t.markets || !t.markets.includes('US'))) return false;
-    if (currentMarket === 'ETF' && cfg.group !== 'ETF') return false;
-
-    if (q && !t.theme.toLowerCase().includes(q)) return false;
+    // ...
     return true;
   });
 
   data.sort((a,b)=>{
-    // ⚡ FIX: ใช้ Key r1d, r1m, r3m ให้ตรงกับ Python
+    // ✨ FIX: ใช้ Key r1d, r1m, r3m ให้ตรงกับ Python Backend
     const a1m = a.r1m || -Infinity, b1m = b.r1m || -Infinity;
     const a3m = a.r3m || -Infinity, b3m = b.r3m || -Infinity;
     const a1d = a.r1d || -Infinity, b1d = b.r1d || -Infinity;
@@ -540,9 +535,9 @@ function showDetail(themeName) {
   document.getElementById('detailTitle').textContent = `${getCfg(themeName).icon} ${themeName} — ${theme.count} stocks`;
   const grid = document.getElementById('detailGrid');
 
-  const members = (theme.members||[]).slice(0,24);
+    const members = (theme.members||[]).slice(0,24);
   grid.innerHTML = members.map(m=>{
-    // ⚡ FIX: ใช้ Key r1m ให้ตรงกับ Python
+    // ✨ FIX: ใช้ Key r1m ให้ตรงกับ Python Backend
     const ret1m = m.r1m||0;
     return `<div class="member-row">
       <div class="member-info">
