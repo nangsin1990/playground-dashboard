@@ -64,9 +64,8 @@ COMMODITIES = {
 }
 
 BONDS = {
-    # ✨ FIX: เปลี่ยนจาก ^FVX (5Y) เป็น ^IRX (3M) เพื่อคำนวณ Spread ที่ถูกต้อง
+    # ✨ FIX: เปลี่ยนจาก ^FVX (5Y) เป็น ^IRX (3M) เพื่อให้ตรงกับที่ _yield_curve ต้องการใช้
     "^IRX":  ("US 3M T-Bill",  "3M"),
-    # "^FVX":  ("US 5Y Yield",   "5Y"), # Removed
     "^TNX":  ("US 10Y Yield",  "10Y"),
     "^TYX":  ("US 30Y Yield",  "30Y"),
 }
@@ -173,15 +172,13 @@ def _session_status() -> list[dict]:
 def _yield_curve(bond_data: dict) -> dict:
     """Calculate yield curve spread 10Y - 3M and inversion signal."""
     y10 = bond_data.get("^TNX", {}).get("price", 0)
-    # ✨ FIX: เปลี่ยนจาก `^FVX` (5Y) เป็น `^IRX` (3M)
+    # ✨ FIX: การเรียก .get("^IRX") ตอนนี้จะทำงานได้ถูกต้อง
     y3m  = bond_data.get("^IRX", {}).get("price", 0)
     spread = round(y10 - y3m, 3) if y10 and y3m else None
     inverted = spread is not None and spread < 0
-    # ✨ FIX: อัปเดต Key ของ Dictionary ให้สื่อความหมายและตรงกับ Frontend ใหม่
     return {"spread_10y_3m": spread, "inverted": inverted,
             "signal": "⚠️ Inverted — Recession Signal" if inverted else "✅ Normal"}
 
-    
 @ttl_cache(CACHE_TTL)
 def fetch_global_market() -> dict:
     # ... (ส่วนที่เหลือของฟังก์ชันเหมือนเดิม ไม่มีการเปลี่ยนแปลง)
