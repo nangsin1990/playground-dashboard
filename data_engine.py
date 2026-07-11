@@ -445,3 +445,59 @@ def sector_relative_strength(stock_close: pd.Series,
                               periods: list[int] | None = None) -> dict:
     """Compare stock vs its sector ETF."""
     return rs_vs_benchmark(stock_close, sector_close, periods)
+
+# ── 12) Relative Rotation Graph (RRG) ────────────────────────────────────────
+# ✨ NEW: เพิ่มฟังก์ชันสำหรับคำนวณ RRG ทั้งหมด
+def compute_rrg(weekly_prices: pd.DataFrame, tickers: list[str], benchmark: str) -> dict:
+    """
+    Computes JdK RS-Ratio and JdK RS-Momentum for RRG plots.
+    Args:
+        weekly_prices (pd.DataFrame): DataFrame with weekly close prices for all assets.
+        tickers (list[str]): List of tickers to analyze.
+        benchmark (str): The benchmark ticker symbol.
+    Returns:
+        dict: A dictionary with RRG data for each ticker.
+    """
+    from constants import RRG_SMOOTHING, RRG_ROC_SHIFT, RRG_TAIL_WEEKS
+
+    results = {}
+    bench_series = weekly_prices[benchmark]
+
+    for ticker in tickers:
+        if ticker not in weekly_prices.columns:
+            continue
+
+        asset_series = weekly_prices[ticker].dropna()
+        if len(asset_series) < RRG_SMOOTHING + RRG_ROC_SHIFT:
+            continue
+
+        # 1. RS-Ratio
+        rs_raw = (asset_series / bench_series).dropna()
+        rs_ratio_smoothed = rs_raw.ewm(span=RRG_SMOOTHING, adjust=False).mean()
+
+        # 2. RS-Momentum
+        rs_momentum = rs_ratio_smoothed.pct_change(RRG_ROC_SHIFT)
+
+        # 3. Normalize (JdK method)
+        jrs = 100 + ((rs_ratio_smoothed / rs_ratio_smoothed.mean() - 1) * 10)
+        jmo = 100 + (rs_momentum / rs_momentum.std()) * 10
+
+        # Get latest values and tail
+        latest_jrs = jrs.iloc[-1]
+        latest_jmo = jmo.iloc[-1]
+
+        tail_data = list(zip(jrs.tail(RRG_TAIL_WEEKS).tolist(), jmo.tail(RRG_TAIL_WEEKS).tolist()))
+
+        # Determine quadrant
+        if latest_jrs > 100 and latest_jmo > 100: quadrant = "Leading"
+        elif latest_jrs > 100 and latest_jmo < 100: quadrant = "Weakening"
+        elif latest_jrs < 100 and latest_jmo < 100: quadrant = "Lagging"
+        else: quadrant = "Improving"
+
+        results[ticker] = {
+            "jrs": round(latest_jrs, 2),
+            "jmo": round(latest_jmo, 2),
+            "quadrant": quadrant,
+            "tail": tail_data
+        }
+    return results
