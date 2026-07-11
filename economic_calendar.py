@@ -19,7 +19,7 @@ import urllib.parse
 from datetime import datetime, date, timedelta
 from functools import lru_cache
 from typing import Optional
-
+import os # ✨ NEW: Import os to get environment variables
 try:
     from cache_utils import ttl_cache
 except ImportError:
@@ -92,8 +92,17 @@ FRED_RELEASES = {
     "82":  ("PCE",    "PCE / Personal Income",   "HIGH"),
 }
 FRED_BASE = "https://api.stlouisfed.org/fred"
+# ✨ FIX: อ่าน API Key จาก Environment Variable, ถ้าไม่มีให้ใช้ Placeholder
+# แนะนำ: ไปสร้าง Key ฟรีได้ที่ https://fred.stlouisfed.org/docs/api/api_key.html
+FRED_API_KEY = os.environ.get("FRED_API_KEY", None)
 
 def _fred_fetch(path: str, params: dict) -> Optional[dict]:
+    # ✨ FIX: เพิ่ม API Key ในทุกคำขอถ้ามี
+    if not FRED_API_KEY:
+        # ถ้าไม่มี Key, ไม่ต้องพยายามเรียก API เลย
+        return None
+    params["api_key"] = FRED_API_KEY
+
     params["file_type"] = "json"
     qs = urllib.parse.urlencode(params)
     url = f"{FRED_BASE}/{path}?{qs}"
