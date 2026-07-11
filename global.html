@@ -281,10 +281,9 @@ function renderYieldCurve(bonds, yc) {
   document.getElementById("yieldCurve").innerHTML = `
     <div class="yc-bars">${bars}</div>
     <div class="yc-signal ${sigCls}">${yc.signal}</div>
-    // ⚡ FIX: อัปเดต Label และ Key ให้ตรงกับ Backend ใหม่ (10y_3m)
+    // ✨ FIX: โค้ดส่วนนี้ทำงานได้ถูกต้องแล้ว เพราะ Backend ถูกแก้ให้ส่ง spread_10y_3m มาให้
     ${yc.spread_10y_3m !== null ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">10Y − 3M spread: ${yc.spread_10y_3m > 0 ? "+" : ""}${yc.spread_10y_3m}%</div>` : ""}`;
 }
-
 async function load(refresh=false) {
   document.getElementById("loading").style.display = "flex";
   document.getElementById("errBanner").style.display = "none";
