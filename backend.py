@@ -343,54 +343,87 @@ def thematic_api(mode: str = Query("core")):
 
 
 @app.get("/api/technicals")
-def technicals_api(ticker: str):
+def technicals_api(ticker: str, refresh: bool = False):
     try:
-        if hasattr(ta, "build_technicals"):
-            return _resp(ta.build_technicals(ticker))
-        elif hasattr(ta, "get_technicals"):
-            return _resp(ta.get_technicals(ticker))
+        # ✨ CHANGE: เพิ่มการรองรับ refresh=True
+        if refresh and hasattr(ta, "fetch_technicals") and hasattr(ta.fetch_technicals, "cache_clear_key"):
+            ta.fetch_technicals.cache_clear_key(ticker=ticker)
+            log.info(f"Technicals cache cleared for {ticker}.")
+
+        # ✨ CHANGE: แก้ไขชื่อฟังก์ชันให้ถูกต้องเป็น fetch_technicals
+        if hasattr(ta, "fetch_technicals"):
+            return _resp(ta.fetch_technicals(ticker))
+
         return _resp({"ok": False, "error": "technicals endpoint not implemented"})
     except Exception as e:
         return _resp({"ok": False, "error": str(e)})
 
 
 @app.get("/api/sector_rs")
-def sector_rs_api(ticker: str, theme: str = ""):
+def sector_rs_api(ticker: str, theme: str = "", refresh: bool = False):
     try:
-        return _resp({
-            "ok": True,
-            "ticker": ticker,
-            "theme": theme,
-            "rs": None
-        })
+        # ✨ CHANGE: เพิ่มการรองรับ refresh=True
+        if refresh and hasattr(ta, "fetch_sector_rs") and hasattr(ta.fetch_sector_rs, "cache_clear_key"):
+            ta.fetch_sector_rs.cache_clear_key(ticker=ticker, theme=theme)
+            log.info(f"Sector RS cache cleared for {ticker}.")
+
+        # ✨ CHANGE: แทนที่ stub เดิมด้วยการเรียกฟังก์ชันจริง
+        if hasattr(ta, "fetch_sector_rs"):
+            return _resp(ta.fetch_sector_rs(ticker, theme))
+
+        return _resp({"ok": False, "error": "sector_rs endpoint not implemented"})
     except Exception as e:
         return _resp({"ok": False, "error": str(e)})
 
 @app.get("/api/earnings")
-def earnings_api(ticker: str):
-    return _resp({
-        "ok": True,
-        "ticker": ticker,
-        "earnings": []
-    })
+def earnings_api(ticker: str, refresh: bool = False):
+    try:
+        # ✨ CHANGE: เพิ่มการรองรับ refresh=True
+        if refresh and hasattr(ta, "fetch_earnings") and hasattr(ta.fetch_earnings, "cache_clear_key"):
+            ta.fetch_earnings.cache_clear_key(ticker=ticker)
+            log.info(f"Earnings cache cleared for {ticker}.")
+
+        # ✨ CHANGE: แทนที่ stub เดิมด้วยการเรียกฟังก์ชันจริง
+        if hasattr(ta, "fetch_earnings"):
+            return _resp(ta.fetch_earnings(ticker))
+
+        return _resp({"ok": False, "error": "earnings endpoint not implemented"})
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
 
 
 @app.get("/api/dividends")
-def dividends_api(ticker: str):
-    return _resp({
-        "ok": True,
-        "ticker": ticker,
-        "dividends": []
-    })
+def dividends_api(ticker: str, refresh: bool = False):
+    try:
+        # ✨ CHANGE: เพิ่มการรองรับ refresh=True
+        if refresh and hasattr(ta, "fetch_dividends") and hasattr(ta.fetch_dividends, "cache_clear_key"):
+            ta.fetch_dividends.cache_clear_key(ticker=ticker)
+            log.info(f"Dividends cache cleared for {ticker}.")
+
+        # ✨ CHANGE: แทนที่ stub เดิมด้วยการเรียกฟังก์ชันจริง
+        if hasattr(ta, "fetch_dividends"):
+            return _resp(ta.fetch_dividends(ticker))
+
+        return _resp({"ok": False, "error": "dividends endpoint not implemented"})
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
 
 
 @app.get("/api/options_iv")
-def options_iv_api(ticker: str):
-    return _resp({
-        "ok": True,
-        "ticker": ticker,
-        "iv": None
-    })
+def options_iv_api(ticker: str, refresh: bool = False):
+    try:
+        # ✨ CHANGE: เพิ่มการรองรับ refresh=True
+        if refresh and hasattr(ta, "fetch_options_iv") and hasattr(ta.fetch_options_iv, "cache_clear_key"):
+            ta.fetch_options_iv.cache_clear_key(ticker=ticker)
+            log.info(f"Options IV cache cleared for {ticker}.")
+
+        # ✨ CHANGE: แทนที่ stub เดิมด้วยการเรียกฟังก์ชันจริง
+        if hasattr(ta, "fetch_options_iv"):
+            return _resp(ta.fetch_options_iv(ticker))
+
+        return _resp({"ok": False, "error": "options_iv endpoint not implemented"})
+    except Exception as e:
+        return _resp({"ok": False, "error": str(e)})
 # =========================
 # STATIC (MUST BE LAST)
 # =========================
