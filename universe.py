@@ -14,6 +14,8 @@ Yahoo Finance ticker conventions:
   FR : SYMBOL.PA (Euronext Paris)
   GB : SYMBOL.L (London Stock Exchange)
 """
+# ✨ FIX: Import ETF_META เพื่อใช้สร้าง RRG_US_SECTORS
+from etf_meta import ETF_META
 
 UNIVERSE = {
     "US": {
@@ -910,6 +912,13 @@ UNIVERSE = {
     },
 }
 
+# ✨ NEW: สร้าง RRG US Sectors universe จาก etf_meta.py โดยอัตโนมัติ
+# ทำให้ข้อมูลตรงกันเสมอเมื่อมีการอัปเดต etf_meta
+RRG_US_SECTORS = {
+    ticker: meta['sub']
+    for ticker, meta in ETF_META.items()
+    if meta.get('cat') == 'Sector'
+}
 # ✨ NEW: Universe for Global Relative Rotation Graph
 # Use US-listed ETFs for consistent currency comparison
 RRG_GLOBAL_UNIVERSE = {
@@ -949,6 +958,8 @@ BENCHMARK = {
     "FR": "^FCHI",
     "GB": "^FTSE",
     "GLOBAL": "VT", # Vanguard Total World Stock ETF
+   # ✨ NEW: เพิ่ม Benchmark สำหรับ US Sectors
+    "US_SECTORS": "SPY",
 }
 
 FLAGS = {
