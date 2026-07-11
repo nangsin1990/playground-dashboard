@@ -327,6 +327,9 @@ def build_leadership_board(
             "r3m":         rets["r3m"],
             "r6m":         rets["r6m"],
             "r52w":        rets["r52w"],
+            # ✨ FIX: เพิ่ม Key `drawdown_pct` ที่ขาดหายไป
+            # โดยเรียกใช้ฟังก์ชันที่มีอยู่แล้วจาก data_engine
+            "drawdown_pct": eng.current_drawdown_from_peak(close),
             # RS
             "rs":          rs_val,
             "drs7":        drs7,
