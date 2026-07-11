@@ -92,17 +92,15 @@ FRED_RELEASES = {
     "82":  ("PCE",    "PCE / Personal Income",   "HIGH"),
 }
 FRED_BASE = "https://api.stlouisfed.org/fred"
-# ✨ FIX: อ่าน API Key จาก Environment Variable, ถ้าไม่มีให้ใช้ Placeholder
-# แนะนำ: ไปสร้าง Key ฟรีได้ที่ https://fred.stlouisfed.org/docs/api/api_key.html
+# ✨ FIX: อ่าน API Key จาก Environment Variable, ถ้าไม่มีให้ใช้ None
 FRED_API_KEY = os.environ.get("FRED_API_KEY", None)
 
 def _fred_fetch(path: str, params: dict) -> Optional[dict]:
-    # ✨ FIX: เพิ่ม API Key ในทุกคำขอถ้ามี
+    # ✨ FIX: เพิ่มการตรวจสอบว่ามี API Key หรือไม่ก่อนเรียกใช้
     if not FRED_API_KEY:
-        # ถ้าไม่มี Key, ไม่ต้องพยายามเรียก API เลย
-        return None
-    params["api_key"] = FRED_API_KEY
+        return None # ถ้าไม่มี Key, ไม่ต้องพยายามเรียก API เลย
 
+    params["api_key"] = FRED_API_KEY
     params["file_type"] = "json"
     qs = urllib.parse.urlencode(params)
     url = f"{FRED_BASE}/{path}?{qs}"
