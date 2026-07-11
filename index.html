@@ -330,11 +330,13 @@ function startProgressPoll() {
   stopProgressPoll();
   _pollTimer = setInterval(async () => {
     try {
-      // ✨ CHANGE: Correctly poll the new /api/progress endpoint
+      // ✨ FIX: แก้ไข Endpoint จาก /api/fetch_state เป็น /api/progress ให้ถูกต้อง
       const r = await fetch("/api/progress");
       const d = await r.json();
-      if (!d || d.stage === 'idle' || d.stage === 'done') return;
-
+      if (!d || !d.ok || d.stage === 'idle' || d.stage === 'done') {
+        if (!d.ok) console.error("Progress poll failed:", d.error);
+        return;
+      }
       $("loadMsg").textContent = d.stage === 'fetching' 
         ? `กำลังโหลด ${d.market} (${d.batch}/${d.total_batches})`
         : "กำลังคำนวณ...";
