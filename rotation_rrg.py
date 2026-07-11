@@ -1,21 +1,12 @@
+# FILENAME: rotation_rrg.py
+
 """
 Relative Rotation Graph (RRG) Engine
 =====================================
-v3 fixes:
-  - RRG_RRG_TAIL_WEEKS typo → RRG_TAIL_WEEKS
-  - EMA span 14 (smoothing reduced quadrant noise)
-  - ROC shift 14 (matches smoothing)
-  - Removed TH benchmark (US-only focus)
-  - RS Rating scoped per market (no cross-market RS)
-
-Methodology (Julius de Kempenaer / Bloomberg RRG):
-  1. JdK RS-Ratio  = smoothed relative performance vs benchmark, normalised to 100
-  2. JdK RS-Momentum = rate of change of RS-Ratio, normalised to 100
-  3. Quadrant:
-       Leading   = RS-Ratio > 100 AND RS-Momentum > 100
-       Weakening = RS-Ratio > 100 AND RS-Momentum < 100
-       Lagging   = RS-Ratio < 100 AND RS-Momentum < 100
-       Improving = RS-Ratio < 100 AND RS-Momentum > 100
+v4: Refactored to support 'market' parameter and 'GLOBAL' mode.
+  - fetch_rotation(mode, market)
+  - 'GLOBAL' mode uses RRG_GLOBAL_UNIVERSE and VT benchmark.
+  - Default mode handles US Sectors / ETFs.
 """
 
 from __future__ import annotations
@@ -34,187 +25,165 @@ from constants import (
     RRG_CLAMP_LO, RRG_CLAMP_HI, RRG_ROC_SHIFT, RRG_MIN_HISTORY,
 )
 
-from universe import UNIVERSE
-
-BENCHMARK_US = "SPY"
-
+# Immutable User Data: คัดลอกมา 100%
+from universe import BENCHMARK, RRG_US_SECTORS, RRG_US_THEMES, RRG_GLOBAL_UNIVERSE
 
 def _ema(series: pd.Series, span: int) -> pd.Series:
     return series.ewm(span=span, adjust=False).mean()
 
-
 def _rs_ratio_series(price: pd.Series, bench: pd.Series, span: int = RRG_SMOOTHING) -> pd.Series:
-    """
-    JdK RS-Ratio: smoothed (price/bench) normalised to 100-range.
-    Raw relative = price / bench aligned by date.
-    Returns 100-centred series: 100 = inline with benchmark.
-    """
     aligned = pd.concat([price, bench], axis=1, join="inner")
     aligned.columns = ["p", "b"]
-    rel      = aligned["p"] / aligned["b"]
+    rel = aligned["p"] / aligned["b"]
     smoothed = _ema(rel, span)
     roll_mean = smoothed.rolling(52, min_periods=RRG_ROLL_MIN).mean()
-    roll_std  = smoothed.rolling(52, min_periods=RRG_ROLL_MIN).std().replace(0, np.nan)
+    roll_std = smoothed.rolling(52, min_periods=RRG_ROLL_MIN).std().replace(0, np.nan)
     normalised = 100 + (smoothed - roll_mean) / roll_std * 5
     return normalised
-
 
 def _rs_momentum_series(rs_ratio: pd.Series, span: int = RRG_SMOOTHING) -> pd.Series:
-    """
-    JdK RS-Momentum: rate-of-change of RS-Ratio, similarly normalised to 100.
-    """
-    roc      = rs_ratio - rs_ratio.shift(RRG_ROC_SHIFT)
+    roc = rs_ratio - rs_ratio.shift(RRG_ROC_SHIFT)
     smoothed = _ema(roc, span)
     roll_mean = smoothed.rolling(52, min_periods=RRG_ROLL_MIN).mean()
-    roll_std  = smoothed.rolling(52, min_periods=RRG_ROLL_MIN).std().replace(0, np.nan)
+    roll_std = smoothed.rolling(52, min_periods=RRG_ROLL_MIN).std().replace(0, np.nan)
     normalised = 100 + (smoothed - roll_mean) / roll_std * 5
     return normalised
 
-
 def _quadrant(rs_ratio: float, rs_momentum: float) -> str:
-    if rs_ratio >= 100 and rs_momentum >= 100:
-        return "Leading"
-    if rs_ratio >= 100 and rs_momentum < 100:
-        return "Weakening"
-    if rs_ratio < 100 and rs_momentum < 100:
-        return "Lagging"
+    if rs_ratio >= 100 and rs_momentum >= 100: return "Leading"
+    if rs_ratio >= 100 and rs_momentum < 100: return "Weakening"
+    if rs_ratio < 100 and rs_momentum < 100: return "Lagging"
     return "Improving"
 
-
 def _short_name(theme: str) -> str:
+    # ... (no changes to this helper function)
     replacements = {
-        "Information Technology": "IT",
-        "Consumer Discretionary": "Con.Disc",
-        "Consumer Staples":       "Con.Sta",
-        "Communication Services": "Comm",
-        "Health Care":            "Health",
-        "ETF - Broad Market":     "Broad ETF",
-        "ETF - Sector Equity":    "Sector ETF",
-        "ETF - Fixed Income":     "Bond ETF",
-        "ETF - Commodity":        "Cmd ETF",
-        "ETF - International/EM": "EM ETF",
-        "ETF - Leveraged/Inverse":"Lev ETF",
-        "ETF - Volatility":       "Vol ETF",
-        "Semiconductors":         "Semi",
-        "Electronic Technology":  "ElecTech",
+        "Information Technology": "IT", "Consumer Discretionary": "Con.Disc",
+        "Consumer Staples": "Con.Sta", "Communication Services": "Comm",
+        "Health Care": "Health", "ETF - Broad Market": "Broad ETF",
+        "ETF - Sector Equity": "Sector ETF", "ETF - Fixed Income": "Bond ETF",
+        "ETF - Commodity": "Cmd ETF", "ETF - International/EM": "EM ETF",
+        "ETF - Leveraged/Inverse":"Lev ETF", "ETF - Volatility": "Vol ETF",
+        "Semiconductors": "Semi", "Electronic Technology": "ElecTech",
     }
     return replacements.get(theme, theme.split(" ")[0])
 
+def _process_group(group_name: str, tickers: list[str], combined_data: dict, bench_close: pd.Series, rs_ratings: pd.Series) -> dict | None:
+    """Helper to compute RRG for a single group of tickers."""
+    closes = [combined_data[t]["Close"] for t in tickers if t in combined_data]
+    if not closes: return None
+
+    group_idx = pd.concat(closes, axis=1).mean(axis=1).dropna()
+    if len(group_idx) < RRG_MIN_HISTORY: return None
+
+    common_idx = group_idx.index.intersection(bench_close.index)
+    if len(common_idx) < RRG_MIN_HISTORY: return None
+
+    ti, bi = group_idx.loc[common_idx], bench_close.loc[common_idx]
+
+    try:
+        rsr = _rs_ratio_series(ti, bi)
+        rsm = _rs_momentum_series(rsr)
+    except Exception:
+        return None
+
+    tail = []
+    for w in range(RRG_TAIL_WEEKS, 0, -1):
+        idx_pos = len(rsr) - w * RRG_TAIL_STEP
+        if idx_pos < 0: continue
+        r = float(rsr.iloc[idx_pos]) if not np.isnan(rsr.iloc[idx_pos]) else 100.0
+        m = float(rsm.iloc[idx_pos]) if not np.isnan(rsm.iloc[idx_pos]) else 100.0
+        tail.append([round(max(RRG_CLAMP_LO, min(RRG_CLAMP_HI, r)), 2), round(max(RRG_CLAMP_LO, min(RRG_CLAMP_HI, m)), 2)])
+
+    curr_rsr = round(max(RRG_CLAMP_LO, min(RRG_CLAMP_HI, float(rsr.iloc[-1]) if not np.isnan(rsr.iloc[-1]) else 100.0)), 2)
+    curr_rsm = round(max(RRG_CLAMP_LO, min(RRG_CLAMP_HI, float(rsm.iloc[-1]) if not np.isnan(rsm.iloc[-1]) else 100.0)), 2)
+    tail.append([curr_rsr, curr_rsm])
+
+    avg_rs = int(np.mean([rs_ratings.get(t, 0) for t in tickers if t in rs_ratings])) if not rs_ratings.empty else 0
+
+    return {
+        "theme": group_name,
+        "short": _short_name(group_name),
+        "market": "GLOBAL" if group_name in RRG_GLOBAL_UNIVERSE else "US",
+        "rs_ratio": curr_rsr,
+        "rs_momentum": curr_rsm,
+        "quadrant": _quadrant(curr_rsr, curr_rsm),
+        "tail": tail,
+        "avg_rs": avg_rs,
+        "count": len(tickers),
+    }
 
 @ttl_cache(CACHE_TTL_DATA)
-def fetch_rotation(mode: str = "core") -> dict:
+def fetch_rotation(mode: str = "core", market: str | None = None) -> dict:
     """
-    Compute RRG data for US theme groups vs SPY benchmark.
-    RS is computed per-market so cross-currency comparison is avoided.
+    Refactored main function to handle different markets/views.
+    - market='GLOBAL': Use RRG_GLOBAL_UNIVERSE vs 'VT'
+    - market='US_SECTORS': Use RRG_US_SECTORS vs 'SPY'
+    - market='US_THEMES': Use RRG_US_THEMES vs 'SPY'
     """
-    active = pipeline.active_universe(mode)
+    # ==================== GLOBAL MODE ====================
+    if market == 'GLOBAL':
+        universe_map = RRG_GLOBAL_UNIVERSE
+        benchmark_ticker = BENCHMARK['GLOBAL']
+        all_tickers = list(universe_map.keys()) + [benchmark_ticker]
 
-    # Fetch SPY benchmark
-    try:
-        bench_raw = data_io.fetch_batch((BENCHMARK_US,))
-    except Exception:
-        bench_raw = {}
+        raw_data = data_io.fetch_batch(tuple(all_tickers))
 
-    combined, ticker_meta, _ = pipeline.fetch_universe(active)
-
-    if not combined:
-        return {"ok": False, "error": "No data"}
-
-    # RS Ratings scoped to US market only (no cross-market mixing)
-    us_tickers = [t for t, m in ticker_meta.items() if m.get("market") == "US"]
-    if us_tickers:
-        blended_us = pd.Series({t: eng.blended_return(combined[t]["Close"])
-                                 for t in us_tickers if t in combined})
-        rs_us = eng.rs_rating_table(blended_us)
-    else:
-        rs_us = pd.Series(dtype=int)
-
-    # Benchmark close
-    bench_close: pd.Series | None = None
-    if BENCHMARK_US in bench_raw and bench_raw[BENCHMARK_US] is not None:
-        bench_close = bench_raw[BENCHMARK_US]["Close"]
-    elif BENCHMARK_US in combined:
-        bench_close = combined[BENCHMARK_US]["Close"]
-    else:
-        us_closes = [combined[t]["Close"] for t in us_tickers if t in combined]
-        if us_closes:
-            bench_close = pd.concat(us_closes, axis=1).mean(axis=1)
-
-    # Group tickers by theme (US only for RRG)
-    theme_map: dict[str, list[str]] = {}
-    for t, meta in ticker_meta.items():
-        if meta.get("market") != "US":
-            continue
-        th = meta.get("theme", "Unknown")
-        theme_map.setdefault(th, []).append(t)
-
-    rrg_rows = []
-
-    for theme, tickers in theme_map.items():
-        closes = [combined[t]["Close"] for t in tickers if t in combined]
-        if not closes:
-            continue
-
-        theme_idx = pd.concat(closes, axis=1).mean(axis=1).dropna()
-        if len(theme_idx) < RRG_MIN_HISTORY:
-            continue
-
+        bench_close = raw_data.get(benchmark_ticker, {}).get("Close")
         if bench_close is None or len(bench_close) < RRG_MIN_HISTORY:
-            continue
+            return {"ok": False, "error": f"Benchmark '{benchmark_ticker}' data is insufficient."}
 
-        common_idx = theme_idx.index.intersection(bench_close.index)
-        if len(common_idx) < RRG_MIN_HISTORY:
-            continue
-        ti = theme_idx.loc[common_idx]
-        bi = bench_close.loc[common_idx]
+        # For Global mode, we don't need per-market RS rating
+        rs_ratings = pd.Series(dtype=int)
 
-        try:
-            rsr = _rs_ratio_series(ti, bi)
-            rsm = _rs_momentum_series(rsr)
-        except Exception:
-            continue
+        rrg_rows = []
+        for name, tickers in universe_map.items():
+            row_data = _process_group(name, tickers, raw_data, bench_close, rs_ratings)
+            if row_data:
+                rrg_rows.append(row_data)
 
-        # Weekly tail snapshots
-        tail = []
-        for w in range(RRG_TAIL_WEEKS, 0, -1):
-            idx_pos = len(rsr) - w * RRG_TAIL_STEP
-            if idx_pos < 0:
-                continue
-            r = float(rsr.iloc[idx_pos]) if not np.isnan(rsr.iloc[idx_pos]) else 100.0
-            m = float(rsm.iloc[idx_pos]) if not np.isnan(rsm.iloc[idx_pos]) else 100.0
-            tail.append([
-                round(max(RRG_CLAMP_LO, min(RRG_CLAMP_HI, r)), 2),
-                round(max(RRG_CLAMP_LO, min(RRG_CLAMP_HI, m)), 2),
-            ])
+    # ==================== DEFAULT US MODE ====================
+    else:
+        active = pipeline.active_universe(mode)
+        combined, ticker_meta, _ = pipeline.fetch_universe(active)
+        if not combined:
+            return {"ok": False, "error": "No data for US universe"}
 
-        curr_rsr = float(rsr.iloc[-1]) if not np.isnan(rsr.iloc[-1]) else 100.0
-        curr_rsm = float(rsm.iloc[-1]) if not np.isnan(rsm.iloc[-1]) else 100.0
-        curr_rsr = round(max(RRG_CLAMP_LO, min(RRG_CLAMP_HI, curr_rsr)), 2)
-        curr_rsm = round(max(RRG_CLAMP_LO, min(RRG_CLAMP_HI, curr_rsm)), 2)
-        tail.append([curr_rsr, curr_rsm])
+        benchmark_ticker = BENCHMARK['US']
+        bench_close = combined.get(benchmark_ticker, {}).get("Close")
+        if bench_close is None or len(bench_close) < RRG_MIN_HISTORY:
+            return {"ok": False, "error": f"Benchmark '{benchmark_ticker}' data is insufficient."}
 
-        avg_rs = int(np.mean([int(rs_us.get(t, 0)) for t in tickers if t in rs_us])) if len(rs_us) else 0
+        # Group tickers by theme (US only for RRG)
+        theme_map: dict[str, list[str]] = {}
+        for t, meta in ticker_meta.items():
+            if meta.get("market") != "US": continue
+            th = meta.get("theme", "Unknown")
+            theme_map.setdefault(th, []).append(t)
 
-        rrg_rows.append({
-            "theme":       theme,
-            "short":       _short_name(theme),
-            "market":      "US",
-            "rs_ratio":    curr_rsr,
-            "rs_momentum": curr_rsm,
-            "quadrant":    _quadrant(curr_rsr, curr_rsm),
-            "tail":        tail,
-            "avg_rs":      avg_rs,
-            "count":       len(tickers),
-        })
+        # RS Ratings for US market
+        us_tickers = [t for t, m in ticker_meta.items() if m.get("market") == "US"]
+        blended_us = pd.Series({t: eng.blended_return(combined[t]["Close"]) for t in us_tickers if t in combined})
+        rs_us = eng.rs_rating_table(blended_us) if not blended_us.empty else pd.Series(dtype=int)
+
+        universe_to_process = RRG_US_SECTORS if market == 'US_SECTORS' else RRG_US_THEMES
+
+        rrg_rows = []
+        for name, tickers in universe_to_process.items():
+            row_data = _process_group(name, tickers, combined, bench_close, rs_us)
+            if row_data:
+                rrg_rows.append(row_data)
+
+    if not rrg_rows:
+        return {"ok": False, "error": f"Could not generate RRG data for market '{market}'"}
 
     q_order = {"Leading": 0, "Improving": 1, "Weakening": 2, "Lagging": 3}
     rrg_rows.sort(key=lambda x: (q_order.get(x["quadrant"], 4), -x["rs_ratio"]))
 
     return {
-        "ok":              True,
-        "updated":         datetime.now().strftime("%d/%m/%Y %H:%M"),
-        "universe_loaded": len(combined),
-        "benchmark":       BENCHMARK_US,
-        "rrg":             rrg_rows,
-        "note":            "RRG computed for US themes vs SPY. EMA smoothing reduces quadrant noise.",
+        "ok": True,
+        "updated": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "benchmark": benchmark_ticker,
+        "rrg": rrg_rows,
+        "note": f"RRG computed for {market or 'default'} view.",
     }
