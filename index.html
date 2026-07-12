@@ -1,85 +1,201 @@
-// File: index.html (inside <script> tag)
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playground — Market Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        :root{--green:#10b981;--red:#ef4444;--orange:#f59e0b;--indigo:#6366f1;--muted:#6b7280;--panel-bg:#111827;--border-col:#1e293b;--bg-col:#0d1117;--text-col:#e2e8f0;--muted2:#94a3b8}body{background:var(--bg-col);color:var(--text-col);font-family:Inter,system-ui,sans-serif;margin:0;padding-top:52px;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}.layout{display:grid;grid-template-columns:240px 1fr;height:calc(100vh - 52px)}.main-content{overflow-y:auto;padding:24px}.sidebar{background:var(--panel-bg);border-right:1px solid var(--border-col);display:flex;flex-direction:column;padding:12px;gap:4px}.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:6px;font-size:13px;font-weight:600;color:var(--muted2);transition:all .15s}.nav-item:hover{background:rgba(255,255,255,.05);color:var(--text-col)}.nav-item.active{background:rgba(99,102,241,.15);color:#a5b4fc}.nav-icon{width:18px;height:18px}.footer{margin-top:auto;padding:12px;font-size:11px;color:var(--muted)}.footer a{color:var(--indigo);text-decoration:underline}.grid2{display:grid;grid-template-columns:2fr 1fr;gap:20px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}.panel{background:var(--panel-bg);border:1px solid var(--border-col);border-radius:12px;padding:16px}.panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.panel-title{font-size:14px;font-weight:700}.tabs{display:flex;gap:4px}.tab-btn{padding:6px 12px;border-radius:7px;border:none;background:transparent;color:var(--muted);font-weight:600;cursor:pointer}.tab-btn.active{background:rgba(99,102,241,.15);color:#a5b4fc}.loading-overlay{position:fixed;inset:0;background:rgba(11,15,25,.8);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px;transition:opacity .2s}.loading-spinner{width:32px;height:32px;border:3px solid #2a3344;border-top-color:var(--indigo);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.loading-text{font-size:13px;color:var(--muted2)}.loading-bar{width:200px;height:4px;background:#2a3344;border-radius:2px;overflow:hidden}.loading-bar-fill{width:0;height:100%;background:var(--indigo);transition:width .4s}.loading-detail{font-size:11px;color:var(--muted);margin-top:4px}.error-banner{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);padding:12px;border-radius:8px;color:#fca5a5;font-size:13px;margin-bottom:16px;display:none}.bear-banner{background:rgba(239,68,68,.1);border-left:3px solid var(--red);padding:12px;border-radius:4px;font-size:12px;color:var(--muted2);margin-bottom:16px;display:none}.bear-banner strong{color:#fca5a5}.sync-box{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;background:rgba(0,0,0,.15);padding:8px 10px;border-radius:6px;font-size:11px;color:var(--muted2)}.sync-row{display:flex;align-items:center;gap:6px}.sync-row .dot{width:7px;height:7px;border-radius:50%}.dot.ok{background:var(--green)}.dot.warn{background:var(--orange)}.dot.bad{background:var(--red)}.mode-toggle{display:flex;gap:4px}.mode-btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border-col);background:var(--panel-bg);color:var(--muted2)}.mode-btn:hover{color:var(--text-col)}.mode-btn.active{color:#c7d2fe;background:rgba(99,102,241,.14);border-color:rgba(99,102,241,.4)}.auto-refresh{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted2)}.breadth-row{display:flex;align-items:center;gap:10px;padding:6px 0}.breadth-row .flag{width:20px}.breadth-row .country{width:32px;font-weight:700;font-size:12px;color:var(--muted2)}.bar-track{flex:1;height:14px;background:var(--bg-col);border-radius:3px;position:relative;overflow:hidden;border:1px solid #0002}.bar-ma200{position:absolute;left:0;top:0;height:100%;background:rgba(99,102,241,.2)}.bar-ma50{position:absolute;left:0;top:0;height:100%;transition:width .3s}.breadth-stats{display:flex;width:100px;gap:8px;font-size:11px;font-weight:600}.ma50val{color:var(--text-col)}.ma200val{color:var(--muted2)}.chg{font-size:10px}.chg.up{color:var(--green)}.chg.down{color:var(--red)}.hist-chart{position:relative;height:180px;background:var(--panel-bg);border-radius:8px;overflow:hidden}.hist-tabs{display:flex;gap:4px;margin-bottom:8px}.hist-tab{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:rgba(255,255,255,.03);color:var(--muted2)}.hist-tab:hover{background:rgba(255,255,255,.07)}.hist-tab.active{background:rgba(99,102,241,.15);color:#a5b4fc}.hist-footer{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);padding:0 4px;margin-top:4px}.statcard{background:var(--panel-bg);border:1px solid var(--border-col);border-radius:10px;padding:12px}.stat-label{font-size:11px;color:var(--muted2);margin-bottom:8px;height:28px}.stat-bottom{display:flex;justify-content:space-between;align-items:flex-end}.stat-val{font-size:24px;font-weight:700}.stat-unit{font-size:11px;color:var(--muted);margin-left:4px}.stat-badge{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}.badge-VDU{background:rgba(245,158,11,.15);color:var(--orange)}.badge-PPBP{background:rgba(16,185,129,.15);color:var(--green)}.badge-BGU{background:rgba(99,102,241,.15);color:#a5b4fc}.badge-52W{background:rgba(6,182,212,.15);color:#22d3ee}.watchlist-tbl{width:100%;border-collapse:collapse}.watchlist-tbl th{text-align:left;font-size:11px;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--border-col);font-weight:600}.watchlist-tbl td{padding:8px 10px;border-bottom:1px solid #1e293b60;vertical-align:middle}.watchlist-tbl tr:hover td{background:rgba(255,255,255,.02)}.sym-cell{display:flex;align-items:center;gap:12px}.sym-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}.sym-text .sym{font-weight:700;font-size:13px}.sym-text .ex{font-size:9px;color:var(--muted);background:#2c3547;padding:1px 4px;border-radius:3px;margin-left:4px}.sym-text .full{font-size:11px;color:var(--muted);margin-top:1px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.theme-tag{font-size:11px;color:var(--muted2);max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pattern-row{display:flex;gap:4px;flex-wrap:wrap}.ptag{padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700}.ptag.VDU{background:rgba(245,158,11,.15);color:var(--orange)}.ptag.PPBP{background:rgba(16,185,129,.15);color:var(--green)}.ptag.BGU{background:rgba(99,102,241,.15);color:#a5b4fc)}.ptag.52W{background:rgba(6,182,212,.15);color:#22d3ee}.rs-pill{display:inline-block;min-width:32px;text-align:center;padding:3px 8px;border-radius:6px;font-weight:700;font-size:11px}.rs-90{background:rgba(16,185,129,.2);color:#34d399}.rs-70{background:rgba(245,158,11,.2);color:#fbbf24}.rs-low{background:rgba(107,114,128,.2);color:#9ca3af}.pos{color:var(--green)}.neg{color:var(--red)}.theme-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #1e293b50}.theme-row:last-child{border-bottom:none}.theme-rank{font-size:11px;font-weight:700;color:var(--muted);width:16px}.theme-arrow{width:12px;font-weight:700}.theme-arrow.up{color:var(--green)}.theme-arrow.down{color:var(--red)}.theme-info{flex:1;min-width:0}.theme-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.theme-ticker{font-size:10px;color:var(--muted);margin-top:1px}.theme-pct{display:flex;gap:6px;font-size:11px;font-weight:600;text-align:right;min-width:140px}.rsmover-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e293b50}.rsmover-row:last-child{border-bottom:none}.rsm-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}.rsm-info{min-width:0}.rsm-sym{font-size:12px;font-weight:700}.rsm-ex{font-size:10px;color:var(--muted)}.spark-wrap{width:60px;height:24px;margin-left:auto}.rsm-rs{font-size:12px;font-weight:700;margin-left:8px;text-align:right;min-width:60px}.delta{font-size:10px;font-weight:600;margin-left:4px}.regime-widget{padding:14px;border:1px solid;border-radius:10px;margin-bottom:16px;display:none}.regime-header{display:flex;justify-content:space-between;align-items:flex-start}.regime-val{font-size:18px;font-weight:800}.regime-conf{font-size:11px;color:var(--muted2)}.regime-score{font-size:12px;font-weight:700}.regime-context{font-size:11px;color:var(--muted);margin:8px 0}.regime-exposure{display:flex;gap:12px;margin:12px 0}.exp-block{flex:1}.exp-label{font-size:10px;color:var(--muted)}.exp-val{font-size:18px;font-weight:700}.conf-bar-track{height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin:4px 0 10px}.conf-bar{height:100%;border-radius:2px}.regime-desc{font-size:12px;color:var(--muted2);margin-top:10px;padding-top:10px;border-top:1px solid #1e293b60;line-height:1.5}.sig-grid{display:none;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:12px;padding-top:12px;border-top:1px solid #1e293b60}.sig-row{display:flex;align-items:center;gap:8px;font-size:11px}.sig-icon{font-size:14px}.sig-info{flex:1}.sig-label{color:var(--muted2)}.sig-val{font-size:10px;color:var(--muted)}.sig-wt{font-size:10px;color:var(--muted);width:32px;text-align:right}.sig-score{font-weight:700;width:24px;text-align:right}.sig-score.pos{color:var(--green)}.sig-score.neg{color:var(--red)}.sig-score.neutral{color:var(--muted)}@media(max-width:1200px){.grid2{grid-template-columns:1fr}}@media(max-width:900px){.sidebar{display:none}.layout{grid-template-columns:1fr}.main-content{padding:16px}.grid3{grid-template-columns:1fr 1fr}}@media(max-width:600px){.grid3,.grid2{grid-template-columns:1fr}.main-content{padding:12px}}
+    </style>
+</head>
+<body>
+    <div id="content" class="layout">
+        <aside class="sidebar">
+            <a href="/" class="nav-item active"><span class="nav-icon">📊</span> Overview</a>
+            <a href="/global.html" class="nav-item"><span class="nav-icon">🌐</span> Global</a>
+            <a href="/etf.html" class="nav-item"><span class="nav-icon">📦</span> ETF Board</a>
+            <a href="/leaders.html" class="nav-item"><span class="nav-icon">🏆</span> Leadership</a>
+            <a href="/thematic.html" class="nav-item"><span class="nav-icon">🧩</span> Thematic</a>
+            <a href="/rotation.html" class="nav-item"><span class="nav-icon">🔄</span> Rotation</a>
+            <a href="/screener.html" class="nav-item"><span class="nav-icon">🔍</span> Screener</a>
+            <a href="/correlation.html" class.nav-item"><span class="nav-icon">📈</span> Correlations</a>
+            <a href="/calendar.html" class="nav-item"><span class="nav-icon">📅</span> Calendar</a>
+            <a href="/stock.html" class="nav-item"><span class="nav-icon">🔬</span> Stock</a>
+            <div class="footer">
+                <div id="syncBox"></div>
+                <p id="footerCaption" style="margin-top:10px;">Playground Dashboard v6.0</p>
+            </div>
+        </aside>
 
-/* ===== CONSTANTS ===== */
-const MARKETS = ["US","TH","HK","JP","KR","CN"];
-const FLAGS = {US:"🇺🇸",TH:"🇹🇭",HK:"🇭🇰",JP:"🇯🇵",KR:"🇰🇷",CN:"🇨🇳"};
-const PATTERNS = ["VDU","PPBP","BGU","52W"];
-const AVATAR_PAL = ["#0ea5e9","#1d4ed8","#2563eb","#dc2626","#b91c1c","#7c2d12","#16a34a","#7c3aed","#0891b2","#be185d"];
-const EXCH = [[".BK","SET"],[".HK","HKEX"],[".T","TSE"],[".KS","KRX"],[".SS","SSE"],[".SZ","SZSE"]];
-const REFRESH_SEC = 15 * 60;
+        <main class="main-content">
+            <div id="loading" class="loading-overlay">
+                <div class="loading-spinner"></div>
+                <div id="loadMsg" class="loading-text">กำลังโหลดข้อมูล...</div>
+                <div class="loading-bar"><div id="loadBar" class="loading-bar-fill"></div></div>
+                <div id="loadDetail" class="loading-detail"></div>
+            </div>
 
-/* ===== STATE ===== */
-let currentMode = "core";
-let currentMkt = "ALL";
-let currentSearch = "";
-let fullData = null;    // last API response
-let loading = false;
-let countdownSec = REFRESH_SEC;
-let countdownTimer = null;
-let autoEnabled = true;
+            <div class="panel-header">
+                <div class="mode-toggle">
+                    <button id="btn-core" class="mode-btn active">Core (~126)</button>
+                    <button id="btn-full" class="mode-btn">Full (~913)</button>
+                </div>
+                <div class="auto-refresh">
+                    <button id="btn-refresh">↻ Refresh</button>
+                    <input type="checkbox" id="chk-auto" checked>
+                    <label for="chk-auto">Auto <span id="countdown"></span></label>
+                </div>
+            </div>
 
-/* ===== UTILS (NOW SAFER!) ===== */
-const $ = id => document.getElementById(id);
-const esc = s => (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const fmtPct = (v,d=2) => (v>=0?"+":"")+v.toFixed(d)+"%";
-function hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return Math.abs(h)}
-function avatarColor(t){return AVATAR_PAL[hashStr(t)%AVATAR_PAL.length]}
-function exchLabel(t){for(const[s,l]of EXCH)if(t.endsWith(s))return l;return "US"}
+            <div id="errBanner" class="error-banner"></div>
+            <div id="bearBanner" class="bear-banner"><strong id="bearBody"></strong></div>
 
-function safeAttachEvent(elementId, eventName, handler) {
-    const element = $(elementId);
-    if (element) {
-        element.addEventListener(eventName, handler);
-    } else {
-        // เพิ่ม log เพื่อช่วยดีบักในอนาคต หากหา element ไม่เจอ
-        console.warn(`safeAttachEvent: Element with id '${elementId}' not found.`);
-    }
-}
-function safeSetContent(elementId, content) {
-    const element = $(elementId);
-    if (element) element.textContent = content;
-}
+            <div class="grid2">
+                <div>
+                    <div id="regimeWidget" class="regime-widget">
+                        <div class="regime-header">
+                            <div>
+                                <div id="regimeValue" class="regime-val"></div>
+                                <div id="regimeConf" class="regime-conf"></div>
+                            </div>
+                            <div id="regimeScore" class="regime-score"></div>
+                        </div>
+                        <div class="regime-context" id="regimeVix"></div>
+                        <div class="conf-bar-track"><div id="confBar" class="conf-bar"></div></div>
+                        <div class="regime-exposure">
+                            <div class="exp-block"><div class="exp-label">Exposure</div><div id="expPct" class="exp-val"></div></div>
+                            <div class="exp-block"><div class="exp-label">Cash</div><div id="cashPct" class="exp-val"></div></div>
+                        </div>
+                        <div id="regimeDesc" class="regime-desc"></div>
+                        <div style="font-size:10px;text-align:right;margin-top:8px;color:var(--muted);cursor:pointer" onclick="toggleSigs()">รายละเอียด <span id="sigToggle">▼</span></div>
+                        <div id="sigGrid" class="sig-grid"></div>
+                    </div>
 
-/* ===== SVG HELPERS (No changes needed) ===== */
-function smoothPath(pts){let d=`M ${pts[0][0]} ${pts[0][1]}`;for(let i=1;i<pts.length;i++){const[x0,y0]=pts[i-1],[x1,y1]=pts[i],mx=(x0+x1)/2,my=(y0+y1)/2;d+=` Q ${x0} ${y0} ${mx} ${my}`;}return d+` L ${pts[pts.length-1][0]} ${pts[pts.length-1][1]}`;};function scaleY(v,lo,hi,top,bot){return top+(1-(v-lo)/(hi-lo))*(bot-top)};function sparklineSvg(vals,color="#10b981"){if(vals.length<2)vals=[0,0];const lo=Math.min(...vals),hi=Math.max(...vals),r=hi-lo||1;const pts=vals.map((v,i)=>[(i/(vals.length-1))*100,scaleY(v,lo-r*.15,hi+r*.15,8,92)]);return`<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;"><path d="${smoothPath(pts)}" fill="none" stroke="${color}" stroke-width="6" vector-effect="non-scaling-stroke"/></svg>`;};function histChartSvg(dates,ma50,ma200){if(dates.length<2)return`<div style="color:var(--muted);font-size:12px;padding:80px 0;text-align:center">ไม่มีข้อมูลเพียงพอ</div>`;const all=[...ma50,...ma200],lo=Math.min(...all),hi=Math.max(...all);const pad=Math.max(2,(hi-lo)*.1),mn=lo-pad,mx=hi+pad;const gr=4,gridVals=Array.from({length:gr+1},(_,i)=>mn+(mx-mn)*i/gr);const ptsFor=d=>d.map((v,i)=>[(i/(d.length-1))*94,scaleY(v,mn,mx,8,82)]);const p50=ptsFor(ma50),p200=ptsFor(ma200);const area=`${smoothPath(p50)} L ${p50[p50.length-1][0]} 82 L ${p50[0][0]} 82 Z`;let svg=`<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;display:block;">`;gridVals.forEach(g=>{const y=scaleY(g,mn,mx,8,82);svg+=`<line x1="0" y1="${y}" x2="94" y2="${y}" stroke="#1c2533" stroke-width="0.25"/>`;});svg+=`<path d="${area}" fill="#10b981" opacity="0.10"/>`;svg+=`<path d="${smoothPath(p200)}" fill="none" stroke="#6366f1" stroke-width="0.8" vector-effect="non-scaling-stroke"/>`;svg+=`<path d="${smoothPath(p50)}" fill="none" stroke="#10b981" stroke-width="0.8" vector-effect="non-scaling-stroke"/>`;svg+=`</svg>`;let labels="";gridVals.forEach(g=>{const y=scaleY(g,mn,mx,8,82);labels+=`<div style="position:absolute;right:2px;top:${y}%;transform:translateY(-50%);font-size:9px;color:#6b7280">${g.toFixed(0)}%</div>`;});const ni=5;for(let i=0;i<ni;i++){const idx=Math.round(i/(ni-1)*(dates.length-1));const f=(idx/(dates.length-1))*94;const dt=new Date(dates[idx]),txt=`${dt.getDate()}/${dt.getMonth()+1}`;const tr=i===0?"translateX(0)":(i===ni-1?"translateX(-100%)":"translateX(-50%)");labels+=`<div style="position:absolute;left:${f}%;bottom:2px;transform:${tr};font-size:9.5px;color:#6b7280">${txt}</div>`;}return svg+labels;};
-
-/* ===== RENDERERS ===== */
-function renderSync(sync,ok){const el = $("syncBox"); if (!el) return; let html=""; const markets=sync?.markets||[];for(const s of markets){const dot=s.loaded===s.total?"ok":(s.loaded>0?"warn":"bad");html+=`<div class="sync-row"><span class="dot ${dot}"></span> ${FLAGS[s.market]||""} ${s.market}: ${s.loaded}/${s.total} OK</div>`;}html+=`<div class="sync-row"><span class="dot ${ok?"ok":"bad"}"></span> Yahoo Finance: ${ok?"live":"error"}</div>`;el.innerHTML=html;}
-function renderBearOverride(active,data){const banner=$("bearBanner"); if (!banner) return; if(active){$("bearBody").textContent="🚨 BEAR MARKET OVERRIDE: แนะนำการจำกัดความเสี่ยงด้วยการถือครองเงินสด 80%-100% เท่านั้น ห้ามขยายขนาดพอร์ตฟอลิโอในการเทรดแนวโน้มขาขึ้นเด็ดขาด — ตลาดส่วนใหญ่มี MA50 Breadth <40% และกำลังอ่อนตัวรุนแรง";banner.style.display="block";}else{banner.style.display="none";}}
-function renderBreadth(rows){const el = $("breadthRows"); if (!el) return; el.innerHTML=rows.map(r=>{const chgUp=r.chg>=0;const c=r.ma50>=60?"#10b981":(r.ma50>=40?"#f59e0b":"#ef4444");return`<div class="breadth-row"><div class="flag">${r.flag}</div><div class="country">${r.code}</div><div class="bar-track"><div class="bar-ma200" style="width:${Math.min(r.ma200,100).toFixed(1)}%"></div><div class="bar-ma50" style="width:${Math.min(r.ma50,100).toFixed(1)}%;background:${c}"></div></div><div class="breadth-stats"><span class="ma50val">${r.ma50.toFixed(1)}%</span><span class="ma200val">${r.ma200.toFixed(1)}%</span><span class="chg ${chgUp?"up":"down"}">${chgUp?"▲":"▼"}${Math.abs(r.chg).toFixed(1)}</span></div></div>`;}).join("");}
-let histMarket="TH";
-function renderHistTabs(markets){const el=$("histTabs"); if(!el) return; el.innerHTML=markets.map(m=>`<div class="hist-tab ${m===histMarket?"active":""}" data-hm="${m}">${FLAGS[m]||""} ${m}</div>`).join("");el.querySelectorAll(".hist-tab").forEach(tabEl=>{tabEl.addEventListener("click",()=>{histMarket=tabEl.dataset.hm;renderHistChart();});});}
-function renderHistChart(){if(!fullData)return;const histTabsEl=$("histTabs"); if(!histTabsEl) return; const all=fullData.breadth_history_all||{}; const bh=all[histMarket]||{dates:[],ma50:[],ma200:[],universe:0};histTabsEl.querySelectorAll(".hist-tab").forEach(el=>{el.classList.toggle("active",el.dataset.hm===histMarket);});const chartEl=$("breadthHistChart"); if(chartEl) chartEl.innerHTML=histChartSvg(bh.dates,bh.ma50,bh.ma200);safeSetContent("histUniverse",`Universe: ${bh.universe} stocks (${histMarket})`);safeSetContent("histUpdated",`Updated: ${fullData.updated}`);}
-function renderStatCards(cards){const el=$("statGrid"); if(!el)return; const defs=[["Volume Dry-Up pickup","VDU"],["Pocket Pivot Buy Point","PPBP"],["Buyable Gap-Up","BGU"],["ห่างจาก 52-week high ≤5%","52W"]];el.innerHTML=defs.map(([label,key])=>`<div class="statcard"><div class="stat-label">${label} (5 วันล่าสุด)</div><div class="stat-bottom"><div><span class="stat-val">${cards[key]??0}</span><span class="stat-unit">/ ${cards.total} signals</span></div><div class="stat-badge badge-${key}">${key}</div></div></div>`).join("");}
-function applyWatchlistFilters(rows){return rows.filter(r=>{if(currentMkt!=="ALL"&&r.market!==currentMkt)return false;if(currentSearch){const q=currentSearch.toLowerCase();if(!r.ticker.toLowerCase().includes(q)&&!r.name.toLowerCase().includes(q)&&!r.theme.toLowerCase().includes(q))return false;}return true;});}
-function renderWatchlist(rows){const body=$("watchlistBody"),empty=$("watchlistEmpty"); if(!body||!empty)return; const filtered=applyWatchlistFilters(rows); if(!filtered.length){body.innerHTML="";empty.style.display="block";return;}empty.style.display="none"; body.innerHTML=filtered.map(r=>{const pos=r.pct1d>=0;const rsCls=r.rs>=80?"rs-90":(r.rs>=60?"rs-70":"rs-low");const tags=PATTERNS.filter(p=>r.patterns.includes(p)).map(p=>`<span class="ptag ${p}">${p}</span>`).join("");return`<tr><td><div class="sym-cell"><div class="sym-icon" style="background:${avatarColor(r.full_ticker)}">${esc(r.ticker).slice(0,2).toUpperCase()}</div><div class="sym-text"><div><span class="sym">${esc(r.ticker)}</span><span class="ex">${exchLabel(r.full_ticker)}</span></div><div class="full">${esc(r.name)}</div></div></div></td><td class="theme-tag">${esc(r.theme)}</td><td><div class="pattern-row">${tags}</div></td><td class="num ${pos?"pos":"neg"}">${fmtPct(r.pct1d)}</td><td class="num"><span class="rs-pill ${rsCls}">${r.rs}</span></td></tr>`;}).join("");}
-function renderThemeMovers(rows){const el = $("themeRows"); if (!el) return; el.innerHTML=rows.map((r,i)=>{const ac=r.d1>0.05?"up":(r.d1<-0.05?"down":"flat");const ar=ac==="up"?"▲":(ac==="down"?"▼":"—");return`<div class="theme-row"><div class="theme-rank">${i+1}</div><div class="theme-arrow ${ac}">${ar}</div><div class="theme-info"><span class="theme-name">${esc(r.theme)}</span><span class="theme-ticker">${r.tickers.join(" ")}</span></div><div class="theme-pct"><span class="${r.d1>=0?"pos":"neg"}">${fmtPct(r.d1,1)}</span><span class="${r.m1>=0?"pos":"neg"}">${fmtPct(r.m1,1)}</span><span class="${r.m3>=0?"pos":"neg"}">${fmtPct(r.m3,1)}</span></div></div>`;}).join("");}
-function renderRsMovers(rows){const el = $("rsmoverRows"); if (!el) return; el.innerHTML=rows.map(r=>{const dCls=r.drs7>=0?"pos":"neg";return`<div class="rsmover-row"><div class="rsm-icon" style="background:${avatarColor(r.full_ticker)}">${esc(r.ticker).slice(0,2).toUpperCase()}</div><div class="rsm-info"><span class="rsm-sym">${esc(r.ticker)}</span><span class="rsm-ex">${exchLabel(r.full_ticker)}</span></div><div class="spark-wrap">${sparklineSvg(r.spark)}</div><div class="rsm-rs">RS ${r.rs}<span class="delta ${dCls}">${r.drs7>=0?"▲":"▼"}${Math.abs(r.drs7)}</span></div></div>`;}).join("");}
-let sigsExpanded=false;
-function toggleSigs(){const grid=$("sigGrid"),toggle=$("sigToggle"); if(!grid||!toggle)return; sigsExpanded=!sigsExpanded; grid.style.display=sigsExpanded?"grid":"none"; toggle.textContent=sigsExpanded?"▲":"▼";}
-function renderRegime(d){const w=$("regimeWidget"); if(!w)return; w.style.display="block";w.style.background=d.bg;w.style.borderColor=d.color+"55";safeSetContent("regimeValue",d.regime);if($("regimeValue"))$("regimeValue").style.color=d.color;safeSetContent("regimeConf",`Confidence: ${d.confidence}%`);safeSetContent("regimeScore",(d.score>=0?"+":"")+d.score);if($("regimeScore"))$("regimeScore").style.color=d.score>=0?"var(--green)":"var(--red)";safeSetContent("regimeVix",`VIX: ${d.vix}  |  S&P500 vs MA200: ${d.sp500_vs_200>=0?"+":""}${d.sp500_vs_200}%`);safeSetContent("expPct",d.exposure_pct+"%");safeSetContent("cashPct",d.cash_pct+"%");safeSetContent("regimeDesc",d.description);const confBar=$("confBar"); if(confBar){confBar.style.width=d.confidence+"%";confBar.style.background=d.color;}const sigGrid=$("sigGrid"); if(!sigGrid)return;const CAT_ICONS={"Trend":"📈","Breadth":"📊","Momentum":"⚡","Volatility":"😨","Credit":"💰","Yield Curve":"📋","Risk Assets":"🥇"};sigGrid.innerHTML=(d.signal_table||[]).map(s=>`<div class="sig-row"><div class="sig-icon">${CAT_ICONS[s.category]||"•"}</div><div class="sig-info"><div class="sig-label">${esc(s.label)}</div><div class="sig-val">${esc(s.value)}</div></div><div class="sig-wt">${s.weight}%</div><div class="sig-score ${s.score > 0 ? 'pos' : s.score < 0 ? 'neg' : 'neutral'}">${s.score > 0 ? '+' : ''}${s.score}</div></div>`).join("");}
-
-/* ===== LOAD DATA ===== */
-async function load(mode=currentMode, refresh=false){if(loading)return; loading=true; currentMode=mode;const btnCore=$("btn-core"),btnFull=$("btn-full"),btnRefresh=$("btn-refresh"),errBanner=$("errBanner"),loadingEl=$("loading");if(btnCore)btnCore.classList.toggle("active",mode==="core"); if(btnFull)btnFull.classList.toggle("active",mode==="full");if(btnRefresh)btnRefresh.disabled=true; if(errBanner)errBanner.style.display="none";safeSetContent("loadMsg","กำลังเชื่อมต่อ..."); if($("loadBar"))$("loadBar").style.width="0%"; safeSetContent("loadDetail","");if(loadingEl)loadingEl.style.display="flex";startProgressPoll(); resetCountdown();try{const url=`/api/dashboard?mode=${mode}${refresh?"&refresh=1":""}`; const res=await fetch(url); const data=await res.json();fullData=data; if(!data.ok){renderSync(data.sync,false); if(errBanner){errBanner.textContent="⚠️ "+(data.error||"เกิดข้อผิดพลาดในการดึงข้อมูล");errBanner.style.display="block";} return;}const usBreadth=data.breadth.find(b=>b.code==="US"); const rParams=usBreadth?`?breadth_us_ma50=${usBreadth.ma50}&breadth_us_ma200=${usBreadth.ma200}`:"";try{const regimeRes=await fetch(`/api/regime${rParams}`);const regimeData=await regimeRes.json();if(regimeData.ok)renderRegime(regimeData);}catch(e){console.error("Failed to load regime data:",e);const rw=$("regimeWidget");if(rw)rw.style.display="none";}renderSync(data.sync,true);renderBearOverride(data.bear_override,data);renderBreadth(data.breadth);renderHistTabs(MARKETS.filter(m=>data.breadth_history_all&&data.breadth_history_all[m]));renderHistChart();renderStatCards(data.stat_cards);renderWatchlist(data.watchlist);renderThemeMovers(data.theme_movers);renderRsMovers(data.rs_movers);safeSetContent("footerCaption",`Universe: ${data.universe_loaded}/${data.universe_total} stocks loaded · Updated: ${data.updated} · ⏱ Data delayed ~15 min · Cache 15 min`);startCountdown();}catch(e){if(errBanner){errBanner.textContent="⚠️ เชื่อมต่อ backend ไม่สำเร็จ: "+e.message+" — ตรวจสอบว่า uvicorn รันอยู่";errBanner.style.display="block";}}finally{stopProgressPoll();if(loadingEl)loadingEl.style.display="none";if(btnRefresh)btnRefresh.disabled=false;loading=false;}}
-
-/* ===== PROGRESS POLL ===== */
-let _pollTimer=null;
-function startProgressPoll(){stopProgressPoll();_pollTimer=setInterval(async()=>{try{const r=await fetch("/api/progress");const d=await r.json();if(!d||!d.ok||d.stage==='idle'||d.stage==='done'){if(d&&!d.ok)console.error("Progress poll failed:",d.error);return;}safeSetContent("loadMsg",d.stage==='fetching'?`กำลังโหลด ${d.market} (${d.batch}/${d.total_batches})`:"กำลังคำนวณ...");const loadBar=$("loadBar"); if(loadBar){const pct=d.tickers_total>0?(d.tickers_done/d.tickers_total)*100:0;loadBar.style.width=pct+"%";}const parts=[]; if(d.markets_done&&d.markets_total&&d.markets_total.length)parts.push(`${d.markets_done.length}/${d.markets_total.length} markets`); if(d.last_error)parts.push(`⚠️ ${d.last_error}`);safeSetContent("loadDetail",parts.join(" · "));}catch(e){}},1000);}
-function stopProgressPoll(){if(_pollTimer){clearInterval(_pollTimer);_pollTimer=null;}}
-
-/* ===== AUTO-REFRESH COUNTDOWN ===== */
-function resetCountdown(){countdownSec=REFRESH_SEC;safeSetContent("countdown","");}
-function startCountdown(){if(countdownTimer)clearInterval(countdownTimer); countdownSec=REFRESH_SEC;countdownTimer=setInterval(()=>{countdownSec--; const m=Math.floor(countdownSec/60),s=countdownSec%60;safeSetContent("countdown",`${m}:${s.toString().padStart(2,"0")}`);if(countdownSec<=0){clearInterval(countdownTimer);const chkAuto=$("chk-auto");if(chkAuto&&chkAuto.checked&&typeof load==='function')load(currentMode,false);}},1000);}
-
-
-// ========================= [ 🚨 CRITICAL FIX 🚨 ] =========================
-// โค้ดทั้งหมดที่เกี่ยวข้องกับการ "เริ่มต้น" การทำงานของหน้าเว็บ จะถูกย้ายมาไว้ในนี้
-// เพื่อรับประกันว่ามันจะทำงาน "หลังจาก" ที่ Browser สร้างหน้าเว็บเสร็จแล้วเท่านั้น
+                    <div class="panel" style="margin-top:16px;">
+                        <div class="panel-header">
+                            <div class="panel-title">Market Breadth</div>
+                        </div>
+                        <div id="breadthRows"></div>
+                    </div>
+                    <div class="panel" style="margin-top:16px;">
+                        <div class="panel-header">
+                            <div class="panel-title">Breadth History</div>
+                            <div id="histTabs" class="hist-tabs"></div>
+                        </div>
+                        <div id="breadthHistChart" class="hist-chart"></div>
+                        <div class="hist-footer">
+                            <span id="histUniverse"></span>
+                            <span id="histUpdated"></span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="panel">
+                        <div class="panel-header"><div class="panel-title">Signal Scanner (5D)</div></div>
+                        <div id="statGrid" class="grid3" style="grid-template-columns:1fr 1fr; gap:12px;"></div>
+                    </div>
+                    <div class="panel" style="margin-top:16px;">
+                        <div class="panel-header">
+                            <div class="panel-title">Watchlist</div>
+                            <div class="tabs">
+                                <div id="mktFilter" class="hist-tabs">
+                                    <button class="mkt-btn hist-tab active" data-mkt="ALL">All</button>
+                                    <button class="mkt-btn hist-tab" data-mkt="US">🇺🇸</button>
+                                    <button class="mkt-btn hist-tab" data-mkt="TH">🇹🇭</button>
+                                    <button class="mkt-btn hist-tab" data-mkt="HK">🇭🇰</button>
+                                    <button class="mkt-btn hist-tab" data-mkt="JP">🇯🇵</button>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="text" id="searchBox" placeholder="Search watchlist..." style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border-col); background:var(--bg-col); color:var(--text-col); margin-bottom:12px;">
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            <table class="watchlist-tbl">
+                                <thead><tr><th>Symbol</th><th>Theme</th><th>Patterns</th><th class="num">1D%</th><th class="num">RS</th></tr></thead>
+                                <tbody id="watchlistBody"></tbody>
+                            </table>
+                            <div id="watchlistEmpty" style="text-align:center; padding: 20px; color:var(--muted); display:none;">No matching stocks.</div>
+                        </div>
+                    </div>
+                    <div class="panel" style="margin-top:16px;">
+                        <div class="panel-header"><div class="panel-title">Top Thematic Movers</div></div>
+                        <div id="themeRows"></div>
+                    </div>
+                    <div class="panel" style="margin-top:16px;">
+                        <div class="panel-header"><div class="panel-title">Top RS Movers (7D)</div></div>
+                        <div id="rsmoverRows"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+<script>
 document.addEventListener('DOMContentLoaded', () => {
+
+    const MARKETS = ["US","TH","HK","JP","KR","CN"];
+    const FLAGS = {US:"🇺🇸",TH:"🇹🇭",HK:"🇭🇰",JP:"🇯🇵",KR:"🇰🇷",CN:"🇨🇳"};
+    const PATTERNS = ["VDU","PPBP","BGU","52W"];
+    const AVATAR_PAL = ["#0ea5e9","#1d4ed8","#2563eb","#dc2626","#b91c1c","#7c2d12","#16a34a","#7c3aed","#0891b2","#be185d"];
+    const EXCH = [[".BK","SET"],[".HK","HKEX"],[".T","TSE"],[".KS","KRX"],[".SS","SSE"],[".SZ","SZSE"]];
+    const REFRESH_SEC = 15 * 60;
+
+    let currentMode = "core";
+    let currentMkt = "ALL";
+    let currentSearch = "";
+    let fullData = null;
+    let loading = false;
+    let countdownSec = REFRESH_SEC;
+    let countdownTimer = null;
+    let autoEnabled = true;
+
+    const $ = id => document.getElementById(id);
+    const esc = s => (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+    const fmtPct = (v,d=2) => (v>=0?"+":"")+v.toFixed(d)+"%";
+    function hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return Math.abs(h)}
+    function avatarColor(t){return AVATAR_PAL[hashStr(t)%AVATAR_PAL.length]}
+    function exchLabel(t){for(const[s,l]of EXCH)if(t.endsWith(s))return l;return "US"}
+
+    function safeAttachEvent(elementId, eventName, handler) {
+        const element = $(elementId);
+        if (element) {
+            element.addEventListener(eventName, handler);
+        } else {
+            console.warn(`safeAttachEvent: Element with id '${elementId}' not found.`);
+        }
+    }
+    function safeSetContent(elementId, content) {
+        const element = $(elementId);
+        if (element) element.innerHTML = content;
+    }
+
+    function smoothPath(pts){let d=`M ${pts[0][0]} ${pts[0][1]}`;for(let i=1;i<pts.length;i++){const[x0,y0]=pts[i-1],[x1,y1]=pts[i],mx=(x0+x1)/2,my=(y0+y1)/2;d+=` Q ${x0} ${y0} ${mx} ${my}`;}return d+` L ${pts[pts.length-1][0]} ${pts[pts.length-1][1]}`;};function scaleY(v,lo,hi,top,bot){return top+(1-(v-lo)/(hi-lo))*(bot-top)};function sparklineSvg(vals,color="#10b981"){if(!vals||vals.length<2)vals=[0,0];const lo=Math.min(...vals),hi=Math.max(...vals),r=hi-lo||1;const pts=vals.map((v,i)=>[(i/(vals.length-1))*100,scaleY(v,lo-r*.15,hi+r*.15,8,92)]);return`<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;"><path d="${smoothPath(pts)}" fill="none" stroke="${color}" stroke-width="6" vector-effect="non-scaling-stroke"/></svg>`;};function histChartSvg(dates,ma50,ma200){if(!dates||dates.length<2)return`<div style="color:var(--muted);font-size:12px;padding:80px 0;text-align:center">ไม่มีข้อมูลเพียงพอ</div>`;const all=[...ma50,...ma200],lo=Math.min(...all),hi=Math.max(...all);const pad=Math.max(2,(hi-lo)*.1),mn=lo-pad,mx=hi+pad;const gr=4,gridVals=Array.from({length:gr+1},(_,i)=>mn+(mx-mn)*i/gr);const ptsFor=d=>d.map((v,i)=>[(i/(d.length-1))*94,scaleY(v,mn,mx,8,82)]);const p50=ptsFor(ma50),p200=ptsFor(ma200);const area=`${smoothPath(p50)} L ${p50[p50.length-1][0]} 82 L ${p50[0][0]} 82 Z`;let svg=`<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;display:block;">`;gridVals.forEach(g=>{const y=scaleY(g,mn,mx,8,82);svg+=`<line x1="0" y1="${y}" x2="94" y2="${y}" stroke="#1c2533" stroke-width="0.25"/>`;});svg+=`<path d="${area}" fill="#10b981" opacity="0.10"/>`;svg+=`<path d="${smoothPath(p200)}" fill="none" stroke="#6366f1" stroke-width="0.8" vector-effect="non-scaling-stroke"/>`;svg+=`<path d="${smoothPath(p50)}" fill="none" stroke="#10b981" stroke-width="0.8" vector-effect="non-scaling-stroke"/>`;svg+=`</svg>`;let labels="";gridVals.forEach(g=>{const y=scaleY(g,mn,mx,8,82);labels+=`<div style="position:absolute;right:2px;top:${y}%;transform:translateY(-50%);font-size:9px;color:#6b7280">${g.toFixed(0)}%</div>`;});const ni=5;for(let i=0;i<ni;i++){const idx=Math.round(i/(ni-1)*(dates.length-1));const f=(idx/(dates.length-1))*94;const dt=new Date(dates[idx]),txt=`${dt.getDate()}/${dt.getMonth()+1}`;const tr=i===0?"translateX(0)":(i===ni-1?"translateX(-100%)":"translateX(-50%)");labels+=`<div style="position:absolute;left:${f}%;bottom:2px;transform:${tr};font-size:9.5px;color:#6b7280">${txt}</div>`;}return svg+labels;};
+
+    function renderSync(sync,ok){const el = $("syncBox"); if (!el) return; let html=""; const markets=sync?.markets||[];for(const s of markets){const dot=s.loaded===s.total?"ok":(s.loaded>0?"warn":"bad");html+=`<div class="sync-row"><span class="dot ${dot}"></span> ${FLAGS[s.market]||""} ${s.market}: ${s.loaded}/${s.total} OK</div>`;}html+=`<div class="sync-row"><span class="dot ${ok?"ok":"bad"}"></span> Yahoo Finance: ${ok?"live":"error"}</div>`;el.innerHTML=html;}
+    function renderBearOverride(active,data){const banner=$("bearBanner"); if (!banner) return; if(active){$("bearBody").textContent="🚨 BEAR MARKET OVERRIDE: แนะนำการจำกัดความเสี่ยงด้วยการถือครองเงินสด 80%-100% เท่านั้น ห้ามขยายขนาดพอร์ตฟอลิโอในการเทรดแนวโน้มขาขึ้นเด็ดขาด — ตลาดส่วนใหญ่มี MA50 Breadth <40% และกำลังอ่อนตัวรุนแรง";banner.style.display="block";}else{banner.style.display="none";}}
+    function renderBreadth(rows){const el = $("breadthRows"); if (!el) return; el.innerHTML=(rows||[]).map(r=>{const chgUp=r.chg>=0;const c=r.ma50>=60?"#10b981":(r.ma50>=40?"#f59e0b":"#ef4444");return`<div class="breadth-row"><div class="flag">${r.flag}</div><div class="country">${r.code}</div><div class="bar-track"><div class="bar-ma200" style="width:${Math.min(r.ma200,100).toFixed(1)}%"></div><div class="bar-ma50" style="width:${Math.min(r.ma50,100).toFixed(1)}%;background:${c}"></div></div><div class="breadth-stats"><span class="ma50val">${r.ma50.toFixed(1)}%</span><span class="ma200val">${r.ma200.toFixed(1)}%</span><span class="chg ${chgUp?"up":"down"}">${chgUp?"▲":"▼"}${Math.abs(r.chg).toFixed(1)}</span></div></div>`;}).join("");}
+    let histMarket="TH";
+    function renderHistTabs(markets){const el=$("histTabs"); if(!el) return; el.innerHTML=(markets||[]).map(m=>`<div class="hist-tab ${m===histMarket?"active":""}" data-hm="${m}">${FLAGS[m]||""} ${m}</div>`).join("");el.querySelectorAll(".hist-tab").forEach(tabEl=>{tabEl.addEventListener("click",()=>{histMarket=tabEl.dataset.hm;renderHistChart();});});}
+    function renderHistChart(){if(!fullData)return;const histTabsEl=$("histTabs"); if(!histTabsEl) return; const all=fullData.breadth_history_all||{}; const bh=all[histMarket]||{dates:[],ma50:[],ma200:[],universe:0};histTabsEl.querySelectorAll(".hist-tab").forEach(el=>{el.classList.toggle("active",el.dataset.hm===histMarket);});const chartEl=$("breadthHistChart"); if(chartEl) chartEl.innerHTML=histChartSvg(bh.dates,bh.ma50,bh.ma200);safeSetContent("histUniverse",`Universe: ${bh.universe} stocks (${histMarket})`);safeSetContent("histUpdated",`Updated: ${fullData.updated}`);}
+    function renderStatCards(cards){const el=$("statGrid"); if(!el)return; const defs=[["Volume Dry-Up pickup","VDU"],["Pocket Pivot Buy Point","PPBP"],["Buyable Gap-Up","BGU"],["ห่างจาก 52-week high ≤5%","52W"]];el.innerHTML=defs.map(([label,key])=>`<div class="statcard"><div class="stat-label">${label} (5 วันล่าสุด)</div><div class="stat-bottom"><div><span class="stat-val">${cards[key]??0}</span><span class="stat-unit">/ ${cards.total} signals</span></div><div class="stat-badge badge-${key}">${key}</div></div></div>`).join("");}
+    function applyWatchlistFilters(rows){if(!rows)return[];return rows.filter(r=>{if(currentMkt!=="ALL"&&r.market!==currentMkt)return false;if(currentSearch){const q=currentSearch.toLowerCase();if(!r.ticker.toLowerCase().includes(q)&&!(r.name||"").toLowerCase().includes(q)&&!(r.theme||"").toLowerCase().includes(q))return false;}return true;});}
+    function renderWatchlist(rows){const body=$("watchlistBody"),empty=$("watchlistEmpty"); if(!body||!empty)return; const filtered=applyWatchlistFilters(rows); if(!filtered.length){body.innerHTML="";empty.style.display="block";return;}empty.style.display="none"; body.innerHTML=filtered.map(r=>{const pos=r.pct1d>=0;const rsCls=r.rs>=80?"rs-90":(r.rs>=60?"rs-70":"rs-low");const tags=(r.patterns||[]).filter(p=>PATTERNS.includes(p)).map(p=>`<span class="ptag ${p}">${p}</span>`).join("");return`<tr><td><div class="sym-cell"><div class="sym-icon" style="background:${avatarColor(r.full_ticker)}">${esc(r.ticker).slice(0,2).toUpperCase()}</div><div class="sym-text"><div><span class="sym">${esc(r.ticker)}</span><span class="ex">${exchLabel(r.full_ticker)}</span></div><div class="full">${esc(r.name)}</div></div></div></td><td class="theme-tag">${esc(r.theme)}</td><td><div class="pattern-row">${tags}</div></td><td class="num ${pos?"pos":"neg"}">${fmtPct(r.pct1d)}</td><td class="num"><span class="rs-pill ${rsCls}">${r.rs}</span></td></tr>`;}).join("");}
+    function renderThemeMovers(rows){const el = $("themeRows"); if (!el) return; el.innerHTML=(rows||[]).map((r,i)=>{const ac=r.d1>0.05?"up":(r.d1<-0.05?"down":"flat");const ar=ac==="up"?"▲":(ac==="down"?"▼":"—");return`<div class="theme-row"><div class="theme-rank">${i+1}</div><div class="theme-arrow ${ac}">${ar}</div><div class="theme-info"><span class="theme-name">${esc(r.theme)}</span><span class="theme-ticker">${(r.tickers||[]).join(" ")}</span></div><div class="theme-pct"><span class="${r.d1>=0?"pos":"neg"}">${fmtPct(r.d1,1)}</span><span class="${r.m1>=0?"pos":"neg"}">${fmtPct(r.m1,1)}</span><span class="${r.m3>=0?"pos":"neg"}">${fmtPct(r.m3,1)}</span></div></div>`;}).join("");}
+    function renderRsMovers(rows){const el = $("rsmoverRows"); if (!el) return; el.innerHTML=(rows||[]).map(r=>{const dCls=r.drs7>=0?"pos":"neg";return`<div class="rsmover-row"><div class="rsm-icon" style="background:${avatarColor(r.full_ticker)}">${esc(r.ticker).slice(0,2).toUpperCase()}</div><div class="rsm-info"><span class="rsm-sym">${esc(r.ticker)}</span><span class="rsm-ex">${exchLabel(r.full_ticker)}</span></div><div class="spark-wrap">${sparklineSvg(r.spark)}</div><div class="rsm-rs">RS ${r.rs}<span class="delta ${dCls}">${r.drs7>=0?"▲":"▼"}${Math.abs(r.drs7)}</span></div></div>`;}).join("");}
+    let sigsExpanded=false;
+    function toggleSigs(){const grid=$("sigGrid"),toggle=$("sigToggle"); if(!grid||!toggle)return; sigsExpanded=!sigsExpanded; grid.style.display=sigsExpanded?"grid":"none"; toggle.textContent=sigsExpanded?"▲":"▼";}
+    function renderRegime(d){const w=$("regimeWidget"); if(!w)return; w.style.display="block";w.style.background=d.bg;w.style.borderColor=d.color+"55";safeSetContent("regimeValue",d.regime);if($("regimeValue"))$("regimeValue").style.color=d.color;safeSetContent("regimeConf",`Confidence: ${d.confidence}%`);safeSetContent("regimeScore",(d.score>=0?"+":"")+d.score);if($("regimeScore"))$("regimeScore").style.color=d.score>=0?"var(--green)":"var(--red)";safeSetContent("regimeVix",`VIX: ${d.vix}  |  S&P500 vs MA200: ${d.sp500_vs_200>=0?"+":""}${d.sp500_vs_200}%`);safeSetContent("expPct",d.exposure_pct+"%");safeSetContent("cashPct",d.cash_pct+"%");safeSetContent("regimeDesc",d.description);const confBar=$("confBar"); if(confBar){confBar.style.width=d.confidence+"%";confBar.style.background=d.color;}const sigGrid=$("sigGrid"); if(!sigGrid)return;const CAT_ICONS={"Trend":"📈","Breadth":"📊","Momentum":"⚡","Volatility":"😨","Credit":"💰","Yield Curve":"📋","Risk Assets":"🥇"};sigGrid.innerHTML=(d.signal_table||[]).map(s=>`<div class="sig-row"><div class="sig-icon">${CAT_ICONS[s.category]||"•"}</div><div class="sig-info"><div class="sig-label">${esc(s.label)}</div><div class="sig-val">${esc(s.value)}</div></div><div class="sig-wt">${s.weight}%</div><div class="sig-score ${s.score > 0 ? 'pos' : s.score < 0 ? 'neg' : 'neutral'}">${s.score > 0 ? '+' : ''}${s.score}</div></div>`).join("");}
+
+    async function load(mode=currentMode, refresh=false){if(loading)return; loading=true; currentMode=mode;const btnCore=$("btn-core"),btnFull=$("btn-full"),btnRefresh=$("btn-refresh"),errBanner=$("errBanner"),loadingEl=$("loading");if(btnCore)btnCore.classList.toggle("active",mode==="core"); if(btnFull)btnFull.classList.toggle("active",mode==="full");if(btnRefresh)btnRefresh.disabled=true; if(errBanner)errBanner.style.display="none";safeSetContent("loadMsg","กำลังเชื่อมต่อ..."); if($("loadBar"))$("loadBar").style.width="0%"; safeSetContent("loadDetail","");if(loadingEl)loadingEl.style.display="flex";startProgressPoll(); resetCountdown();try{const url=`/api/dashboard?mode=${mode}${refresh?"&refresh=1":""}`; const res=await fetch(url); const data=await res.json();fullData=data; if(!data.ok){renderSync(data.sync,false); if(errBanner){errBanner.textContent="⚠️ "+(data.error||"เกิดข้อผิดพลาดในการดึงข้อมูล");errBanner.style.display="block";} return;}const usBreadth=(data.breadth||[]).find(b=>b.code==="US"); const rParams=usBreadth?`?breadth_us_ma50=${usBreadth.ma50}&breadth_us_ma200=${usBreadth.ma200}`:"";try{const regimeRes=await fetch(`/api/regime${rParams}`);const regimeData=await regimeRes.json();if(regimeData.ok)renderRegime(regimeData);}catch(e){console.error("Failed to load regime data:",e);const rw=$("regimeWidget");if(rw)rw.style.display="none";}renderSync(data.sync,true);renderBearOverride(data.bear_override,data);renderBreadth(data.breadth);renderHistTabs(MARKETS.filter(m=>data.breadth_history_all&&data.breadth_history_all[m]));renderHistChart();renderStatCards(data.stat_cards||{});renderWatchlist(data.watchlist);renderThemeMovers(data.theme_movers);renderRsMovers(data.rs_movers);safeSetContent("footerCaption",`Universe: ${data.universe_loaded}/${data.universe_total} stocks loaded · Updated: ${data.updated} · ⏱ Data delayed ~15 min · Cache 15 min`);startCountdown();}catch(e){if(errBanner){errBanner.textContent="⚠️ เชื่อมต่อ backend ไม่สำเร็จ: "+e.message+" — ตรวจสอบว่า uvicorn รันอยู่";errBanner.style.display="block";}}finally{stopProgressPoll();if(loadingEl)loadingEl.style.display="none";if(btnRefresh)btnRefresh.disabled=false;loading=false;}}
+
+    let _pollTimer=null;
+    function startProgressPoll(){stopProgressPoll();_pollTimer=setInterval(async()=>{try{const r=await fetch("/api/progress");const d=await r.json();if(!d||!d.ok||d.stage==='idle'||d.stage==='done'){if(d&&!d.ok)console.error("Progress poll failed:",d.error);return;}safeSetContent("loadMsg",d.stage==='fetching'?`กำลังโหลด ${d.market} (${d.batch}/${d.total_batches})`:"กำลังคำนวณ...");const loadBar=$("loadBar"); if(loadBar){const pct=d.tickers_total>0?(d.tickers_done/d.tickers_total)*100:0;loadBar.style.width=pct+"%";}const parts=[]; if(d.markets_done&&d.markets_total&&d.markets_total.length)parts.push(`${d.markets_done.length}/${d.markets_total.length} markets`); if(d.last_error)parts.push(`⚠️ ${d.last_error}`);safeSetContent("loadDetail",parts.join(" · "));}catch(e){}},1000);}
+    function stopProgressPoll(){if(_pollTimer){clearInterval(_pollTimer);_pollTimer=null;}}
+
+    function resetCountdown(){countdownSec=REFRESH_SEC;safeSetContent("countdown","");}
+    function startCountdown(){if(countdownTimer)clearInterval(countdownTimer); countdownSec=REFRESH_SEC;countdownTimer=setInterval(()=>{countdownSec--; const m=Math.floor(countdownSec/60),s=countdownSec%60;safeSetContent("countdown",`${m}:${s.toString().padStart(2,"0")}`);if(countdownSec<=0){clearInterval(countdownTimer);const chkAuto=$("chk-auto");if(chkAuto&&chkAuto.checked&&typeof load==='function')load(currentMode,false);}},1000);}
 
     console.log("✅ DOM is ready. Initializing application...");
 
-    /* ===== EVENT LISTENERS (NOW SAFE!) ===== */
     safeAttachEvent("btn-core", "click", () => load("core"));
     safeAttachEvent("btn-full", "click", () => load("full"));
     safeAttachEvent("btn-refresh", "click", () => load(currentMode, true));
@@ -117,19 +233,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /* ===== KICK OFF INITIAL LOAD ===== */
-    // จุดนี้ เรามั่นใจ 100% ว่า element 'btn-core' มีอยู่จริงแล้ว
     if ($("btn-core")) {
         console.log("🚀 Starting initial data load...");
         load("core");
     } else {
-        // Safety net: ถ้ายังหาไม่เจออีก แสดงว่ามีปัญหาที่โครงสร้าง HTML
         const errorMsg = "FATAL: Could not find main UI component ('btn-core'). Application cannot start.";
         console.error(errorMsg);
         alert(errorMsg);
         const contentEl = $("content");
         if(contentEl) contentEl.innerHTML = `<div class="error-message">${errorMsg}</div>`;
     }
-
 });
-// ============================================================================
+</script>
+</body>
+</html>
