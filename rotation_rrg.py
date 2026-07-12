@@ -7,16 +7,13 @@ import yfinance as yf
 
 from cache_utils import ttl_cache
 import data_engine as eng
-# ✨ FIX: นำเข้า Universe และ Benchmark จากที่เดียว
 from universe import RRG_US_SECTORS, RRG_GLOBAL_UNIVERSE, BENCHMARK
 
 CACHE_TTL_DATA = 15 * 60
 
-# ✨ FIX: สร้าง Mapping สำหรับ Universe และ Benchmark เพื่อให้โค้ดจัดการง่าย
 UNIVERSE_MAP = {
     "GLOBAL": RRG_GLOBAL_UNIVERSE,
     "US_SECTORS": RRG_US_SECTORS,
-    # "US_THEMES": RRG_US_THEMES, # สามารถเพิ่มธีมได้ในอนาคต
 }
 
 def _fetch_weekly_prices(tickers: list[str], period: str = "2y") -> pd.DataFrame | None:
@@ -33,31 +30,38 @@ def _fetch_weekly_prices(tickers: list[str], period: str = "2y") -> pd.DataFrame
 @ttl_cache(CACHE_TTL_DATA)
 def fetch_rotation(mode: str = "core", market: str = "GLOBAL") -> dict:
     """
-    ✨ FIX: เขียน Logic ใหม่ทั้งหมดให้ทำงานได้จริง
-    Fetches and computes Relative Rotation Graph (RRG) data.
+    ✨ REFACTOR: ปรับให้ทำหน้าที่เป็น "ผู้จัดการ" ควบคุมกระบวนการอย่างเดียว
+    และเรียกใช้ Engine ที่ทำหน้าที่คำนวณเท่านั้น
     """
     try:
-        # 1. Validate Market และเลือก Universe/Benchmark ที่ถูกต้อง
+        # 1. Validate Market และเลือก Universe/Benchmark (หน้าที่ของผู้จัดการ)
         selected_universe = UNIVERSE_MAP.get(market)
         if not selected_universe:
             return {"ok": False, "error": f"Invalid market specified for RRG: {market}"}
 
-        benchmark_ticker = BENCHMARK.get(market, "VT") # Default to VT if not found
+        benchmark_ticker = BENCHMARK.get(market, "VT")
         all_tickers = list(selected_universe.keys()) + [benchmark_ticker]
 
-        # 2. ดึงข้อมูลราคาแบบรายสัปดาห์
+        # 2. ดึงข้อมูลราคา (หน้าที่ของผู้จัดการ)
         df_weekly = _fetch_weekly_prices(all_tickers)
         if df_weekly is None or benchmark_ticker not in df_weekly.columns or df_weekly[benchmark_ticker].isnull().all():
             return {"ok": False, "error": f"Could not fetch valid weekly data for benchmark {benchmark_ticker}"}
 
-        # 3. เรียกใช้ Engine เพื่อคำนวณ RRG
-        rrg_results = eng.compute_rrg(df_weekly, list(selected_universe.keys()), benchmark_ticker)
-        if not rrg_results:
+        # คัดกรอง Tickers ที่มีข้อมูลไม่เพียงพอออกไปก่อนส่งให้ Engine
+        valid_tickers = [t for t in selected_universe.keys() if t in df_weekly.columns and df_weekly[t].notna().sum() > 10] # ต้องมีข้อมูลอย่างน้อย 10 สัปดาห์
+        if not valid_tickers:
+            return {"ok": False, "error": "No assets with sufficient historical data found in the selected universe."}
+
+        # 3. เรียกใช้ "ผู้เชี่ยวชาญ" เพื่อคำนวณตัวเลขดิบ (หน้าที่ของ Engine)
+        #    [🔥 CHANGED] เปลี่ยนจากการเรียก compute_rrg ที่ทำงานซ้ำซ้อน
+        #    มาเรียก calculate_rrg_metrics ที่คำนวณอย่างเดียว
+        rrg_metrics = eng.calculate_rrg_metrics(df_weekly, valid_tickers, benchmark_ticker)
+        if not rrg_metrics:
              return {"ok": False, "error": "RRG computation failed. Not enough historical data for comparison."}
 
-        # 4. จัดรูปแบบผลลัพธ์สำหรับ Frontend
+        # 4. จัดรูปแบบผลลัพธ์สำหรับ Frontend (หน้าที่ของผู้จัดการ)
         rrg_list = []
-        for ticker, data in rrg_results.items():
+        for ticker, data in rrg_metrics.items():
             rrg_list.append({
                 "theme": selected_universe.get(ticker, ticker),
                 "short": ticker,
@@ -65,7 +69,7 @@ def fetch_rotation(mode: str = "core", market: str = "GLOBAL") -> dict:
                 "rs_ratio": data["jrs"],
                 "rs_momentum": data["jmo"],
                 "tail": data["tail"],
-                "avg_rs": None # Placeholder, can be added later
+                "avg_rs": None 
             })
 
         return {
