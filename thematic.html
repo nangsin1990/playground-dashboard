@@ -408,7 +408,17 @@ function setView(v, btn) {
 function applyFilters() {
   const q = document.getElementById('searchBox').value.toLowerCase();
   let data = allThemes.filter(t => {
-    // ...
+    if (q && !t.theme.toLowerCase().includes(q) && !(t.top_tickers||[]).join(' ').toLowerCase().includes(q)) {
+        return false;
+    }
+    if (currentMarket !== 'ALL') {
+        const cfg = getCfg(t.theme);
+        if (currentMarket === 'ETF') {
+            if (cfg.group !== 'ETF') return false;
+        } else {
+            if (cfg.group === 'ETF' || !t.markets.includes(currentMarket)) return false;
+        }
+    }
     return true;
   });
 
@@ -462,13 +472,14 @@ function renderGrid(data) {
   document.getElementById('matrixGrid').style.display='grid';
   document.getElementById('tableView').style.display='none';
 
-  // ⚡ FIX: ใช้ Key r1m, r3m ให้ตรงกับ Python
+  // ✨ FIX: ใช้ Key r1m, r3m ให้ตรงกับ Python
   const allScores = data.map(t=>(t.r1m||0)+(t.r3m||0));
   const maxScore = Math.max(...allScores.map(Math.abs), 1);
 
   const grid = document.getElementById('matrixGrid');
   grid.innerHTML = data.map((t,i)=>{
     const cfg = getCfg(t.theme);
+    // ✨ FIX: ใช้ r1m และ r3m ในการคำนวณ score
     const score = (t.r1m||0) + (t.r3m||0);
     const barW = Math.min(100, Math.abs(score)/maxScore*100);
     const barColor = score>=0?'var(--green)':'var(--red)';
@@ -498,13 +509,14 @@ function renderTable(data) {
   document.getElementById('matrixGrid').style.display='none';
   document.getElementById('tableView').style.display='block';
 
-  // ⚡ FIX: ใช้ Key r1m, r3m ให้ตรงกับ Python
+  // ✨ FIX: ใช้ Key r1m, r3m ให้ตรงกับ Python
   const allScores = data.map(t=>(t.r1m||0)+(t.r3m||0));
   const maxScore = Math.max(...allScores.map(Math.abs),1);
 
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = data.map((t,i)=>{
     const cfg = getCfg(t.theme);
+    // ✨ FIX: ใช้ r1m และ r3m ในการคำนวณ score
     const score = (t.r1m||0) + (t.r3m||0);
     const barW = Math.min(80, Math.abs(score)/maxScore*80);
     const barColor = score>=0?'var(--green)':'var(--red)';
@@ -535,7 +547,7 @@ function showDetail(themeName) {
   document.getElementById('detailTitle').textContent = `${getCfg(themeName).icon} ${themeName} — ${theme.count} stocks`;
   const grid = document.getElementById('detailGrid');
 
-    const members = (theme.members||[]).slice(0,24);
+  const members = (theme.members||[]).slice(0,24);
   grid.innerHTML = members.map(m=>{
     // ✨ FIX: ใช้ Key r1m ให้ตรงกับ Python Backend
     const ret1m = m.r1m||0;
