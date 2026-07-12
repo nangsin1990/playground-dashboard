@@ -1,520 +1,172 @@
-# FILE: data_engine.py
-#"""
-#data_engine.py — Pure Quant Engine (no network)
-#v3: per-market RS rating, drawdown tracker, correlation prep
-#"""
+# FILE: leadership.py
 
 from __future__ import annotations
-import numpy as np
+from datetime import datetime
 import pandas as pd
+import numpy as np
 
+import pipeline
+from cache_utils import ttl_cache
 from constants import (
-    SMA_SHORT, SMA_MID, SMA_TREND, SMA_LONG, VOL_SMA, HIGH_52W,
-    VDU_VOL_LOW, VDU_VOL_HIGH,
-    BGU_GAP_PCT, BGU_VOL_MULT,
-    W52_PROXIMITY,
-    PPBP_VOL_LOOKBACK,
-    CONFLUENCE_DAYS, CONFLUENCE_MIN,
-    RS_BLEND_3M_WT, RS_BLEND_6M_WT, RS_BLEND_9M_WT, RS_BLEND_12M_WT,
-    TRADING_DAYS_MONTH, TRADING_DAYS_QUARTER,
-    TRADING_DAYS_HALFYR, TRADING_DAYS_3QTR, TRADING_DAYS_YEAR,
-    BREADTH_HISTORY_DAYS,
-    CORR_PERIOD_DAYS,
+    CACHE_TTL_DATA, LB_TREND_LOOKBACK, LB_ACCUM_LOOKBACK, LB_TIGHTNESS_WEEKS,
+    LB_UD_RATIO_LOOKBACK, LB_VOL_WINDOW, LB_BREAKOUT_PROX, LB_ACCUM_MIN,
+    LB_UD_MIN, LB_VOL_MIN, LB_TOP_N,
 )
+import data_engine as eng
 
-REQUIRED_COLS = ["Open", "High", "Low", "Close", "Volume"]
+# 💡 NOTE: ฟังก์ชันภายในนี้ทำหน้าที่เป็น Data Provider สำหรับ Leadership Board
+# โดยดึงข้อมูลผ่าน Pipeline ที่เราปรับปรุงไป และทำการ Cache ผลลัพธ์ไว้
+# ทำให้การเรียกซ้ำจากหน้าเว็บเร็วขึ้นมาก และแยกส่วนการดึงข้อมูลออกจาก Logic การคำนวณ
+@ttl_cache(CACHE_TTL_DATA)
+def _get_leadership_data(mode: str) -> dict:
+    """Internal function to fetch and compute all necessary data for the board."""
+    active = pipeline.active_universe(mode)
+    combined, ticker_meta, fetch_results = pipeline.fetch_universe(active)
 
-# ✨ REFACTOR: เพิ่ม Section 0 สำหรับฟังก์ชัน Utility กลาง
-# ── 0) Core Utilities ──────────────────────────────────────────────────────────
-def pct_change(series: pd.Series, n: int) -> float | None:
-    """
-    Calculates the percentage change over n periods, with safety checks.
-    This function is now centralized here to be used by other modules like pipeline.py.
-    """
-    try:
-        if len(series) <= n or series.iloc[-1 - n] == 0:
-            return None
-        val = (series.iloc[-1] / series.iloc[-1 - n] - 1) * 100
-        # Handle numpy's special float values before returning.
-        return None if (np.isnan(val) or np.isinf(val)) else round(float(val), 2)
-    except (IndexError, TypeError):
-        return None
+    if not combined:
+        return {"ok": False, "error": "No data from pipeline"}
 
+    # ✨ REFACTOR: ใช้ผลลัพธ์จาก pipeline.compute_dashboard ที่เราปรับปรุงไปแล้ว
+    # ซึ่งมีข้อมูลที่จำเป็นครบถ้วน เช่น RS Rating และ Signals
+    dash_data = pipeline.compute_dashboard(combined, ticker_meta, fetch_results, active)
 
-# ── 1) Indicators ──────────────────────────────────────────────────────────────
-def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """Append SMA10/50/150/200, 50d avg volume, 252d rolling high."""
-    out = df.copy()
-    out["SMA10"]    = out["Close"].rolling(SMA_SHORT,  min_periods=1).mean()
-    out["SMA50"]    = out["Close"].rolling(SMA_MID,    min_periods=1).mean()
-    out["SMA150"]   = out["Close"].rolling(SMA_TREND,  min_periods=1).mean()
-    out["SMA200"]   = out["Close"].rolling(SMA_LONG,   min_periods=1).mean()
-    out["VOL_SMA50"]= out["Volume"].rolling(VOL_SMA,   min_periods=1).mean()
-    out["HIGH_52W"] = out["Close"].rolling(HIGH_52W,   min_periods=1).max()
-    return out
+    if not dash_data.get("ok"):
+         return {"ok": False, "error": "Dashboard computation failed"}
 
-
-# ── 2) Scanners ────────────────────────────────────────────────────────────────
-def scan_volume_dry_up(df: pd.DataFrame) -> pd.Series:
-    ratio = df["Volume"] / df["VOL_SMA50"].replace(0, np.nan)
-    return (ratio >= VDU_VOL_LOW) & (ratio <= VDU_VOL_HIGH)
-
-
-def scan_pocket_pivot(df: pd.DataFrame, vol_lookback: int = PPBP_VOL_LOOKBACK) -> pd.Series:
-    up_day       = df["Close"] > df["Close"].shift(1)
-    above_sma10  = df["Close"] > df["SMA10"]
-    down_day_vol = df["Volume"].where(df["Close"] < df["Close"].shift(1))
-    max_down_vol = down_day_vol.shift(1).rolling(vol_lookback, min_periods=1).max()
-    return up_day & above_sma10 & (df["Volume"] > max_down_vol)
-
-
-def scan_buyable_gap_up(df: pd.DataFrame,
-                        gap_pct: float = BGU_GAP_PCT,
-                        vol_mult: float = BGU_VOL_MULT) -> pd.Series:
-    gap = (df["Open"] - df["Close"].shift(1)) / df["Close"].shift(1) * 100
-    return (gap >= gap_pct) & (df["Volume"] >= vol_mult * df["VOL_SMA50"])
-
-
-def scan_52w_high(df: pd.DataFrame, pct: float = W52_PROXIMITY) -> pd.Series:
-    return df["Close"] >= pct * df["HIGH_52W"]
-
-
-SCANNERS = {
-    "VDU":  scan_volume_dry_up,
-    "PPBP": scan_pocket_pivot,
-    "BGU":  scan_buyable_gap_up,
-    "52W":  scan_52w_high,
-}
-
-
-def run_scanners(df: pd.DataFrame) -> dict[str, pd.Series]:
-    return {name: fn(df) for name, fn in SCANNERS.items()}
-
-
-# ── 3) Confluence ──────────────────────────────────────────────────────────────
-def confluence_flags(signals: dict[str, pd.Series],
-                     rolling_days: int = CONFLUENCE_DAYS,
-                     min_signals: int  = CONFLUENCE_MIN):
-    rolled = {
-        name: s.rolling(rolling_days, min_periods=1).max().fillna(0).astype(bool)
-        for name, s in signals.items()
+    # เราต้องการข้อมูลดิบและข้อมูลที่คำนวณแล้วบางส่วน
+    return {
+        "ok": True,
+        "combined": combined,
+        "ticker_meta": ticker_meta,
+        "rs_now": dash_data.get("rs_now_series"), # pipeline ส่ง Series กลับมาตามที่คาดหวัง
+        "rs_7": dash_data.get("rs_7_series"),
+        "ticker_signal": dash_data.get("ticker_signal"),
+        "total_universe": len(combined),
     }
-    count = sum(r.fillna(False).astype(int) for r in rolled.values())
-    confluence = count >= min_signals
-    return rolled, confluence, count
 
+def _calc_trend_template(df: pd.DataFrame) -> dict:
+    """Calculates Mark Minervini's Trend Template score (0-4)."""
+    if len(df) < 200:
+        return {"trend_c1": False, "trend_c2": False, "trend_c3": False, "trend_c4": False, "trend_score": 0}
 
-# ── 4) Market Breadth ──────────────────────────────────────────────────────────
-def breadth_pct(df: pd.DataFrame) -> tuple[float, float]:
     last = df.iloc[-1]
-    return float(last["Close"] > last["SMA50"]), float(last["Close"] > last["SMA200"])
+    c1 = last["Close"] > last.get("SMA50", 0)
+    c2 = last["Close"] > last.get("SMA200", 0)
+    c3 = last.get("SMA50", 0) > last.get("SMA200", 0)
 
+    sma200_tail = df["SMA200"].tail(LB_TREND_LOOKBACK)
+    c4 = sma200_tail.iloc[-1] > sma200_tail.iloc[0] if len(sma200_tail) > 1 else False
 
-def market_breadth_history(close_above_df: pd.DataFrame,
-                            days: int = BREADTH_HISTORY_DAYS) -> pd.DataFrame:
-    pct = close_above_df.mean(axis=1) * 100
-    return pct.tail(days)
+    score = sum([c1, c2, c3, c4])
+    return {"trend_c1": bool(c1), "trend_c2": bool(c2), "trend_c3": bool(c3), "trend_c4": bool(c4), "trend_score": int(score)}
 
+def _calc_accumulation(df: pd.DataFrame) -> dict:
+    """Calculates Up/Down Volume Ratio and Accumulation Score."""
+    if len(df) < LB_UD_RATIO_LOOKBACK:
+        return {"ud_ratio": 1.0, "accum_score": 0.0}
 
-# ── 5) RS Rating (per-market) ──────────────────────────────────────────────────
-def blended_return(close: pd.Series) -> float:
+    tail = df.tail(LB_UD_RATIO_LOOKBACK)
+    change = tail["Close"].diff()
+    up_vol = tail["Volume"][change > 0].sum()
+    down_vol = tail["Volume"][change <= 0].sum()
+    ud_ratio = up_vol / down_vol if down_vol > 0 else 5.0 
+
+    ad = ((df['Close'] - df['Low']) - (df['High'] - df['Close'])) / (df['High'] - df['Low']).replace(0, np.nan) * df['Volume']
+    ad_smooth = ad.ewm(span=LB_ACCUM_LOOKBACK, adjust=False).mean()
+    vol_smooth = df['Volume'].ewm(span=LB_ACCUM_LOOKBACK, adjust=False).mean()
+
+    accum_score = ad_smooth.iloc[-1] / vol_smooth.iloc[-1] if vol_smooth.iloc[-1] > 0 else 0.0
+
+    return {"ud_ratio": round(float(ud_ratio), 2), "accum_score": round(float(accum_score), 3)}
+
+def _calc_volatility(df: pd.DataFrame) -> dict:
+    """Calculates Base Tightness and recent Volume Surge."""
+    lookback = LB_TIGHTNESS_WEEKS * 5
+    if len(df) < lookback:
+        return {"base_tight": 100.0, "vol_ratio": 1.0}
+
+    tail = df["Close"].tail(lookback)
+    base_tight = (tail.max() - tail.min()) / tail.min() * 100
+
+    vol_tail = df["Volume"].tail(LB_VOL_WINDOW)
+    vol_ratio = vol_tail.iloc[-1] / vol_tail.iloc[:-1].mean() if len(vol_tail) > 1 else 1.0
+
+    return {"base_tight": round(float(base_tight), 2), "vol_ratio": round(float(vol_ratio), 1)}
+
+# 💡 NOTE: นี่คือฟังก์ชันหลักของ Leadership Board
+# ที่ตอนนี้ทำงานได้ด้วยตัวเองอย่างสมบูรณ์ผ่านการเรียกใช้ฟังก์ชันภายในที่ถูก cache
+@ttl_cache(CACHE_TTL_DATA)
+def build_leadership_board(mode: str) -> dict:
     """
-    IBD-style blended return:
-      40% × 3M + 20% × 6M + 20% × 9M + 20% × 12M
+    This is the main, self-contained function for the leadership board.
+    It fetches its own data via the pipeline.
     """
-    def ret(n: int) -> float:
-        n = min(n, len(close) - 1)
-        if n <= 0:
-            return 0.0
-        base = close.iloc[-1 - n]
-        return float(close.iloc[-1] / base - 1.0) if base != 0 else 0.0
+    # 1. ดึงข้อมูลที่จำเป็นทั้งหมดจากฟังก์ชันภายใน (ซึ่งอาจมาจาก cache)
+    data = _get_leadership_data(mode=mode)
+    if not data.get("ok"):
+        return data # Return error dict
 
-    return (RS_BLEND_3M_WT  * ret(TRADING_DAYS_QUARTER) +
-            RS_BLEND_6M_WT  * ret(TRADING_DAYS_HALFYR)  +
-            RS_BLEND_9M_WT  * ret(TRADING_DAYS_3QTR)    +
-            RS_BLEND_12M_WT * ret(TRADING_DAYS_YEAR))
+    combined = data["combined"]
+    ticker_meta = data["ticker_meta"]
+    rs_now = data["rs_now"]
+    rs_7 = data["rs_7"]
+    ticker_signal = data["ticker_signal"]
 
+    # 2. คำนวณ Leadership stats สำหรับหุ้นแต่ละตัว
+    all_stocks = []
+    for ticker, df in combined.items():
+        if len(df) < 50: continue
+        meta = ticker_meta.get(ticker, {})
+        last = df.iloc[-1]
 
-def rs_rating_table(blended_returns: pd.Series) -> pd.Series:
-    pct = blended_returns.rank(pct=True, method="average")
+        trend_data = _calc_trend_template(df)
+        accum_data = _calc_accumulation(df)
+        vol_data = _calc_volatility(df)
+        prox_52w = (last["Close"] / last.get("HIGH_52W", last["Close"]) - 1) * 100 if last.get("HIGH_52W") else 100
+        drawdown_pct = eng.current_drawdown_from_peak(df["Close"])
 
-    pct = pct.replace([np.inf, -np.inf], np.nan).fillna(0)
+        rs_val = int(rs_now.get(ticker, 0))
+        drs7_val = int(rs_val - rs_7.get(ticker, rs_val))
 
-    return (
-        (pct * 98 + 1)
-        .round()
-        .fillna(1)
-        .astype(int)
-        .clip(1, 99)
-    )
+        # Leadership Score (Business Logic เดิม 100%)
+        ls_rs = rs_val * 0.25
+        ls_trend = (trend_data["trend_score"] / 4) * 100 * 0.20
+        ls_prox = max(0, 100 - abs(prox_52w * 4)) * 0.15
+        ls_accum = min(1, max(0, accum_data["accum_score"] / 0.5)) * 100 * 0.15
+        ls_tight = max(0, 100 - vol_data["base_tight"] * 2) * 0.10
+        ls_drs7 = min(100, max(0, drs7_val * 5)) * 0.08
+        ls_vol = min(100, (vol_data["vol_ratio"] / 2) * 100) * 0.07
+        ls_total = int(ls_rs + ls_trend + ls_prox + ls_accum + ls_tight + ls_drs7 + ls_vol)
 
-def rs_rating_per_market(combined: dict, ticker_meta: dict) -> pd.Series:
-    """
-    Compute RS Rating scoped per market — avoids cross-currency comparison.
-    Returns a single Series indexed by ticker with RS 1-99 within its market.
-    """
-    all_rs: dict[str, int] = {}
-    markets = set(m["market"] for m in ticker_meta.values())
-    for mkt in markets:
-        tickers_in_mkt = [t for t, m in ticker_meta.items() if m["market"] == mkt and t in combined]
-        if not tickers_in_mkt:
-            continue
-        bl = pd.Series({t: blended_return(combined[t]["Close"]) for t in tickers_in_mkt})
-        rs = rs_rating_table(bl)
-        all_rs.update(rs.to_dict())
-    return pd.Series(all_rs)
+        signals = ticker_signal.get(ticker, {})
+        all_stocks.append({
+            "ticker": ticker, "symbol": meta.get("name", ticker).split(".")[0], "name": meta.get("name", ""),
+            "theme": meta.get("theme", ""), "market": meta.get("market", ""), "ls": ls_total,
+            "rs": rs_val, "drs7": drs7_val, **trend_data, **accum_data, **vol_data,
+            "prox_52w": abs(round(prox_52w, 1)), "drawdown_pct": round(drawdown_pct,1),
+            # 🟥 FIXED: แก้ไขการเรียกฟังก์ชันจาก `_pct_change` (ไม่มีอยู่จริง) เป็น `pct_change`
+            # ที่เราได้เพิ่มเข้าไปใน data_engine.py อย่างถูกต้องแล้ว
+            "r1d": eng.pct_change(df['Close'], 1),
+            "r1m": eng.pct_change(df['Close'], 21),
+            "r3m": eng.pct_change(df['Close'], 63),
+            "is_vdu": signals.get("rolled", {}).get("VDU", False),
+            "is_pocket": signals.get("rolled", {}).get("PPBP", False),
+            "is_bgu": signals.get("rolled", {}).get("BGU", False),
+            "is_near_52w": signals.get("rolled", {}).get("52W", False),
+        })
 
-
-# ── 6) Drawdown Tracker ────────────────────────────────────────────────────────
-def max_drawdown(close: pd.Series) -> float:
-    """Max drawdown from peak (negative %). Returns e.g. -15.3 for 15.3% drawdown."""
-    if len(close) < 2:
-        return 0.0
-    roll_max = close.expanding().max()
-    dd = (close - roll_max) / roll_max * 100
-    return round(float(dd.min()), 2)
-
-
-def current_drawdown_from_peak(close: pd.Series, lookback: int = TRADING_DAYS_YEAR) -> float:
-    """Current % below peak over lookback period."""
-    tail = close.tail(lookback)
-    if len(tail) < 2:
-        return 0.0
-    peak    = float(tail.max())
-    current = float(tail.iloc[-1])
-    if peak == 0:
-        return 0.0
-    return round((current - peak) / peak * 100, 2)
-
-
-# ── 7) Theme / Sector rotation ────────────────────────────────────────────────
-def theme_returns(returns_1d: pd.Series, returns_1m: pd.Series,
-                  returns_3m: pd.Series, theme_map: dict[str, str]) -> pd.DataFrame:
-    df = pd.DataFrame({"1D": returns_1d, "1M": returns_1m, "3M": returns_3m})
-    df["theme"] = df.index.map(theme_map)
-    g = df.groupby("theme")[["1D", "1M", "3M"]].mean()
-    g["score"] = g["1M"] + g["3M"]
-    return g.sort_values("score", ascending=False)
-
-
-def rs_movers_7d(rs_today: pd.Series, rs_7d_ago: pd.Series, top_n: int = 5) -> pd.DataFrame:
-    delta = (rs_today - rs_7d_ago).rename("dRS_7D")
-    out   = pd.DataFrame({"RS": rs_today, "dRS_7D": delta})
-    return out.sort_values("dRS_7D", ascending=False).head(top_n)
-
-
-# ── 8) Correlation Matrix ─────────────────────────────────────────────────────
-def compute_correlation_matrix(combined: dict, tickers: list[str],
-                                 days: int = CORR_PERIOD_DAYS) -> dict:
-    """
-    Compute pairwise correlation of daily returns over `days` lookback.
-    Returns {"labels": [...], "matrix": [[...]], "period_days": days}
-    """
-    available = [t for t in tickers if t in combined]
-    if len(available) < 2:
-        return {"ok": False, "error": "Not enough tickers", "labels": [], "matrix": []}
-
-    closes = {}
-    for t in available:
-        c = combined[t]["Close"].tail(days + 1)
-        if len(c) > 1:
-            closes[t] = c
-
-    if len(closes) < 2:
-        return {"ok": False, "error": "Not enough data", "labels": [], "matrix": []}
-
-    df = pd.DataFrame({t: s for t, s in closes.items()}).pct_change().dropna()
-    corr = df.corr()
-
-    labels = list(corr.columns)
-    matrix = []
-    for row_label in labels:
-        row = []
-        for col_label in labels:
-            v = corr.loc[row_label, col_label]
-            row.append(round(float(v), 3) if not np.isnan(v) else None)
-        matrix.append(row)
+    # 3. จัดกลุ่มและเรียงลำดับสำหรับแต่ละ Tab (Business Logic เดิม 100%)
+    overall = sorted(all_stocks, key=lambda x: x["ls"], reverse=True)[:LB_TOP_N * 2]
+    top_rs = sorted([s for s in all_stocks if s["rs"] >= 90], key=lambda x: x["rs"], reverse=True)[:LB_TOP_N]
+    top_momentum = sorted([s for s in all_stocks if s["drs7"] > 0], key=lambda x: x["drs7"], reverse=True)[:LB_TOP_N]
+    near_breakout = sorted([s for s in all_stocks if s["prox_52w"] <= LB_BREAKOUT_PROX and s["trend_score"] >= 3], key=lambda x: x["prox_52w"])[:LB_TOP_N]
+    institutional = sorted([s for s in all_stocks if s["accum_score"] >= LB_ACCUM_MIN and s["ud_ratio"] >= LB_UD_MIN], key=lambda x: (x["accum_score"], x["ud_ratio"]), reverse=True)[:LB_TOP_N]
+    volume_surge = sorted([s for s in all_stocks if s["vol_ratio"] >= LB_VOL_MIN], key=lambda x: x["vol_ratio"], reverse=True)[:LB_TOP_N]
+    trend_template = sorted([s for s in all_stocks if s["trend_score"] == 4 and s["rs"] > 70], key=lambda x: x["rs"], reverse=True)[:LB_TOP_N]
 
     return {
-        "ok":          True,
-        "labels":      labels,
-        "matrix":      matrix,
-        "period_days": days,
-        "n_tickers":   len(labels),
+        "ok": True, "updated": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "total": len(all_stocks), "overall": overall, "top_rs": top_rs, "top_momentum": top_momentum,
+        "near_breakout": near_breakout, "institutional": institutional,
+        "volume_surge": volume_surge, "trend_template": trend_template,
     }
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# ── 9) Technical Indicators: RSI / MACD / Stochastic / Bollinger / VWAP ────
-# ══════════════════════════════════════════════════════════════════════════════
-
-def calc_rsi(close: pd.Series, period: int = 14) -> pd.Series:
-    """RSI (Wilder smoothing)."""
-    delta = close.diff()
-    gain  = delta.clip(lower=0)
-    loss  = (-delta).clip(lower=0)
-    avg_g = gain.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
-    avg_l = loss.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
-    rs    = avg_g / avg_l.replace(0, np.nan)
-    return 100 - (100 / (1 + rs))
-
-
-def calc_macd(close: pd.Series,
-              fast: int = 12, slow: int = 26, signal: int = 9
-              ) -> tuple[pd.Series, pd.Series, pd.Series]:
-    """Returns (macd_line, signal_line, histogram)."""
-    ema_fast   = close.ewm(span=fast,   adjust=False).mean()
-    ema_slow   = close.ewm(span=slow,   adjust=False).mean()
-    macd_line  = ema_fast - ema_slow
-    signal_line= macd_line.ewm(span=signal, adjust=False).mean()
-    histogram  = macd_line - signal_line
-    return macd_line, signal_line, histogram
-
-
-def calc_stochastic(df: pd.DataFrame,
-                    k_period: int = 14, d_period: int = 3
-                    ) -> tuple[pd.Series, pd.Series]:
-    """Returns (%K, %D)."""
-    low_min  = df["Low"].rolling(k_period).min()
-    high_max = df["High"].rolling(k_period).max()
-    denom    = (high_max - low_min).replace(0, np.nan)
-    pct_k    = (df["Close"] - low_min) / denom * 100
-    pct_d    = pct_k.rolling(d_period).mean()
-    return pct_k, pct_d
-
-
-def calc_bollinger(close: pd.Series,
-                   period: int = 20, n_std: float = 2.0
-                   ) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
-    """Returns (upper, mid, lower, %B)."""
-    mid   = close.rolling(period).mean()
-    std   = close.rolling(period).std()
-    upper = mid + n_std * std
-    lower = mid - n_std * std
-    pct_b = (close - lower) / (upper - lower).replace(0, np.nan) * 100
-    return upper, mid, lower, pct_b
-
-
-def calc_vwap(df: pd.DataFrame, lookback: int = 20) -> pd.Series:
-    """Rolling VWAP over last `lookback` bars (typical price × volume)."""
-    tp  = (df["High"] + df["Low"] + df["Close"]) / 3
-    pv  = tp * df["Volume"]
-    return pv.rolling(lookback).sum() / df["Volume"].rolling(lookback).sum().replace(0, np.nan)
-
-
-def calc_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
-    """Average True Range."""
-    hl  = df["High"] - df["Low"]
-    hc  = (df["High"] - df["Close"].shift(1)).abs()
-    lc  = (df["Low"]  - df["Close"].shift(1)).abs()
-    tr  = pd.concat([hl, hc, lc], axis=1).max(axis=1)
-    return tr.ewm(alpha=1/period, adjust=False).mean()
-
-
-def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """Append RSI, MACD, Stochastic, Bollinger, VWAP, ATR to df."""
-    out = df.copy()
-    out["RSI"]         = calc_rsi(out["Close"])
-    ml, sl, hist       = calc_macd(out["Close"])
-    out["MACD"]        = ml
-    out["MACD_SIGNAL"] = sl
-    out["MACD_HIST"]   = hist
-    k, d               = calc_stochastic(out)
-    out["STOCH_K"]     = k
-    out["STOCH_D"]     = d
-    ub, mb, lb, pb     = calc_bollinger(out["Close"])
-    out["BB_UPPER"]    = ub
-    out["BB_MID"]      = mb
-    out["BB_LOWER"]    = lb
-    out["BB_PCT"]      = pb          # 0=at lower, 100=at upper
-    out["VWAP"]        = calc_vwap(out)
-    out["ATR"]         = calc_atr(out)
-    return out
-
-
-def tech_snapshot(df: pd.DataFrame) -> dict:
-    """
-    Return latest-bar snapshot of all technical indicators.
-    Includes signal interpretation for frontend display.
-    """
-    df2  = add_technical_indicators(df)
-    last = df2.iloc[-1]
-    close = float(last["Close"])
-
-    rsi  = round(float(last["RSI"]),  1) if not np.isnan(last["RSI"])  else None
-    macd = round(float(last["MACD"]), 4) if not np.isnan(last["MACD"]) else None
-    macd_sig = round(float(last["MACD_SIGNAL"]), 4) if not np.isnan(last["MACD_SIGNAL"]) else None
-    macd_hist= round(float(last["MACD_HIST"]), 4)   if not np.isnan(last["MACD_HIST"])   else None
-    stoch_k  = round(float(last["STOCH_K"]), 1) if not np.isnan(last["STOCH_K"]) else None
-    stoch_d  = round(float(last["STOCH_D"]), 1) if not np.isnan(last["STOCH_D"]) else None
-    bb_upper = round(float(last["BB_UPPER"]), 2) if not np.isnan(last["BB_UPPER"]) else None
-    bb_lower = round(float(last["BB_LOWER"]), 2) if not np.isnan(last["BB_LOWER"]) else None
-    bb_pct   = round(float(last["BB_PCT"]), 1)   if not np.isnan(last["BB_PCT"])   else None
-    vwap     = round(float(last["VWAP"]), 2)     if not np.isnan(last["VWAP"])     else None
-    atr      = round(float(last["ATR"]), 2)      if not np.isnan(last["ATR"])      else None
-    atr_pct  = round(atr / close * 100, 2)       if atr and close else None
-
-    # Signal interpretations
-    rsi_signal = (
-        "Overbought" if rsi and rsi > 70 else
-        "Oversold"   if rsi and rsi < 30 else
-        "Neutral"
-    )
-    macd_signal = (
-        "Bullish"  if macd_hist and macd_hist > 0 else
-        "Bearish"  if macd_hist and macd_hist < 0 else
-        "Neutral"
-    )
-    stoch_signal = (
-        "Overbought" if stoch_k and stoch_k > 80 else
-        "Oversold"   if stoch_k and stoch_k < 20 else
-        "Neutral"
-    )
-    bb_signal = (
-        "Upper Break" if bb_pct and bb_pct >= 100 else
-        "Lower Break" if bb_pct and bb_pct <= 0   else
-        "Upper Zone"  if bb_pct and bb_pct >= 80  else
-        "Lower Zone"  if bb_pct and bb_pct <= 20  else
-        "Mid"
-    )
-    vwap_signal = "Above VWAP" if vwap and close > vwap else "Below VWAP"
-
-    # Sparklines: last 20 bars of RSI and MACD_HIST
-    rsi_spark  = [round(float(v), 1) for v in df2["RSI"].tail(20).tolist()
-                  if not np.isnan(v)]
-    macd_spark = [round(float(v), 4) for v in df2["MACD_HIST"].tail(20).tolist()
-                  if not np.isnan(v)]
-
-    return {
-        "rsi":         rsi,        "rsi_signal":   rsi_signal,
-        "macd":        macd,       "macd_signal_line": macd_sig,
-        "macd_hist":   macd_hist,  "macd_signal":  macd_signal,
-        "stoch_k":     stoch_k,    "stoch_d": stoch_d,
-        "stoch_signal":stoch_signal,
-        "bb_upper":    bb_upper,   "bb_lower": bb_lower,
-        "bb_pct":      bb_pct,     "bb_signal": bb_signal,
-        "vwap":        vwap,       "vwap_signal": vwap_signal,
-        "atr":         atr,        "atr_pct": atr_pct,
-        "rsi_spark":   rsi_spark,
-        "macd_spark":  macd_spark,
-        "close":       close,
-    }
-
-
-# ── 10) Relative Strength vs Benchmark ────────────────────────────────────────
-def rs_vs_benchmark(stock_close: pd.Series,
-                    bench_close: pd.Series,
-                    periods: list[int] | None = None) -> dict:
-    """
-    Compare stock return vs benchmark (e.g. SPY) over multiple periods.
-    Returns alpha (stock_return - bench_return) per period.
-    """
-    if periods is None:
-        periods = [5, 21, 63, 126, 252]   # 1W 1M 3M 6M 1Y
-
-    aligned = pd.concat([stock_close, bench_close], axis=1, join="inner")
-    aligned.columns = ["stock", "bench"]
-
-    result = {}
-    for n in periods:
-        if len(aligned) <= n:
-            continue
-        s_ret  = float(aligned["stock"].iloc[-1] / aligned["stock"].iloc[-1-n] - 1) * 100
-        b_ret  = float(aligned["bench"].iloc[-1] / aligned["bench"].iloc[-1-n] - 1) * 100
-        alpha  = round(s_ret - b_ret, 2)
-        result[f"p{n}"] = {
-            "stock_ret": round(s_ret, 2),
-            "bench_ret": round(b_ret, 2),
-            "alpha":     alpha,
-            "outperform": alpha > 0,
-        }
-
-    # Rolling 63d RS ratio (outperformance trend)
-    rel    = aligned["stock"] / aligned["bench"]
-    rs_63  = rel.pct_change(63).tail(63)
-    trend  = [round(float(v)*100, 2) for v in rs_63.tolist() if not np.isnan(v)]
-
-    return {"periods": result, "rs_trend_63d": trend}
-
-
-# ── 11) Sector Relative Strength ──────────────────────────────────────────────
-# GICS sector → SPDR ETF mapping
-SECTOR_ETF_MAP = {
-    "Information Technology":  "XLK",
-    "Financials":              "XLF",
-    "Energy":                  "XLE",
-    "Health Care":             "XLV",
-    "Industrials":             "XLI",
-    "Consumer Discretionary":  "XLY",
-    "Consumer Staples":        "XLP",
-    "Utilities":               "XLU",
-    "Materials":               "XLB",
-    "Communication Services":  "XLC",
-    "Real Estate":             "IYR",
-    # Broad fallback
-    "Semiconductors":          "SMH",
-    "Biotech":                 "XBI",
-}
-
-def sector_relative_strength(stock_close: pd.Series,
-                              sector_close: pd.Series,
-                              periods: list[int] | None = None) -> dict:
-    """Compare stock vs its sector ETF."""
-    return rs_vs_benchmark(stock_close, sector_close, periods)
-
-
-# ── 12) Relative Rotation Graph (RRG) ────────────────────────────────────────
-def compute_rrg(weekly_prices: pd.DataFrame, tickers: list[str], benchmark: str) -> dict:
-    """
-    Computes JdK RS-Ratio and JdK RS-Momentum for RRG plots.
-    Args:
-        weekly_prices (pd.DataFrame): DataFrame with weekly close prices for all assets.
-        tickers (list[str]): List of tickers to analyze.
-        benchmark (str): The benchmark ticker symbol.
-    Returns:
-        dict: A dictionary with RRG data for each ticker.
-    """
-    # ✨ NOTE: These constants need to be defined in `constants.py`
-    from constants import RRG_SMOOTHING, RRG_ROC_SHIFT, RRG_TAIL_WEEKS
-
-    results = {}
-    bench_series = weekly_prices[benchmark]
-
-    for ticker in tickers:
-        if ticker not in weekly_prices.columns:
-            continue
-
-        asset_series = weekly_prices[ticker].dropna()
-        if len(asset_series) < RRG_SMOOTHING + RRG_ROC_SHIFT:
-            continue
-
-        # 1. RS-Ratio
-        rs_raw = (asset_series / bench_series).dropna()
-        rs_ratio_smoothed = rs_raw.ewm(span=RRG_SMOOTHING, adjust=False).mean()
-
-        # 2. RS-Momentum
-        rs_momentum = rs_ratio_smoothed.pct_change(RRG_ROC_SHIFT)
-
-        # 3. Normalize (JdK method)
-        jrs = 100 + ((rs_ratio_smoothed / rs_ratio_smoothed.mean() - 1) * 10)
-        jmo = 100 + (rs_momentum / rs_momentum.std()) * 10
-
-        # Get latest values and tail
-        latest_jrs = jrs.iloc[-1]
-        latest_jmo = jmo.iloc[-1]
-
-        tail_data = list(zip(jrs.tail(RRG_TAIL_WEEKS).tolist(), jmo.tail(RRG_TAIL_WEEKS).tolist()))
-
-        # Determine quadrant
-        if latest_jrs > 100 and latest_jmo > 100: quadrant = "Leading"
-        elif latest_jrs > 100 and latest_jmo < 100: quadrant = "Weakening"
-        elif latest_jrs < 100 and latest_jmo < 100: quadrant = "Lagging"
-        else: quadrant = "Improving"
-
-        results[ticker] = {
-            "jrs": round(latest_jrs, 2),
-            "jmo": round(latest_jmo, 2),
-            "quadrant": quadrant,
-            "tail": tail_data
-        }
-    return results
