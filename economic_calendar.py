@@ -1,3 +1,4 @@
+# economic_calendar.py
 """
 Economic Calendar Engine
 ========================
@@ -47,6 +48,7 @@ MAX_EVENTS      = 30         # ↑ from 20 (macro alone = ~22 in 90d)
 LOOK_AHEAD_DAYS = 120        # ↑ from 90
 LOOK_BACK_DAYS  = 7
 
+# ... (ส่วนที่เหลือของไฟล์สมบูรณ์แล้ว ไม่มีการเปลี่ยนแปลง) ...
 # ─────────────────────────────────────────────────────────────────────────────
 # 1) STATIC FED MEETING SCHEDULE
 #    Source: https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm
@@ -92,11 +94,11 @@ FRED_RELEASES = {
     "82":  ("PCE",    "PCE / Personal Income",   "HIGH"),
 }
 FRED_BASE = "https://api.stlouisfed.org/fred"
-# ✨ FIX: อ่าน API Key จาก Environment Variable, ถ้าไม่มีให้ใช้ None
+# ✅ FIXED: อ่าน API Key จาก Environment Variable, ถ้าไม่มีให้ใช้ None
 FRED_API_KEY = os.environ.get("FRED_API_KEY", None)
 
 def _fred_fetch(path: str, params: dict) -> Optional[dict]:
-    # ✨ FIX: เพิ่มการตรวจสอบว่ามี API Key หรือไม่ก่อนเรียกใช้
+    # ✅ FIXED: เพิ่มการตรวจสอบว่ามี API Key หรือไม่ก่อนเรียกใช้
     if not FRED_API_KEY:
         return None # ถ้าไม่มี Key, ไม่ต้องพยายามเรียก API เลย
 
