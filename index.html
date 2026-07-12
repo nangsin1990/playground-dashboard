@@ -1,5 +1,5 @@
-<!-- playground-dashboard-main/index.html -->
-<script>
+// File: index.html (inside <script> tag)
+
 /* ===== CONSTANTS ===== */
 const MARKETS = ["US","TH","HK","JP","KR","CN"];
 const FLAGS = {US:"🇺🇸",TH:"🇹🇭",HK:"🇭🇰",JP:"🇯🇵",KR:"🇰🇷",CN:"🇨🇳"};
@@ -19,7 +19,6 @@ let countdownTimer = null;
 let autoEnabled = true;
 
 /* ===== UTILS (NOW SAFER!) ===== */
-// ✨ FIX: ฟังก์ชัน $ แบบเดิมนั้นสะดวก แต่เสี่ยง เราจะใช้มัน แต่ทุกที่ที่เรียกใช้จะต้องมีการป้องกัน
 const $ = id => document.getElementById(id);
 const esc = s => (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmtPct = (v,d=2) => (v>=0?"+":"")+v.toFixed(d)+"%";
@@ -27,14 +26,15 @@ function hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|
 function avatarColor(t){return AVATAR_PAL[hashStr(t)%AVATAR_PAL.length]}
 function exchLabel(t){for(const[s,l]of EXCH)if(t.endsWith(s))return l;return "US"}
 
-// ✨ NEW: ฟังก์ชันผู้ช่วยสำหรับผูก Event อย่างปลอดภัย
 function safeAttachEvent(elementId, eventName, handler) {
     const element = $(elementId);
-    if (element) { // ตรวจสอบก่อนว่ามี Element นี้จริงไหม
+    if (element) {
         element.addEventListener(eventName, handler);
+    } else {
+        // เพิ่ม log เพื่อช่วยดีบักในอนาคต หากหา element ไม่เจอ
+        console.warn(`safeAttachEvent: Element with id '${elementId}' not found.`);
     }
 }
-// ✨ NEW: ฟังก์ชันผู้ช่วยสำหรับอัปเดต Content อย่างปลอดภัย
 function safeSetContent(elementId, content) {
     const element = $(elementId);
     if (element) element.textContent = content;
@@ -43,167 +43,93 @@ function safeSetContent(elementId, content) {
 /* ===== SVG HELPERS (No changes needed) ===== */
 function smoothPath(pts){let d=`M ${pts[0][0]} ${pts[0][1]}`;for(let i=1;i<pts.length;i++){const[x0,y0]=pts[i-1],[x1,y1]=pts[i],mx=(x0+x1)/2,my=(y0+y1)/2;d+=` Q ${x0} ${y0} ${mx} ${my}`;}return d+` L ${pts[pts.length-1][0]} ${pts[pts.length-1][1]}`;};function scaleY(v,lo,hi,top,bot){return top+(1-(v-lo)/(hi-lo))*(bot-top)};function sparklineSvg(vals,color="#10b981"){if(vals.length<2)vals=[0,0];const lo=Math.min(...vals),hi=Math.max(...vals),r=hi-lo||1;const pts=vals.map((v,i)=>[(i/(vals.length-1))*100,scaleY(v,lo-r*.15,hi+r*.15,8,92)]);return`<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;"><path d="${smoothPath(pts)}" fill="none" stroke="${color}" stroke-width="6" vector-effect="non-scaling-stroke"/></svg>`;};function histChartSvg(dates,ma50,ma200){if(dates.length<2)return`<div style="color:var(--muted);font-size:12px;padding:80px 0;text-align:center">ไม่มีข้อมูลเพียงพอ</div>`;const all=[...ma50,...ma200],lo=Math.min(...all),hi=Math.max(...all);const pad=Math.max(2,(hi-lo)*.1),mn=lo-pad,mx=hi+pad;const gr=4,gridVals=Array.from({length:gr+1},(_,i)=>mn+(mx-mn)*i/gr);const ptsFor=d=>d.map((v,i)=>[(i/(d.length-1))*94,scaleY(v,mn,mx,8,82)]);const p50=ptsFor(ma50),p200=ptsFor(ma200);const area=`${smoothPath(p50)} L ${p50[p50.length-1][0]} 82 L ${p50[0][0]} 82 Z`;let svg=`<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;display:block;">`;gridVals.forEach(g=>{const y=scaleY(g,mn,mx,8,82);svg+=`<line x1="0" y1="${y}" x2="94" y2="${y}" stroke="#1c2533" stroke-width="0.25"/>`;});svg+=`<path d="${area}" fill="#10b981" opacity="0.10"/>`;svg+=`<path d="${smoothPath(p200)}" fill="none" stroke="#6366f1" stroke-width="0.8" vector-effect="non-scaling-stroke"/>`;svg+=`<path d="${smoothPath(p50)}" fill="none" stroke="#10b981" stroke-width="0.8" vector-effect="non-scaling-stroke"/>`;svg+=`</svg>`;let labels="";gridVals.forEach(g=>{const y=scaleY(g,mn,mx,8,82);labels+=`<div style="position:absolute;right:2px;top:${y}%;transform:translateY(-50%);font-size:9px;color:#6b7280">${g.toFixed(0)}%</div>`;});const ni=5;for(let i=0;i<ni;i++){const idx=Math.round(i/(ni-1)*(dates.length-1));const f=(idx/(dates.length-1))*94;const dt=new Date(dates[idx]),txt=`${dt.getDate()}/${dt.getMonth()+1}`;const tr=i===0?"translateX(0)":(i===ni-1?"translateX(-100%)":"translateX(-50%)");labels+=`<div style="position:absolute;left:${f}%;bottom:2px;transform:${tr};font-size:9.5px;color:#6b7280">${txt}</div>`;}return svg+labels;};
 
-/* ===== RENDERERS (NOW SAFER!) ===== */
-function renderSync(sync,ok){
-    const el = $("syncBox"); if (!el) return; // ✨ FIX: Guard Clause
-    let html=""; const markets=sync?.markets||[];
-    for(const s of markets){const dot=s.loaded===s.total?"ok":(s.loaded>0?"warn":"bad");html+=`<div class="sync-row"><span class="dot ${dot}"></span> ${FLAGS[s.market]||""} ${s.market}: ${s.loaded}/${s.total} OK</div>`;}
-    html+=`<div class="sync-row"><span class="dot ${ok?"ok":"bad"}"></span> Yahoo Finance: ${ok?"live":"error"}</div>`;
-    el.innerHTML=html;
-}
-function renderBearOverride(active,data){
-    const banner=$("bearBanner"); if (!banner) return; // ✨ FIX: Guard Clause
-    if(active){$("bearBody").textContent="🚨 BEAR MARKET OVERRIDE: แนะนำการจำกัดความเสี่ยงด้วยการถือครองเงินสด 80%-100% เท่านั้น ห้ามขยายขนาดพอร์ตฟอลิโอในการเทรดแนวโน้มขาขึ้นเด็ดขาด — ตลาดส่วนใหญ่มี MA50 Breadth <40% และกำลังอ่อนตัวรุนแรง";banner.style.display="block";}else{banner.style.display="none";}
-}
-function renderBreadth(rows){
-    const el = $("breadthRows"); if (!el) return; // ✨ FIX: Guard Clause
-    el.innerHTML=rows.map(r=>{const chgUp=r.chg>=0;const c=r.ma50>=60?"#10b981":(r.ma50>=40?"#f59e0b":"#ef4444");return`<div class="breadth-row"><div class="flag">${r.flag}</div><div class="country">${r.code}</div><div class="bar-track"><div class="bar-ma200" style="width:${Math.min(r.ma200,100).toFixed(1)}%"></div><div class="bar-ma50" style="width:${Math.min(r.ma50,100).toFixed(1)}%;background:${c}"></div></div><div class="breadth-stats"><span class="ma50val">${r.ma50.toFixed(1)}%</span><span class="ma200val">${r.ma200.toFixed(1)}%</span><span class="chg ${chgUp?"up":"down"}">${chgUp?"▲":"▼"}${Math.abs(r.chg).toFixed(1)}</span></div></div>`;}).join("");
-}
+/* ===== RENDERERS ===== */
+function renderSync(sync,ok){const el = $("syncBox"); if (!el) return; let html=""; const markets=sync?.markets||[];for(const s of markets){const dot=s.loaded===s.total?"ok":(s.loaded>0?"warn":"bad");html+=`<div class="sync-row"><span class="dot ${dot}"></span> ${FLAGS[s.market]||""} ${s.market}: ${s.loaded}/${s.total} OK</div>`;}html+=`<div class="sync-row"><span class="dot ${ok?"ok":"bad"}"></span> Yahoo Finance: ${ok?"live":"error"}</div>`;el.innerHTML=html;}
+function renderBearOverride(active,data){const banner=$("bearBanner"); if (!banner) return; if(active){$("bearBody").textContent="🚨 BEAR MARKET OVERRIDE: แนะนำการจำกัดความเสี่ยงด้วยการถือครองเงินสด 80%-100% เท่านั้น ห้ามขยายขนาดพอร์ตฟอลิโอในการเทรดแนวโน้มขาขึ้นเด็ดขาด — ตลาดส่วนใหญ่มี MA50 Breadth <40% และกำลังอ่อนตัวรุนแรง";banner.style.display="block";}else{banner.style.display="none";}}
+function renderBreadth(rows){const el = $("breadthRows"); if (!el) return; el.innerHTML=rows.map(r=>{const chgUp=r.chg>=0;const c=r.ma50>=60?"#10b981":(r.ma50>=40?"#f59e0b":"#ef4444");return`<div class="breadth-row"><div class="flag">${r.flag}</div><div class="country">${r.code}</div><div class="bar-track"><div class="bar-ma200" style="width:${Math.min(r.ma200,100).toFixed(1)}%"></div><div class="bar-ma50" style="width:${Math.min(r.ma50,100).toFixed(1)}%;background:${c}"></div></div><div class="breadth-stats"><span class="ma50val">${r.ma50.toFixed(1)}%</span><span class="ma200val">${r.ma200.toFixed(1)}%</span><span class="chg ${chgUp?"up":"down"}">${chgUp?"▲":"▼"}${Math.abs(r.chg).toFixed(1)}</span></div></div>`;}).join("");}
 let histMarket="TH";
-function renderHistTabs(markets){
-    const el=$("histTabs"); if(!el) return; // ✨ FIX: Guard Clause
-    el.innerHTML=markets.map(m=>`<div class="hist-tab ${m===histMarket?"active":""}" data-hm="${m}">${FLAGS[m]||""} ${m}</div>`).join("");
-    el.querySelectorAll(".hist-tab").forEach(tabEl=>{tabEl.addEventListener("click",()=>{histMarket=tabEl.dataset.hm;renderHistChart();});});
-}
-function renderHistChart(){
-    if(!fullData)return;
-    const histTabsEl=$("histTabs"); if(!histTabsEl) return; // ✨ FIX: Guard Clause
-    const all=fullData.breadth_history_all||{}; const bh=all[histMarket]||{dates:[],ma50:[],ma200:[],universe:0};
-    histTabsEl.querySelectorAll(".hist-tab").forEach(el=>{el.classList.toggle("active",el.dataset.hm===histMarket);});
-    const chartEl=$("breadthHistChart"); if(chartEl) chartEl.innerHTML=histChartSvg(bh.dates,bh.ma50,bh.ma200);
-    safeSetContent("histUniverse",`Universe: ${bh.universe} stocks (${histMarket})`);
-    safeSetContent("histUpdated",`Updated: ${fullData.updated}`);
-}
-function renderStatCards(cards){
-    const el=$("statGrid"); if(!el)return; // ✨ FIX: Guard Clause
-    const defs=[["Volume Dry-Up pickup","VDU"],["Pocket Pivot Buy Point","PPBP"],["Buyable Gap-Up","BGU"],["ห่างจาก 52-week high ≤5%","52W"]];
-    el.innerHTML=defs.map(([label,key])=>`<div class="statcard"><div class="stat-label">${label} (5 วันล่าสุด)</div><div class="stat-bottom"><div><span class="stat-val">${cards[key]??0}</span><span class="stat-unit">/ ${cards.total} signals</span></div><div class="stat-badge badge-${key}">${key}</div></div></div>`).join("");
-}
+function renderHistTabs(markets){const el=$("histTabs"); if(!el) return; el.innerHTML=markets.map(m=>`<div class="hist-tab ${m===histMarket?"active":""}" data-hm="${m}">${FLAGS[m]||""} ${m}</div>`).join("");el.querySelectorAll(".hist-tab").forEach(tabEl=>{tabEl.addEventListener("click",()=>{histMarket=tabEl.dataset.hm;renderHistChart();});});}
+function renderHistChart(){if(!fullData)return;const histTabsEl=$("histTabs"); if(!histTabsEl) return; const all=fullData.breadth_history_all||{}; const bh=all[histMarket]||{dates:[],ma50:[],ma200:[],universe:0};histTabsEl.querySelectorAll(".hist-tab").forEach(el=>{el.classList.toggle("active",el.dataset.hm===histMarket);});const chartEl=$("breadthHistChart"); if(chartEl) chartEl.innerHTML=histChartSvg(bh.dates,bh.ma50,bh.ma200);safeSetContent("histUniverse",`Universe: ${bh.universe} stocks (${histMarket})`);safeSetContent("histUpdated",`Updated: ${fullData.updated}`);}
+function renderStatCards(cards){const el=$("statGrid"); if(!el)return; const defs=[["Volume Dry-Up pickup","VDU"],["Pocket Pivot Buy Point","PPBP"],["Buyable Gap-Up","BGU"],["ห่างจาก 52-week high ≤5%","52W"]];el.innerHTML=defs.map(([label,key])=>`<div class="statcard"><div class="stat-label">${label} (5 วันล่าสุด)</div><div class="stat-bottom"><div><span class="stat-val">${cards[key]??0}</span><span class="stat-unit">/ ${cards.total} signals</span></div><div class="stat-badge badge-${key}">${key}</div></div></div>`).join("");}
 function applyWatchlistFilters(rows){return rows.filter(r=>{if(currentMkt!=="ALL"&&r.market!==currentMkt)return false;if(currentSearch){const q=currentSearch.toLowerCase();if(!r.ticker.toLowerCase().includes(q)&&!r.name.toLowerCase().includes(q)&&!r.theme.toLowerCase().includes(q))return false;}return true;});}
-function renderWatchlist(rows){
-    const body=$("watchlistBody"),empty=$("watchlistEmpty"); if(!body||!empty)return; // ✨ FIX: Guard Clause
-    const filtered=applyWatchlistFilters(rows); if(!filtered.length){body.innerHTML="";empty.style.display="block";return;}
-    empty.style.display="none"; body.innerHTML=filtered.map(r=>{const pos=r.pct1d>=0;const rsCls=r.rs>=80?"rs-90":(r.rs>=60?"rs-70":"rs-low");const tags=PATTERNS.filter(p=>r.patterns.includes(p)).map(p=>`<span class="ptag ${p}">${p}</span>`).join("");return`<tr><td><div class="sym-cell"><div class="sym-icon" style="background:${avatarColor(r.full_ticker)}">${esc(r.ticker).slice(0,2).toUpperCase()}</div><div class="sym-text"><div><span class="sym">${esc(r.ticker)}</span><span class="ex">${exchLabel(r.full_ticker)}</span></div><div class="full">${esc(r.name)}</div></div></div></td><td class="theme-tag">${esc(r.theme)}</td><td><div class="pattern-row">${tags}</div></td><td class="num ${pos?"pos":"neg"}">${fmtPct(r.pct1d)}</td><td class="num"><span class="rs-pill ${rsCls}">${r.rs}</span></td></tr>`;}).join("");
-}
-function renderThemeMovers(rows){
-    const el = $("themeRows"); if (!el) return; // ✨ FIX: Guard Clause
-    el.innerHTML=rows.map((r,i)=>{const ac=r.d1>0.05?"up":(r.d1<-0.05?"down":"flat");const ar=ac==="up"?"▲":(ac==="down"?"▼":"—");return`<div class="theme-row"><div class="theme-rank">${i+1}</div><div class="theme-arrow ${ac}">${ar}</div><div class="theme-info"><span class="theme-name">${esc(r.theme)}</span><span class="theme-ticker">${r.tickers.join(" ")}</span></div><div class="theme-pct"><span class="${r.d1>=0?"pos":"neg"}">${fmtPct(r.d1,1)}</span><span class="${r.m1>=0?"pos":"neg"}">${fmtPct(r.m1,1)}</span><span class="${r.m3>=0?"pos":"neg"}">${fmtPct(r.m3,1)}</span></div></div>`;}).join("");
-}
-function renderRsMovers(rows){
-    const el = $("rsmoverRows"); if (!el) return; // ✨ FIX: Guard Clause
-    el.innerHTML=rows.map(r=>{const dCls=r.drs7>=0?"pos":"neg";return`<div class="rsmover-row"><div class="rsm-icon" style="background:${avatarColor(r.full_ticker)}">${esc(r.ticker).slice(0,2).toUpperCase()}</div><div class="rsm-info"><span class="rsm-sym">${esc(r.ticker)}</span><span class="rsm-ex">${exchLabel(r.full_ticker)}</span></div><div class="spark-wrap">${sparklineSvg(r.spark)}</div><div class="rsm-rs">RS ${r.rs}<span class="delta ${dCls}">${r.drs7>=0?"▲":"▼"}${Math.abs(r.drs7)}</span></div></div>`;}).join("");
-}
+function renderWatchlist(rows){const body=$("watchlistBody"),empty=$("watchlistEmpty"); if(!body||!empty)return; const filtered=applyWatchlistFilters(rows); if(!filtered.length){body.innerHTML="";empty.style.display="block";return;}empty.style.display="none"; body.innerHTML=filtered.map(r=>{const pos=r.pct1d>=0;const rsCls=r.rs>=80?"rs-90":(r.rs>=60?"rs-70":"rs-low");const tags=PATTERNS.filter(p=>r.patterns.includes(p)).map(p=>`<span class="ptag ${p}">${p}</span>`).join("");return`<tr><td><div class="sym-cell"><div class="sym-icon" style="background:${avatarColor(r.full_ticker)}">${esc(r.ticker).slice(0,2).toUpperCase()}</div><div class="sym-text"><div><span class="sym">${esc(r.ticker)}</span><span class="ex">${exchLabel(r.full_ticker)}</span></div><div class="full">${esc(r.name)}</div></div></div></td><td class="theme-tag">${esc(r.theme)}</td><td><div class="pattern-row">${tags}</div></td><td class="num ${pos?"pos":"neg"}">${fmtPct(r.pct1d)}</td><td class="num"><span class="rs-pill ${rsCls}">${r.rs}</span></td></tr>`;}).join("");}
+function renderThemeMovers(rows){const el = $("themeRows"); if (!el) return; el.innerHTML=rows.map((r,i)=>{const ac=r.d1>0.05?"up":(r.d1<-0.05?"down":"flat");const ar=ac==="up"?"▲":(ac==="down"?"▼":"—");return`<div class="theme-row"><div class="theme-rank">${i+1}</div><div class="theme-arrow ${ac}">${ar}</div><div class="theme-info"><span class="theme-name">${esc(r.theme)}</span><span class="theme-ticker">${r.tickers.join(" ")}</span></div><div class="theme-pct"><span class="${r.d1>=0?"pos":"neg"}">${fmtPct(r.d1,1)}</span><span class="${r.m1>=0?"pos":"neg"}">${fmtPct(r.m1,1)}</span><span class="${r.m3>=0?"pos":"neg"}">${fmtPct(r.m3,1)}</span></div></div>`;}).join("");}
+function renderRsMovers(rows){const el = $("rsmoverRows"); if (!el) return; el.innerHTML=rows.map(r=>{const dCls=r.drs7>=0?"pos":"neg";return`<div class="rsmover-row"><div class="rsm-icon" style="background:${avatarColor(r.full_ticker)}">${esc(r.ticker).slice(0,2).toUpperCase()}</div><div class="rsm-info"><span class="rsm-sym">${esc(r.ticker)}</span><span class="rsm-ex">${exchLabel(r.full_ticker)}</span></div><div class="spark-wrap">${sparklineSvg(r.spark)}</div><div class="rsm-rs">RS ${r.rs}<span class="delta ${dCls}">${r.drs7>=0?"▲":"▼"}${Math.abs(r.drs7)}</span></div></div>`;}).join("");}
 let sigsExpanded=false;
-function toggleSigs(){
-    const grid=$("sigGrid"),toggle=$("sigToggle"); if(!grid||!toggle)return; // ✨ FIX: Guard Clause
-    sigsExpanded=!sigsExpanded; grid.style.display=sigsExpanded?"grid":"none"; toggle.textContent=sigsExpanded?"▲":"▼";
-}
-function renderRegime(d){
-    const w=$("regimeWidget"); if(!w)return; // ✨ FIX: Guard Clause
-    w.style.display="block";w.style.background=d.bg;w.style.borderColor=d.color+"55";
-    safeSetContent("regimeValue",d.regime);if($("regimeValue"))$("regimeValue").style.color=d.color;
-    safeSetContent("regimeConf",`Confidence: ${d.confidence}%`);
-    safeSetContent("regimeScore",(d.score>=0?"+":"")+d.score);if($("regimeScore"))$("regimeScore").style.color=d.score>=0?"var(--green)":"var(--red)";
-    safeSetContent("regimeVix",`VIX: ${d.vix}  |  S&P500 vs MA200: ${d.sp500_vs_200>=0?"+":""}${d.sp500_vs_200}%`);
-    safeSetContent("expPct",d.exposure_pct+"%");safeSetContent("cashPct",d.cash_pct+"%");
-    safeSetContent("regimeDesc",d.description);
-    const confBar=$("confBar"); if(confBar){confBar.style.width=d.confidence+"%";confBar.style.background=d.color;}
-    const sigGrid=$("sigGrid"); if(!sigGrid)return;
-    const CAT_ICONS={"Trend":"📈","Breadth":"📊","Momentum":"⚡","Volatility":"😨","Credit":"💰","Yield Curve":"📋","Risk Assets":"🥇"};
-    sigGrid.innerHTML=(d.signal_table||[]).map(s=>`<div class="sig-row"><div class="sig-icon">${CAT_ICONS[s.category]||"•"}</div><div class="sig-info"><div class="sig-label">${esc(s.label)}</div><div class="sig-val">${esc(s.value)}</div></div><div class="sig-wt">${s.weight}%</div><div class="sig-score ${s.score > 0 ? 'pos' : s.score < 0 ? 'neg' : 'neutral'}">${s.score > 0 ? '+' : ''}${s.score}</div></div>`).join("");
-}
+function toggleSigs(){const grid=$("sigGrid"),toggle=$("sigToggle"); if(!grid||!toggle)return; sigsExpanded=!sigsExpanded; grid.style.display=sigsExpanded?"grid":"none"; toggle.textContent=sigsExpanded?"▲":"▼";}
+function renderRegime(d){const w=$("regimeWidget"); if(!w)return; w.style.display="block";w.style.background=d.bg;w.style.borderColor=d.color+"55";safeSetContent("regimeValue",d.regime);if($("regimeValue"))$("regimeValue").style.color=d.color;safeSetContent("regimeConf",`Confidence: ${d.confidence}%`);safeSetContent("regimeScore",(d.score>=0?"+":"")+d.score);if($("regimeScore"))$("regimeScore").style.color=d.score>=0?"var(--green)":"var(--red)";safeSetContent("regimeVix",`VIX: ${d.vix}  |  S&P500 vs MA200: ${d.sp500_vs_200>=0?"+":""}${d.sp500_vs_200}%`);safeSetContent("expPct",d.exposure_pct+"%");safeSetContent("cashPct",d.cash_pct+"%");safeSetContent("regimeDesc",d.description);const confBar=$("confBar"); if(confBar){confBar.style.width=d.confidence+"%";confBar.style.background=d.color;}const sigGrid=$("sigGrid"); if(!sigGrid)return;const CAT_ICONS={"Trend":"📈","Breadth":"📊","Momentum":"⚡","Volatility":"😨","Credit":"💰","Yield Curve":"📋","Risk Assets":"🥇"};sigGrid.innerHTML=(d.signal_table||[]).map(s=>`<div class="sig-row"><div class="sig-icon">${CAT_ICONS[s.category]||"•"}</div><div class="sig-info"><div class="sig-label">${esc(s.label)}</div><div class="sig-val">${esc(s.value)}</div></div><div class="sig-wt">${s.weight}%</div><div class="sig-score ${s.score > 0 ? 'pos' : s.score < 0 ? 'neg' : 'neutral'}">${s.score > 0 ? '+' : ''}${s.score}</div></div>`).join("");}
 
-/* ===== LOAD DATA (NOW SAFER!) ===== */
-async function load(mode=currentMode, refresh=false){
-  if(loading)return; loading=true; currentMode=mode;
-  const btnCore=$("btn-core"),btnFull=$("btn-full"),btnRefresh=$("btn-refresh"),errBanner=$("errBanner"),loadingEl=$("loading");
-  if(btnCore)btnCore.classList.toggle("active",mode==="core"); if(btnFull)btnFull.classList.toggle("active",mode==="full");
-  if(btnRefresh)btnRefresh.disabled=true; if(errBanner)errBanner.style.display="none";
-  safeSetContent("loadMsg","กำลังเชื่อมต่อ..."); if($("loadBar"))$("loadBar").style.width="0%"; safeSetContent("loadDetail","");
-  if(loadingEl)loadingEl.style.display="flex";
-  startProgressPoll(); resetCountdown();
-  try{
-    const url=`/api/dashboard?mode=${mode}${refresh?"&refresh=1":""}`; const res=await fetch(url); const data=await res.json();
-    fullData=data; if(!data.ok){renderSync(data.sync,false); if(errBanner){errBanner.textContent="⚠️ "+(data.error||"เกิดข้อผิดพลาดในการดึงข้อมูล");errBanner.style.display="block";} return;}
-    const usBreadth=data.breadth.find(b=>b.code==="US"); const rParams=usBreadth?`?breadth_us_ma50=${usBreadth.ma50}&breadth_us_ma200=${usBreadth.ma200}`:"";
-    try{const regimeRes=await fetch(`/api/regime${rParams}`);const regimeData=await regimeRes.json();if(regimeData.ok)renderRegime(regimeData);}catch(e){console.error("Failed to load regime data:",e);const rw=$("regimeWidget");if(rw)rw.style.display="none";}
-    renderSync(data.sync,true);renderBearOverride(data.bear_override,data);renderBreadth(data.breadth);renderHistTabs(MARKETS.filter(m=>data.breadth_history_all&&data.breadth_history_all[m]));renderHistChart();renderStatCards(data.stat_cards);renderWatchlist(data.watchlist);renderThemeMovers(data.theme_movers);renderRsMovers(data.rs_movers);
-    safeSetContent("footerCaption",`Universe: ${data.universe_loaded}/${data.universe_total} stocks loaded · Updated: ${data.updated} · ⏱ Data delayed ~15 min · Cache 15 min`);
-    startCountdown();
-  }catch(e){if(errBanner){errBanner.textContent="⚠️ เชื่อมต่อ backend ไม่สำเร็จ: "+e.message+" — ตรวจสอบว่า uvicorn รันอยู่";errBanner.style.display="block";}}finally{stopProgressPoll();if(loadingEl)loadingEl.style.display="none";if(btnRefresh)btnRefresh.disabled=false;loading=false;}
-}
+/* ===== LOAD DATA ===== */
+async function load(mode=currentMode, refresh=false){if(loading)return; loading=true; currentMode=mode;const btnCore=$("btn-core"),btnFull=$("btn-full"),btnRefresh=$("btn-refresh"),errBanner=$("errBanner"),loadingEl=$("loading");if(btnCore)btnCore.classList.toggle("active",mode==="core"); if(btnFull)btnFull.classList.toggle("active",mode==="full");if(btnRefresh)btnRefresh.disabled=true; if(errBanner)errBanner.style.display="none";safeSetContent("loadMsg","กำลังเชื่อมต่อ..."); if($("loadBar"))$("loadBar").style.width="0%"; safeSetContent("loadDetail","");if(loadingEl)loadingEl.style.display="flex";startProgressPoll(); resetCountdown();try{const url=`/api/dashboard?mode=${mode}${refresh?"&refresh=1":""}`; const res=await fetch(url); const data=await res.json();fullData=data; if(!data.ok){renderSync(data.sync,false); if(errBanner){errBanner.textContent="⚠️ "+(data.error||"เกิดข้อผิดพลาดในการดึงข้อมูล");errBanner.style.display="block";} return;}const usBreadth=data.breadth.find(b=>b.code==="US"); const rParams=usBreadth?`?breadth_us_ma50=${usBreadth.ma50}&breadth_us_ma200=${usBreadth.ma200}`:"";try{const regimeRes=await fetch(`/api/regime${rParams}`);const regimeData=await regimeRes.json();if(regimeData.ok)renderRegime(regimeData);}catch(e){console.error("Failed to load regime data:",e);const rw=$("regimeWidget");if(rw)rw.style.display="none";}renderSync(data.sync,true);renderBearOverride(data.bear_override,data);renderBreadth(data.breadth);renderHistTabs(MARKETS.filter(m=>data.breadth_history_all&&data.breadth_history_all[m]));renderHistChart();renderStatCards(data.stat_cards);renderWatchlist(data.watchlist);renderThemeMovers(data.theme_movers);renderRsMovers(data.rs_movers);safeSetContent("footerCaption",`Universe: ${data.universe_loaded}/${data.universe_total} stocks loaded · Updated: ${data.updated} · ⏱ Data delayed ~15 min · Cache 15 min`);startCountdown();}catch(e){if(errBanner){errBanner.textContent="⚠️ เชื่อมต่อ backend ไม่สำเร็จ: "+e.message+" — ตรวจสอบว่า uvicorn รันอยู่";errBanner.style.display="block";}}finally{stopProgressPoll();if(loadingEl)loadingEl.style.display="none";if(btnRefresh)btnRefresh.disabled=false;loading=false;}}
 
-/* ===== PROGRESS POLL (NOW SAFER!) ===== */
+/* ===== PROGRESS POLL ===== */
 let _pollTimer=null;
-function startProgressPoll(){
-  stopProgressPoll();
-  _pollTimer=setInterval(async()=>{
-    try{
-      const r=await fetch("/api/progress");const d=await r.json();
-      if(!d||!d.ok||d.stage==='idle'||d.stage==='done'){if(d&&!d.ok)console.error("Progress poll failed:",d.error);return;}
-      safeSetContent("loadMsg",d.stage==='fetching'?`กำลังโหลด ${d.market} (${d.batch}/${d.total_batches})`:"กำลังคำนวณ...");
-      const loadBar=$("loadBar"); if(loadBar){const pct=d.tickers_total>0?(d.tickers_done/d.tickers_total)*100:0;loadBar.style.width=pct+"%";}
-      const parts=[]; if(d.markets_done&&d.markets_total&&d.markets_total.length)parts.push(`${d.markets_done.length}/${d.markets_total.length} markets`); if(d.last_error)parts.push(`⚠️ ${d.last_error}`);
-      safeSetContent("loadDetail",parts.join(" · "));
-    }catch(e){}
-  },1000);
-}
+function startProgressPoll(){stopProgressPoll();_pollTimer=setInterval(async()=>{try{const r=await fetch("/api/progress");const d=await r.json();if(!d||!d.ok||d.stage==='idle'||d.stage==='done'){if(d&&!d.ok)console.error("Progress poll failed:",d.error);return;}safeSetContent("loadMsg",d.stage==='fetching'?`กำลังโหลด ${d.market} (${d.batch}/${d.total_batches})`:"กำลังคำนวณ...");const loadBar=$("loadBar"); if(loadBar){const pct=d.tickers_total>0?(d.tickers_done/d.tickers_total)*100:0;loadBar.style.width=pct+"%";}const parts=[]; if(d.markets_done&&d.markets_total&&d.markets_total.length)parts.push(`${d.markets_done.length}/${d.markets_total.length} markets`); if(d.last_error)parts.push(`⚠️ ${d.last_error}`);safeSetContent("loadDetail",parts.join(" · "));}catch(e){}},1000);}
 function stopProgressPoll(){if(_pollTimer){clearInterval(_pollTimer);_pollTimer=null;}}
 
-/* ===== AUTO-REFRESH COUNTDOWN (NOW SAFER!) ===== */
+/* ===== AUTO-REFRESH COUNTDOWN ===== */
 function resetCountdown(){countdownSec=REFRESH_SEC;safeSetContent("countdown","");}
-function startCountdown(){
-  if(countdownTimer)clearInterval(countdownTimer); countdownSec=REFRESH_SEC;
-  countdownTimer=setInterval(()=>{
-    countdownSec--; const m=Math.floor(countdownSec/60),s=countdownSec%60;
-    safeSetContent("countdown",`${m}:${s.toString().padStart(2,"0")}`);
-    if(countdownSec<=0){
-      clearInterval(countdownTimer);
-      const chkAuto=$("chk-auto");
-      if(chkAuto&&chkAuto.checked&&typeof load==='function')load(currentMode,false);
-    }
-  },1000);
-}
+function startCountdown(){if(countdownTimer)clearInterval(countdownTimer); countdownSec=REFRESH_SEC;countdownTimer=setInterval(()=>{countdownSec--; const m=Math.floor(countdownSec/60),s=countdownSec%60;safeSetContent("countdown",`${m}:${s.toString().padStart(2,"0")}`);if(countdownSec<=0){clearInterval(countdownTimer);const chkAuto=$("chk-auto");if(chkAuto&&chkAuto.checked&&typeof load==='function')load(currentMode,false);}},1000);}
 
-/* ===== EVENT LISTENERS (NOW SAFE!) ===== */
-safeAttachEvent("btn-core", "click", () => load("core"));
-safeAttachEvent("btn-full", "click", () => load("full"));
-safeAttachEvent("btn-refresh", "click", () => load(currentMode, true));
-safeAttachEvent("chk-auto", "change", e => {
-    autoEnabled = e.target.checked;
-    if (!autoEnabled && countdownTimer) {
-        clearInterval(countdownTimer);
-        safeSetContent("countdown", "");
-    }
-});
-safeAttachEvent("sigToggle", "click", toggleSigs); // ✨ FIX: Add listener for Regime toggle
 
-// ✨ FIX: Wrap in checks
-const mktFilterEl = $("mktFilter");
-if (mktFilterEl) {
-    mktFilterEl.querySelectorAll(".mkt-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            currentMkt = btn.dataset.mkt;
-            mktFilterEl.querySelectorAll(".mkt-btn").forEach(b => b.classList.toggle("active", b === btn));
-            if (fullData) renderWatchlist(fullData.watchlist);
+// ========================= [ 🚨 CRITICAL FIX 🚨 ] =========================
+// โค้ดทั้งหมดที่เกี่ยวข้องกับการ "เริ่มต้น" การทำงานของหน้าเว็บ จะถูกย้ายมาไว้ในนี้
+// เพื่อรับประกันว่ามันจะทำงาน "หลังจาก" ที่ Browser สร้างหน้าเว็บเสร็จแล้วเท่านั้น
+document.addEventListener('DOMContentLoaded', () => {
+
+    console.log("✅ DOM is ready. Initializing application...");
+
+    /* ===== EVENT LISTENERS (NOW SAFE!) ===== */
+    safeAttachEvent("btn-core", "click", () => load("core"));
+    safeAttachEvent("btn-full", "click", () => load("full"));
+    safeAttachEvent("btn-refresh", "click", () => load(currentMode, true));
+
+    safeAttachEvent("chk-auto", "change", e => {
+        autoEnabled = e.target.checked;
+        if (!autoEnabled && countdownTimer) {
+            clearInterval(countdownTimer);
+            safeSetContent("countdown", "");
+        }
+    });
+
+    safeAttachEvent("sigToggle", "click", toggleSigs);
+
+    const mktFilterEl = $("mktFilter");
+    if (mktFilterEl) {
+        mktFilterEl.querySelectorAll(".mkt-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                currentMkt = btn.dataset.mkt;
+                mktFilterEl.querySelectorAll(".mkt-btn").forEach(b => b.classList.toggle("active", b === btn));
+                if (fullData) renderWatchlist(fullData.watchlist);
+            });
         });
-    });
-}
-const searchBoxEl = $("searchBox");
-if (searchBoxEl) {
-    let searchTimer;
-    searchBoxEl.addEventListener("input", e => {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => {
-            currentSearch = e.target.value.trim();
-            if (fullData) renderWatchlist(fullData.watchlist);
-        }, 200);
-    });
-}
+    }
 
-/* ===== KICK OFF INITIAL LOAD (ONLY ON DASHBOARD PAGE) ===== */
-// ✨ FIX: Only run `load` if we're on a page that actually has the dashboard UI
-if ($("btn-core")) {
-    load("core");
-}
-</script>
+    const searchBoxEl = $("searchBox");
+    if (searchBoxEl) {
+        let searchTimer;
+        searchBoxEl.addEventListener("input", e => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                currentSearch = e.target.value.trim();
+                if (fullData) renderWatchlist(fullData.watchlist);
+            }, 200);
+        });
+    }
+
+    /* ===== KICK OFF INITIAL LOAD ===== */
+    // จุดนี้ เรามั่นใจ 100% ว่า element 'btn-core' มีอยู่จริงแล้ว
+    if ($("btn-core")) {
+        console.log("🚀 Starting initial data load...");
+        load("core");
+    } else {
+        // Safety net: ถ้ายังหาไม่เจออีก แสดงว่ามีปัญหาที่โครงสร้าง HTML
+        const errorMsg = "FATAL: Could not find main UI component ('btn-core'). Application cannot start.";
+        console.error(errorMsg);
+        alert(errorMsg);
+        const contentEl = $("content");
+        if(contentEl) contentEl.innerHTML = `<div class="error-message">${errorMsg}</div>`;
+    }
+
+});
+// ============================================================================
