@@ -1,4 +1,4 @@
-# @title
+# FILE: data_engine.py
 #"""
 #data_engine.py — Pure Quant Engine (no network)
 #v3: per-market RS rating, drawdown tracker, correlation prep
@@ -23,6 +23,22 @@ from constants import (
 )
 
 REQUIRED_COLS = ["Open", "High", "Low", "Close", "Volume"]
+
+# ✨ REFACTOR: เพิ่ม Section 0 สำหรับฟังก์ชัน Utility กลาง
+# ── 0) Core Utilities ──────────────────────────────────────────────────────────
+def pct_change(series: pd.Series, n: int) -> float | None:
+    """
+    Calculates the percentage change over n periods, with safety checks.
+    This function is now centralized here to be used by other modules like pipeline.py.
+    """
+    try:
+        if len(series) <= n or series.iloc[-1 - n] == 0:
+            return None
+        val = (series.iloc[-1] / series.iloc[-1 - n] - 1) * 100
+        # Handle numpy's special float values before returning.
+        return None if (np.isnan(val) or np.isinf(val)) else round(float(val), 2)
+    except (IndexError, TypeError):
+        return None
 
 
 # ── 1) Indicators ──────────────────────────────────────────────────────────────
@@ -446,8 +462,8 @@ def sector_relative_strength(stock_close: pd.Series,
     """Compare stock vs its sector ETF."""
     return rs_vs_benchmark(stock_close, sector_close, periods)
 
+
 # ── 12) Relative Rotation Graph (RRG) ────────────────────────────────────────
-# ✨ NEW: เพิ่มฟังก์ชันสำหรับคำนวณ RRG ทั้งหมด
 def compute_rrg(weekly_prices: pd.DataFrame, tickers: list[str], benchmark: str) -> dict:
     """
     Computes JdK RS-Ratio and JdK RS-Momentum for RRG plots.
@@ -458,6 +474,7 @@ def compute_rrg(weekly_prices: pd.DataFrame, tickers: list[str], benchmark: str)
     Returns:
         dict: A dictionary with RRG data for each ticker.
     """
+    # ✨ NOTE: These constants need to be defined in `constants.py`
     from constants import RRG_SMOOTHING, RRG_ROC_SHIFT, RRG_TAIL_WEEKS
 
     results = {}
