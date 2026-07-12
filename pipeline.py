@@ -1,3 +1,5 @@
+# FILE: pipeline.py
+
 from __future__ import annotations
 import logging, threading, time
 from datetime import datetime
@@ -128,7 +130,10 @@ def fetch_universe(active: dict):
          started=t0, last_error="", cache_hits=0, cache_misses=0)
     log.info("=== fetch_universe START %s (%d tickers) ===", markets, total)
 
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    # ✨ REFACTOR: เพิ่ม max_workers ให้ดึงข้อมูลแบบ parallel จริงๆ แก้ปัญหาคอขวด
+    # ใช้ len(active) เพื่อให้ยืดหยุ่นตามจำนวนตลาด แต่ไม่เกิน 5 เพื่อคุม resource
+    num_workers = min(len(active), 5)
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=num_workers)
     futures_map = {executor.submit(_fetch_market, m, tk): m for m, tk in active.items()}
     try:
         for future in concurrent.futures.as_completed(futures_map, timeout=300):
@@ -159,13 +164,14 @@ def fetch_universe(active: dict):
     _upd(stage="computing")
     return combined, ticker_meta, fetch_results
 
-def _pct_change(series: pd.Series, n: int) -> float | None:
-    try:
-        if len(series) <= n or series.iloc[-1-n] == 0: return None
-        val = (series.iloc[-1] / series.iloc[-1-n] - 1) * 100
-        return None if (np.isnan(val) or np.isinf(val)) else round(float(val), 2)
-    except Exception:
-        return None
+# ✨ REFACTOR: ย้ายฟังก์ชันนี้ไปที่ data_engine.py และเปลี่ยนชื่อเป็น pct_change() เพื่อให้โมดูลอื่นเรียกใช้ได้
+# def _pct_change(series: pd.Series, n: int) -> float | None:
+#     try:
+#         if len(series) <= n or series.iloc[-1-n] == 0: return None
+#         val = (series.iloc[-1] / series.iloc[-1-n] - 1) * 100
+#         return None if (np.isnan(val) or np.isinf(val)) else round(float(val), 2)
+#     except Exception:
+#         return None
 
 def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
     now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -223,31 +229,33 @@ def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
             ticker_signal[t] = {"rolled": {}, "count": 0, "confluence": False}
 
     rs_now = eng.rs_rating_per_market(
-    {t: d for t, d in combined.items() if d is not None and len(d) > 5},
-    ticker_meta
-)
+        {t: d for t, d in combined.items() if d is not None and len(d) > 5},
+        ticker_meta
+    )
     blended7 = pd.Series({t: eng.blended_return(d["Close"].iloc[:-7])
                            for t, d in combined.items() if len(d) > 7})
     rs_7 = eng.rs_rating_table(blended7).reindex(rs_now.index).fillna(rs_now)
 
+    # ✨ REFACTOR: เปลี่ยนไปเรียกใช้ฟังก์ชัน pct_change จาก data_engine ที่ถูกต้อง
     ret_1d = pd.Series({
-      t: (_pct_change(d["Close"], 1) or 0)
+      t: (eng.pct_change(d["Close"], 1) or 0)
       for t, d in combined.items()
     })
 
     ret_1m = pd.Series({
-      t: (_pct_change(d["Close"], TRADING_DAYS_MONTH) or 0)
+      t: (eng.pct_change(d["Close"], TRADING_DAYS_MONTH) or 0)
       for t, d in combined.items()
     })
 
     ret_3m = pd.Series({
-      t: (_pct_change(d["Close"], TRADING_DAYS_QUARTER) or 0)
+      t: (eng.pct_change(d["Close"], TRADING_DAYS_QUARTER) or 0)
       for t, d in combined.items()
     })
 
-    print("RS START")
-    rs_now = eng.rs_rating_per_market(combined, ticker_meta)
-    print("RS DONE")
+    # ✨ REFACTOR: ลบการคำนวณ rs_now ที่ซ้ำซ้อนออก เพราะทำไปแล้วด้านบน
+    # print("RS START")
+    # rs_now = eng.rs_rating_per_market(combined, ticker_meta)
+    # print("RS DONE")
 
     theme_map = {t: m["theme"] for t, m in ticker_meta.items()}
 
@@ -296,7 +304,9 @@ def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
         watchlist.append({"ticker": t.split(".")[0], "full_ticker": t,
             "name": meta["name"], "theme": meta["theme"],
             "patterns": [k for k in SIGNAL_NAMES if ticker_signal[t]["rolled"].get(k)],
-            "pct1d": _pct_change(d["Close"], 1) or 0.0, "rs": int(float(rs_now.get(t, 0) or 0)),
+            # ✨ REFACTOR: เปลี่ยนไปเรียกใช้ฟังก์ชัน pct_change จาก data_engine ที่ถูกต้อง
+            "pct1d": eng.pct_change(d["Close"], 1) or 0.0, 
+            "rs": int(float(rs_now.get(t, 0) or 0)),
             "market": meta["market"],
             "drawdown_pct": eng.current_drawdown_from_peak(d["Close"]),
             "max_dd_pct":   eng.max_drawdown(d["Close"])})
@@ -331,10 +341,10 @@ def compute_dashboard(combined, ticker_meta, fetch_results, active) -> dict:
         "bear_override": bear_override,
         "rs_scope": "per-market",
         "markets": {
-    m: [
-        t for t in combined.keys()
-        if ticker_meta.get(t, {}).get("market") == m
-    ]
-    for m in ["US", "HK", "JP", "KR", "CN"]
-},
+            m: [
+                t for t in combined.keys()
+                if ticker_meta.get(t, {}).get("market") == m
+            ]
+            for m in ["US", "HK", "JP", "KR", "CN"]
+        },
     }
