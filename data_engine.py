@@ -24,7 +24,9 @@ def current_drawdown_from_peak(price_series: pd.Series) -> float:
     if not isinstance(price_series, pd.Series) or price_series.empty or len(price_series) < 2:
         return 0.0
     peak = price_series.cummax()
-    drawdown = (price_series - peak) / peak.replace(0, np.nan)
+    # ✨ FIX: ใช้ np.where เพื่อป้องกันการหารด้วยศูนย์อย่างสมบูรณ์ ทำให้ Logic Robust ขึ้น
+    # ถ้า peak เป็น 0 จะหารด้วย 1 แทน ซึ่ง (price - peak) จะเป็น 0 อยู่แล้ว ผลลัพธ์จึงถูกต้อง
+    drawdown = (price_series - peak) / np.where(peak == 0, 1, peak)
     last_drawdown_pct = abs(drawdown.iloc[-1] * 100)
     return float(last_drawdown_pct) if np.isfinite(last_drawdown_pct) else 0.0
 
@@ -32,7 +34,8 @@ def max_drawdown(price_series: pd.Series) -> float:
     if not isinstance(price_series, pd.Series) or price_series.empty or len(price_series) < 2:
         return 0.0
     peak = price_series.cummax()
-    drawdown = (price_series - peak) / peak.replace(0, np.nan)
+    # ✨ FIX: ใช้ np.where เช่นเดียวกับฟังก์ชันข้างบนเพื่อความสอดคล้องกันและความปลอดภัย
+    drawdown = (price_series - peak) / np.where(peak == 0, 1, peak)
     max_dd = abs(drawdown.min() * 100)
     return float(max_dd) if np.isfinite(max_dd) else 0.0
 
@@ -44,11 +47,21 @@ def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df['SMA200'] = df['Close'].rolling(window=200, min_periods=100).mean()
     df['VOL_SMA50'] = df['Volume'].rolling(window=50, min_periods=20).mean()
     df['HIGH_52W'] = df['High'].rolling(window=TRADING_DAYS_YEAR, min_periods=100).max()
+
+    # ✨ FIX: ปรับปรุงการคำนวณ RSI ให้มีความเสถียรและแม่นยำสูง (Robust RSI Calculation)
     delta = df['Close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-    rs = gain / loss.replace(0, np.nan)
-    df['RSI'] = 100 - (100 / (1 + rs))
+    gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
+
+    # คำนวณ Relative Strength (RS)
+    rs = gain / loss
+
+    # คำนวณ RSI พร้อมจัดการ Edge Cases:
+    # - ถ้า loss เป็น 0 (หุ้นขึ้นตลอด) -> rs จะเป็น inf -> 100 / (1 + inf) = 0 -> RSI = 100 (ถูกต้อง)
+    # - ถ้า gain เป็น 0 (หุ้นลงตลอด) -> rs จะเป็น 0 -> 100 / (1 + 0) = 100 -> RSI = 0 (ถูกต้อง)
+    # - ถ้าทั้ง gain และ loss เป็น 0 (ราคาไม่เปลี่ยนแปลง) -> rs เป็น NaN -> .fillna(50) จะให้ค่ากลาง
+    df['RSI'] = (100 - (100 / (1 + rs))).fillna(50)
+
     df['EMA12'] = df['Close'].ewm(span=12, adjust=False).mean()
     df['EMA26'] = df['Close'].ewm(span=26, adjust=False).mean()
     df['MACD'] = df['EMA12'] - df['EMA26']
@@ -63,7 +76,9 @@ def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df['BB_UPPER'] = df['BB_MID'] + (std_dev * 2)
     df['BB_LOWER'] = df['BB_MID'] - (std_dev * 2)
     typical_price = (df['High'] + df['Low'] + df['Close']) / 3
-    df['VWAP'] = (typical_price * df['Volume']).cumsum() / df['Volume'].cumsum()
+    # ป้องกันการหารด้วยศูนย์ใน VWAP กรณีที่ Volume เป็น 0 ในวันแรกๆ
+    cum_vol = df['Volume'].cumsum()
+    df['VWAP'] = (typical_price * df['Volume']).cumsum() / cum_vol.replace(0, np.nan)
     tr1 = abs(df['High'] - df['Low'])
     tr2 = abs(df['High'] - df['Close'].shift())
     tr3 = abs(df['Low'] - df['Close'].shift())
@@ -76,31 +91,40 @@ def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
 def run_scanners(df: pd.DataFrame) -> dict:
     if df.empty or len(df) < 51: return {}
     signals = {}
-    last = df.iloc[-1]
-    prev = df.iloc[-2]
+
+    # ✨ FIX: ปรับการคำนวณทั้งหมดเป็นแบบ Vectorized (Series-based) เพื่อให้คำนวณ Signal ได้ทุกวัน ไม่ใช่แค่วันสุดท้าย
+    # ซึ่งเป็นพฤติกรรมที่ถูกต้องสำหรับ `confluence_flags`
 
     # VDU (Volume Dry-Up)
-    is_vdu = last['Volume'] < (last['VOL_SMA50'] * VDU_VOL_HIGH) and \
-             last['Volume'] > (last['VOL_SMA50'] * VDU_VOL_LOW) and \
-             abs(last['Close'] - prev['Close']) / prev['Close'] < 0.015
-    signals['VDU'] = pd.Series(is_vdu, index=df.index)
+    is_vdu = (df['Volume'] < (df['VOL_SMA50'] * VDU_VOL_HIGH)) & \
+             (df['Volume'] > (df['VOL_SMA50'] * VDU_VOL_LOW)) & \
+             (abs(df['Close'].diff() / df['Close'].shift()) < 0.015)
+    signals['VDU'] = is_vdu
 
-    # PPBP (Pocket Pivot Buy Point)
-    up_days = df['Close'] > df['Close'].shift(1)
-    down_day_volumes = df['Volume'][~up_days].tail(PPBP_VOL_LOOKBACK)
-    is_ppbp = up_days.iloc[-1] and (down_day_volumes.empty or last['Volume'] > down_day_volumes.max())
-    signals['PPBP'] = pd.Series(is_ppbp, index=df.index)
+    # PPBP (Pocket Pivot Buy Point) - Logic ที่รัดกุมและถูกต้อง
+    # 1. ต้องเป็นวันบวก
+    is_up_day = df['Close'] > df['Close'].shift(1)
+    # 2. ต้องอยู่ในเทรนด์ขาขึ้น (ราคาอยู่เหนือ SMA50)
+    is_in_uptrend = df['Close'] > df['SMA50']
+    # 3. Volume ต้องมากกว่า Volume สูงสุดของ 'วันลบ' ใน 10 วันที่ผ่านมา
+    down_day_volume = df['Volume'].where(~is_up_day, 0)
+    max_down_vol_lookback = down_day_volume.rolling(window=PPBP_VOL_LOOKBACK, min_periods=1).max()
+    is_volume_spike = df['Volume'] > max_down_vol_lookback.shift(1) # shift(1) เพื่อไม่ให้รวม vol วันปัจจุบัน
+
+    signals['PPBP'] = is_up_day & is_in_uptrend & is_volume_spike
 
     # BGU (Buyable Gap-Up)
-    gap_up_pct = (last['Open'] / prev['Close'] - 1) * 100
-    is_bgu = gap_up_pct > BGU_GAP_PCT and last['Volume'] > (last['VOL_SMA50'] * BGU_VOL_MULT)
-    signals['BGU'] = pd.Series(is_bgu, index=df.index)
+    gap_up_pct = (df['Open'] / df['Close'].shift(1) - 1) * 100
+    is_bgu = (gap_up_pct > BGU_GAP_PCT) & (df['Volume'] > (df['VOL_SMA50'] * BGU_VOL_MULT))
+    signals['BGU'] = is_bgu
 
     # Near 52W High
-    is_near_52w = last['Close'] >= (last['HIGH_52W'] * W52_PROXIMITY) if pd.notna(last['HIGH_52W']) else False
-    signals['52W'] = pd.Series(is_near_52w, index=df.index)
+    is_near_52w = df['Close'] >= (df['HIGH_52W'] * W52_PROXIMITY)
+    signals['52W'] = is_near_52w
 
     return signals
+
+# ... ส่วนที่เหลือของไฟล์ไม่มีการเปลี่ยนแปลง และทำงานร่วมกับส่วนที่แก้ไขได้อย่างถูกต้อง ...
 
 def confluence_flags(signals: dict) -> tuple:
     rolled, conf, count = {}, None, None
@@ -203,25 +227,30 @@ def theme_returns(close_df: pd.DataFrame, theme_map: dict, ticker_meta: dict, rs
     for theme, tickers in theme_map.items():
         if not tickers: continue
 
-        theme_closes = close_df[tickers]
+        valid_tickers = [t for t in tickers if t in close_df.columns]
+        if not valid_tickers: continue
+
+        theme_closes = close_df[valid_tickers]
         if theme_closes.empty: continue
 
-        r1d = (theme_closes.iloc[-1] / theme_closes.iloc[-2] - 1) * 100 if len(theme_closes) > 1 else pd.Series(0, index=tickers)
-        r1m = (theme_closes.iloc[-1] / theme_closes.iloc[-TRADING_DAYS_MONTH] - 1) * 100 if len(theme_closes) > TRADING_DAYS_MONTH else pd.Series(0, index=tickers)
-        r3m = (theme_closes.iloc[-1] / theme_closes.iloc[-TRADING_DAYS_QUARTER] - 1) * 100 if len(theme_closes) > TRADING_DAYS_QUARTER else pd.Series(0, index=tickers)
+        r1d = (theme_closes.iloc[-1] / theme_closes.iloc[-2] - 1) * 100 if len(theme_closes) > 1 else pd.Series(0, index=valid_tickers)
+        r1m = (theme_closes.iloc[-1] / theme_closes.iloc[-TRADING_DAYS_MONTH] - 1) * 100 if len(theme_closes) > TRADING_DAYS_MONTH else pd.Series(0, index=valid_tickers)
+        r3m = (theme_closes.iloc[-1] / theme_closes.iloc[-TRADING_DAYS_QUARTER] - 1) * 100 if len(theme_closes) > TRADING_DAYS_QUARTER else pd.Series(0, index=valid_tickers)
 
-        members = [ticker_meta[t] for t in tickers]
-        for m, t in zip(members, tickers):
+        members = [ticker_meta[t] for t in valid_tickers]
+        for m, t in zip(members, valid_tickers):
             m.update({'ticker': t, 'r1m': round(r1m.get(t, 0), 2)})
 
-        top_tickers = sorted(tickers, key=lambda t: rs_now.get(t, 0), reverse=True)
+        top_tickers = sorted(valid_tickers, key=lambda t: rs_now.get(t, 0), reverse=True)
+
+        valid_rs = rs_now.reindex(valid_tickers).dropna()
 
         theme_data[theme] = {
-            'count': len(tickers),
-            'r1d': round(r1d.mean(), 2),
-            'r1m': round(r1m.mean(), 2),
-            'r3m': round(r3m.mean(), 2),
-            'avg_rs': int(rs_now[tickers].mean()) if not rs_now[tickers].empty else 0,
+            'count': len(valid_tickers),
+            'r1d': round(r1d.mean(), 2) if not r1d.empty else 0.0,
+            'r1m': round(r1m.mean(), 2) if not r1m.empty else 0.0,
+            'r3m': round(r3m.mean(), 2) if not r3m.empty else 0.0,
+            'avg_rs': int(valid_rs.mean()) if not valid_rs.empty else 0,
             'top_tickers': [t.split('.')[0] for t in top_tickers[:4]],
             'members': sorted(members, key=lambda x: rs_now.get(x['ticker'], 0), reverse=True)[:30]
         }
@@ -254,25 +283,41 @@ def compute_correlation_matrix(data: dict, tickers: list, days: int) -> dict:
 
 def tech_snapshot(df: pd.DataFrame):
     last = df.iloc[-1]
-    rsi, rsi_sig = last['RSI'], "Neutral"
-    if rsi > 70: rsi_sig = "Overbought"
-    elif rsi < 30: rsi_sig = "Oversold"
+    rsi_val = last.get('RSI')
+    rsi, rsi_sig = (rsi_val, "Neutral") if pd.notna(rsi_val) else (None, "N/A")
+    if rsi is not None:
+        if rsi > 70: rsi_sig = "Overbought"
+        elif rsi < 30: rsi_sig = "Oversold"
 
-    macd_hist, macd_sig = last['MACD_HIST'], "Neutral"
-    if macd_hist > 0 and df['MACD_HIST'].iloc[-2] < 0: macd_sig = "Bullish Crossover"
-    elif macd_hist < 0 and df['MACD_HIST'].iloc[-2] > 0: macd_sig = "Bearish Crossover"
+    macd_hist_val = last.get('MACD_HIST')
+    macd_hist, macd_sig = (macd_hist_val, "Neutral") if pd.notna(macd_hist_val) else (None, "N/A")
+    if macd_hist is not None and len(df) > 1 and pd.notna(df['MACD_HIST'].iloc[-2]):
+        if macd_hist > 0 and df['MACD_HIST'].iloc[-2] <= 0: macd_sig = "Bullish Crossover"
+        elif macd_hist < 0 and df['MACD_HIST'].iloc[-2] >= 0: macd_sig = "Bearish Crossover"
 
-    stoch_k, stoch_sig = last['STOCH_K'], "Neutral"
-    if stoch_k > 80: stoch_sig = "Overbought"
-    elif stoch_k < 20: stoch_sig = "Oversold"
+    stoch_k_val = last.get('STOCH_K')
+    stoch_k, stoch_sig = (stoch_k_val, "Neutral") if pd.notna(stoch_k_val) else (None, "N/A")
+    if stoch_k is not None:
+        if stoch_k > 80: stoch_sig = "Overbought"
+        elif stoch_k < 20: stoch_sig = "Oversold"
 
-    bb_pct = (last['Close'] - last['BB_LOWER']) / (last['BB_UPPER'] - last['BB_LOWER']) * 100 if last['BB_UPPER'] != last['BB_LOWER'] else 50
+    bb_upper, bb_lower = last.get('BB_UPPER'), last.get('BB_LOWER')
+    bb_pct = None
+    if pd.notna(bb_upper) and pd.notna(bb_lower) and bb_upper != bb_lower:
+        bb_pct = (last['Close'] - bb_lower) / (bb_upper - bb_lower) * 100
+
     bb_sig = "Inside Bands"
-    if bb_pct > 100: bb_sig = "Above Upper Band"
-    elif bb_pct < 0: bb_sig = "Below Lower Band"
+    if bb_pct is not None:
+        if bb_pct > 100: bb_sig = "Above Upper Band"
+        elif bb_pct < 0: bb_sig = "Below Lower Band"
 
-    vwap, vwap_sig = last['VWAP'], "Price is Above VWAP" if last['Close'] > last['VWAP'] else "Price is Below VWAP"
-    atr_pct = (last['ATR'] / last['Close'] * 100) if last['Close'] > 0 else 0
+    vwap_val = last.get('VWAP')
+    vwap, vwap_sig = (vwap_val, "N/A") if pd.notna(vwap_val) else (None, "N/A")
+    if vwap is not None:
+        vwap_sig = "Price is Above VWAP" if last['Close'] > vwap else "Price is Below VWAP"
+
+    atr_val = last.get('ATR')
+    atr_pct = (atr_val / last['Close'] * 100) if pd.notna(atr_val) and last['Close'] > 0 else None
 
     return {
         "rsi": rsi, "rsi_signal": rsi_sig, "rsi_spark": df['RSI'].tail(30).tolist(),
@@ -280,7 +325,7 @@ def tech_snapshot(df: pd.DataFrame):
         "stoch_k": stoch_k, "stoch_signal": stoch_sig,
         "bb_pct": bb_pct, "bb_signal": bb_sig,
         "vwap": vwap, "vwap_signal": vwap_sig,
-        "atr": last['ATR'], "atr_pct": round(atr_pct, 1)
+        "atr": atr_val, "atr_pct": round(atr_pct, 1) if atr_pct is not None else None
     }
 
 def rs_vs_benchmark(stock_close: pd.Series, bench_close: pd.Series):
