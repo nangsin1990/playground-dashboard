@@ -1,3 +1,5 @@
+# FILE: universe.py
+
 """
 Universe definition: ticker -> (display_name, theme/sector)
 
@@ -14,7 +16,6 @@ Yahoo Finance ticker conventions:
   FR : SYMBOL.PA (Euronext Paris)
   GB : SYMBOL.L (London Stock Exchange)
 """
-# ✨ FIX: Import ETF_META เพื่อใช้สร้าง RRG_US_SECTORS
 from etf_meta import ETF_META
 
 UNIVERSE = {
@@ -912,17 +913,19 @@ UNIVERSE = {
     },
 }
 
-# ✨ NEW: สร้าง RRG US Sectors universe จาก etf_meta.py โดยอัตโนมัติ
-# ทำให้ข้อมูลตรงกันเสมอเมื่อมีการอัปเดต etf_meta
 RRG_US_SECTORS = {
     ticker: meta['sub']
     for ticker, meta in ETF_META.items()
     if meta.get('cat') == 'Sector'
 }
-# ✨ NEW: Universe for Global Relative Rotation Graph
-# Use US-listed ETFs for consistent currency comparison
+
+RRG_US_THEMES = {
+    ticker: meta['sub']
+    for ticker, meta in ETF_META.items()
+    if meta.get('cat') == 'Thematic'
+}
+
 RRG_GLOBAL_UNIVERSE = {
-    # --- Equity Markets ---
     'VT': ('Total World', 'Global'),
     'SPY': ('USA (S&P 500)', 'US'),
     'EWJ': ('Japan (Nikkei)', 'JP'),
@@ -935,8 +938,6 @@ RRG_GLOBAL_UNIVERSE = {
     'EWH': ('Hong Kong (Hang Seng)', 'HK'),
     'THD': ('Thailand (SET)', 'TH'),
     'EWZ': ('Brazil (Bovespa)', 'EM'),
-
-    # --- Asset Classes ---
     'GLD': ('Gold', 'Commodity'),
     'SLV': ('Silver', 'Commodity'),
     'USO': ('Crude Oil', 'Commodity'),
@@ -946,24 +947,21 @@ RRG_GLOBAL_UNIVERSE = {
     'VXX': ('Volatility (VIX)', 'Volatility'),
 }
 
-# benchmark index per market (context only; not required by the engine)
 BENCHMARK = {
     "US": "^GSPC",
     "HK": "^HSI",
     "JP": "^N225",
     "KR": "^KS11",
     "CN": "000300.SS",
-    # ✨ NEW: European and Global benchmarks
     "DE": "^GDAXI",
     "FR": "^FCHI",
     "GB": "^FTSE",
-    "GLOBAL": "VT", # Vanguard Total World Stock ETF
-   # ✨ NEW: เพิ่ม Benchmark สำหรับ US Sectors
+    "GLOBAL": "VT",
     "US_SECTORS": "SPY",
+    "US_THEMES": "SPY",
 }
 
 FLAGS = {
-    "US": "🇺🇸", "HK": "🇭🇰", "JP": "🇯🇵", "KR": "🇰🇷", "CN": "🇨🇳",
-    # ✨ NEW: European flags
+    "US": "🇺🇸", "TH": "🇹🇭", "HK": "🇭🇰", "JP": "🇯🇵", "KR": "🇰🇷", "CN": "🇨🇳",
     "DE": "🇩🇪", "FR": "🇫🇷", "GB": "🇬🇧"
 }
