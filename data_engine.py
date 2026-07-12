@@ -1,141 +1,141 @@
 # FILE: data_engine.py
-
+# ✨ NEW: สร้างไฟล์นี้ขึ้นมาใหม่ทั้งหมดเพื่อเป็นศูนย์กลางการคำนวณ
 import pandas as pd
 import numpy as np
 
-# ✨ NEW: เพิ่มฟังก์ชันคำนวณ Drawdown ที่ leadership.py เรียกใช้
-# นี่คือการแก้ไขปัญหา Function Hallucination ครับ
+# --- ฟังก์ชันที่ leadership.py และ pipeline.py เรียกหา ---
+
 def current_drawdown_from_peak(price_series: pd.Series) -> float:
     """
-    Calculates the percentage drawdown of the last price from the series' peak.
-    Returns a positive number representing the drawdown percentage (e.g., 15.5 for -15.5%).
+    คำนวณ % การลดลงของราคาล่าสุดจากจุดสูงสุดของ Series
+    คืนค่าเป็นตัวเลขบวก เช่น 15.5 สำหรับการลดลง -15.5%
     """
     if price_series.empty or len(price_series) < 2:
         return 0.0
-
-    # 1. หาจุดสูงสุดของราคาทั้ง Series (Rolling Peak)
     peak = price_series.cummax()
-
-    # 2. คำนวณ % Drawdown ณ แต่ละจุด (ป้องกันการหารด้วยศูนย์)
-    # เราใช้ .replace(0, np.nan) เพื่อให้ผลลัพธ์เป็น NaN ถ้า Peak เป็น 0 ซึ่งจะถูกจัดการทีหลัง
     drawdown = (price_series - peak) / peak.replace(0, np.nan)
-
-    # 3. ดึงค่า Drawdown ล่าสุด, แปลงเป็น %, ทำให้เป็นบวก, และส่งคืน
-    # .iloc[-1] จะดึงค่าสุดท้ายของ Series
     last_drawdown_pct = abs(drawdown.iloc[-1] * 100)
-
-    # 4. จัดการกรณีที่ผลลัพธ์ไม่ใช่ตัวเลข (เช่น เกิดจากการหารด้วยศูนย์)
     if not np.isfinite(last_drawdown_pct):
         return 0.0
-
     return float(last_drawdown_pct)
 
+def max_drawdown(price_series: pd.Series) -> float:
+    """คำนวณ Max Drawdown ของทั้ง Series (จำเป็นสำหรับ pipeline.py)"""
+    if price_series.empty or len(price_series) < 2:
+        return 0.0
+    peak = price_series.cummax()
+    drawdown = (price_series - peak) / peak.replace(0, np.nan)
+    max_dd = abs(drawdown.min() * 100)
+    if not np.isfinite(max_dd):
+        return 0.0
+    return float(max_dd)
 
-# ✨ EXISTING: ฟังก์ชัน pct_change ที่ leadership.py เรียกใช้ (ถูกต้องแล้ว)
 def pct_change(price_series: pd.Series, period: int = 1) -> float:
-    """
-    Calculates the percentage change over a given period for a pandas Series.
-    """
+    """คำนวณ % การเปลี่ยนแปลงของราคาในช่วงเวลาที่กำหนด"""
     if price_series is None or len(price_series) < period + 1:
         return 0.0
-
-    # ดึงข้อมูลย้อนหลังตาม period ที่กำหนด
-    subset = price_series.tail(period + 1)
-
-    # ใช้ iloc เพื่อความแม่นยำในการเข้าถึงตำแหน่ง
-    start_price = subset.iloc[0]
-    end_price = subset.iloc[-1]
-
+    start_price = price_series.iloc[-(period + 1)]
+    end_price = price_series.iloc[-1]
     if start_price == 0:
-        return 0.0 # หรือจัดการเป็นกรณีพิเศษ เช่น return np.inf
-
-    # คำนวณ % change
+        return 0.0
     change = (end_price / start_price - 1) * 100
-
     if not np.isfinite(change):
         return 0.0
-
     return round(float(change), 2)
 
-# ------------------------------------------------------------------------------------
-# --- ✨ REFACTOR: Single Source of Truth for RRG (แหล่งความจริงหนึ่งเดียวสำหรับ RRG) ---
-# ------------------------------------------------------------------------------------
-# ฟังก์ชันนี้ถูกปรับปรุงให้เป็น "Master Version" สำหรับการคำนวณ RRG
-# ไฟล์ rotation_rrg.py ควรจะ import และเรียกใช้ฟังก์ชันนี้แทนการคำนวณเอง
-# เพื่อป้องกันไม่ให้สูตรคำนวณในโปรเจกต์ของเราไม่ตรงกัน
+# --- ฟังก์ชันที่ถูกเรียกแต่ยังไม่มี Logic (สร้างเป็น Placeholder เพื่อให้รันได้) ---
 
-def compute_rrg(
-    price_df: pd.DataFrame,
-    benchmark_ticker: str,
+def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Placeholder: เพิ่ม Indicators พื้นฐานที่จำเป็นสำหรับส่วนอื่นๆ
+    ในอนาคตสามารถเพิ่ม Logic ที่ซับซ้อนขึ้นได้ที่นี่
+    """
+    df['SMA50'] = df['Close'].rolling(window=50).mean()
+    df['SMA150'] = df['Close'].rolling(window=150).mean()
+    df['SMA200'] = df['Close'].rolling(window=200).mean()
+    return df
+
+def run_scanners(df: pd.DataFrame) -> dict:
+    """Placeholder: คืนค่าว่างเพื่อป้องกัน Error"""
+    return {}
+
+def confluence_flags(signals: dict) -> tuple:
+    """Placeholder: คืนค่าว่างเพื่อป้องกัน Error"""
+    return {}, None, None
+
+def rs_rating_per_market(combined: dict, ticker_meta: dict) -> pd.Series:
+    """Placeholder: คืนค่า RS Rating เป็น 50 สำหรับทุกตัว"""
+    return pd.Series({ticker: 50 for ticker in combined.keys()})
+
+def theme_returns(close_df, theme_map, ret_1d, ret_1m, ret_3m):
+    """Placeholder: คืนค่า DataFrame ว่าง"""
+    return pd.DataFrame()
+
+def rs_rating_table(close_df: pd.DataFrame, period: int) -> pd.Series:
+    """Placeholder: คืนค่า RS เป็น 50 สำหรับทุกตัว"""
+    return pd.Series(50, index=close_df.columns)
+
+# --- Single Source of Truth for RRG ---
+
+def calculate_rrg_metrics(
+    df_weekly: pd.DataFrame,
     tickers: list[str],
+    benchmark_ticker: str,
     period: int = 10,
-    tail_length: int = 5
+    tail_length: int = 12,
 ) -> dict:
     """
     The Single Source of Truth for calculating JdK RRG metrics.
-
-    Args:
-        price_df (pd.DataFrame): DataFrame with tickers as columns and dates as index, prices as values.
-        benchmark_ticker (str): The column name of the benchmark security.
-        tickers (list[str]): A list of tickers to calculate RRG for.
-        period (int): The lookback period for momentum calculation.
-        tail_length (int): The number of recent data points for the RRG tail.
-
-    Returns:
-        A dictionary where keys are tickers and values are their RRG metrics.
+    ถูกเรียกโดย rotation_rrg.py
     """
-    if benchmark_ticker not in price_df.columns:
-        return {} # ไม่มี Benchmark ก็จบข่าว
-
-    # 1. คำนวณ Price Ratio ของทุก Ticker เทียบกับ Benchmark
-    # price_df.div(...) คือการเอาทุกคอลัมน์ไปหารด้วย benchmark_prices ทีเดียว (Vectorized!)
-    benchmark_prices = price_df[benchmark_ticker]
-    rs_ratio = price_df[tickers].div(benchmark_prices, axis='index')
-    rs_ratio = rs_ratio.dropna(how='all', axis=1) # ลบ Ticker ที่ข้อมูลเป็น NaN ล้วน
-
-    if rs_ratio.empty:
-        return {}
-
-    # 2. คำนวณ JdK RS-Ratio (แกน X)
-    # ทำให้ค่าเฉลี่ยอยู่ที่ 100, ค่ามากกว่า 100 คือ Outperform
-    # เราใช้ .apply เพื่อทำกับทุกคอลัมน์ (ทุก Ticker) ทีเดียว
-    jrs = rs_ratio.apply(lambda x: 100 + ((x.iloc[-1] / x.mean() - 1) * 10) if not x.empty else 100)
-
-    # 3. คำนวณ JdK RS-Momentum (แกน Y)
-    # ใช้ .pct_change() เพื่อหาอัตราการเปลี่ยนแปลงของ RS-Ratio
-    rs_mom = rs_ratio.pct_change(periods=period)
-    # Normalize โมเมนตัมให้อยู่ในสเกล 100
-    jmo = rs_mom.apply(lambda x: 100 + ((x.iloc[-1] / x.std() - 1) * 10) if not x.empty and x.std() > 0 else 100)
-
-    # 4. สร้าง RRG Tail สำหรับวาดกราฟ
-    # เราจะเก็บค่า JRS และ JMO ย้อนหลัง `tail_length` วัน
-    tail_data = {}
-    for ticker in rs_ratio.columns:
-        # คำนวณ JRS และ JMO ย้อนหลัง
-        jrs_hist = rs_ratio[ticker].rolling(window=period).apply(lambda x: 100 + ((x.iloc[-1] / x.mean() - 1) * 10) if not x.empty else 100)
-        jmo_hist = rs_ratio[ticker].pct_change(periods=period).rolling(window=period).apply(lambda x: 100 + ((x.iloc[-1] / x.std() - 1) * 10) if not x.empty and x.std() > 0 else 100)
-
-        # รวมแกน X, Y เข้าด้วยกันแล้วดึงเฉพาะส่วนท้าย
-        tail = list(zip(jrs_hist.dropna().values, jmo_hist.dropna().values))
-        tail_data[ticker] = tail[-tail_length:]
-
-    # 5. ประกอบร่างผลลัพธ์สุดท้าย
     results = {}
-    for ticker in rs_ratio.columns:
-        jrs_val = jrs.get(ticker, 100)
-        jmo_val = jmo.get(ticker, 100)
+    if benchmark_ticker not in df_weekly.columns:
+        return results
 
-        # กำหนด Quadrant
-        quadrant = "Leading" if jrs_val > 100 and jmo_val > 100 else \
-                   "Weakening" if jrs_val > 100 and jmo_val < 100 else \
-                   "Lagging" if jrs_val < 100 and jmo_val < 100 else \
-                   "Improving"
+    benchmark_prices = df_weekly[benchmark_ticker]
+
+    for ticker in tickers:
+        if ticker not in df_weekly.columns or df_weekly[ticker].isnull().all():
+            continue
+
+        price_series = df_weekly[ticker]
+
+        # 1. RS-Ratio
+        rs_ratio = (price_series / benchmark_prices).dropna()
+        if len(rs_ratio) < period:
+            continue
+
+        jrs = 100 + ((rs_ratio.iloc[-1] / rs_ratio.rolling(period).mean().iloc[-1] - 1) * 10)
+
+        # 2. RS-Momentum
+        momentum = rs_ratio.pct_change(periods=period).dropna()
+        if len(momentum) < period:
+            continue
+
+        jmo = 100 + ((momentum.iloc[-1] / momentum.rolling(period).std().iloc[-1] - 1) * 10) if momentum.rolling(period).std().iloc[-1] > 0 else 100
+
+        # 3. Quadrant
+        if jrs > 100 and jmo > 100: quadrant = "Leading"
+        elif jrs > 100 and jmo < 100: quadrant = "Weakening"
+        elif jrs < 100 and jmo < 100: quadrant = "Lagging"
+        else: quadrant = "Improving"
+
+        # 4. Tail
+        tail_jrs = 100 + ((rs_ratio.rolling(period).apply(lambda x: x[-1] / x.mean()) - 1) * 10)
+        tail_mom = rs_ratio.pct_change(periods=period)
+        tail_jmo = 100 + ((tail_mom.rolling(period).apply(lambda x: x[-1] / x.std()) - 1) * 10)
+
+        tail_data = list(zip(tail_jrs.dropna().values, tail_jmo.dropna().values))[-tail_length:]
 
         results[ticker] = {
-            "jrs": round(jrs_val, 2),
-            "jmo": round(jmo_val, 2),
+            "jrs": round(jrs, 2),
+            "jmo": round(jmo, 2),
             "quadrant": quadrant,
-            "tail": tail_data.get(ticker, []),
+            "tail": tail_data
         }
 
     return results
+
+def tech_snapshot(df: pd.DataFrame):
+    """Placeholder for technical analysis snapshot"""
+    return {}
