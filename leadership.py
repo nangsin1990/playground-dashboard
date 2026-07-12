@@ -14,8 +14,6 @@ from constants import (
 )
 import data_engine as eng
 
-# ✨ REFACTOR: ผมปรับปรุง Docstring ให้ชัดเจนว่าฟังก์ชันนี้จะดึงข้อมูลที่ยังเป็น Series อยู่
-# เพื่อให้ส่วนอื่นที่เรียกใช้สามารถทำงานกับข้อมูลดิบได้ง่ายขึ้น
 @ttl_cache(CACHE_TTL_DATA)
 def _get_leadership_data(mode: str) -> dict:
     """Internal function to fetch and compute all necessary data for the board."""
@@ -31,19 +29,16 @@ def _get_leadership_data(mode: str) -> dict:
     if not dash_data.get("ok"):
          return {"ok": False, "error": "Dashboard computation failed"}
 
-    # ✅ CROSS-FILE SYNC: แก้ไข Key ที่ใช้ดึงข้อมูลให้ตรงกับที่ pipeline.py ส่งมาจริงๆ
-    # pipeline.py ส่ง rs_now และ rs_7 ที่เป็น Pandas Series อยู่แล้ว ไม่ต้องเปลี่ยนชื่อ Key
     return {
         "ok": True,
         "combined": combined,
         "ticker_meta": ticker_meta,
-        "rs_now": dash_data.get("rs_now"),      # ใช้ Key "rs_now" ที่ถูกต้อง
-        "rs_7": dash_data.get("rs_7"),        # ใช้ Key "rs_7" ที่ถูกต้อง
+        "rs_now": dash_data.get("rs_now"),
+        "rs_7": dash_data.get("rs_7"),
         "ticker_signal": dash_data.get("ticker_signal"),
         "total_universe": len(combined),
     }
 
-# --- ฟังก์ชัน _calc_trend_template, _calc_accumulation, _calc_volatility เหมือนเดิม ไม่มีการแก้ไข ---
 def _calc_trend_template(df: pd.DataFrame) -> dict:
     if len(df) < 200:
         return {"trend_c1": False, "trend_c2": False, "trend_c3": False, "trend_c4": False, "trend_score": 0}
@@ -65,7 +60,7 @@ def _calc_accumulation(df: pd.DataFrame) -> dict:
     down_vol = tail["Volume"][change <= 0].sum()
     ud_ratio = up_vol / down_vol if down_vol > 0 else 5.0
     ad = ((df['Close'] - df['Low']) - (df['High'] - df['Close'])) / (df['High'] - df['Low']).replace(0, np.nan) * df['Volume']
-    ad = ad.fillna(0) # ป้องกัน NaN propagation
+    ad = ad.fillna(0)
     ad_smooth = ad.ewm(span=LB_ACCUM_LOOKBACK, adjust=False).mean()
     vol_smooth = df['Volume'].ewm(span=LB_ACCUM_LOOKBACK, adjust=False).mean()
     accum_score = ad_smooth.iloc[-1] / vol_smooth.iloc[-1] if vol_smooth.iloc[-1] > 0 else 0.0
@@ -76,7 +71,7 @@ def _calc_volatility(df: pd.DataFrame) -> dict:
     if len(df) < lookback:
         return {"base_tight": 100.0, "vol_ratio": 1.0}
     tail = df["Close"].tail(lookback)
-    base_tight = (tail.max() - tail.min()) / tail.min() * 100
+    base_tight = (tail.max() - tail.min()) / tail.min() * 100 if tail.min() > 0 else 100.0
     vol_tail = df["Volume"].tail(LB_VOL_WINDOW)
     vol_ratio = vol_tail.iloc[-1] / vol_tail.iloc[:-1].mean() if len(vol_tail) > 1 and vol_tail.iloc[:-1].mean() > 0 else 1.0
     return {"base_tight": round(float(base_tight), 2), "vol_ratio": round(float(vol_ratio), 1)}
@@ -84,27 +79,23 @@ def _calc_volatility(df: pd.DataFrame) -> dict:
 
 @ttl_cache(CACHE_TTL_DATA)
 def build_leadership_board(mode: str) -> dict:
-    """
-    This is the main, self-contained function for the leadership board.
-    It fetches its own data via the pipeline.
-    """
     data = _get_leadership_data(mode=mode)
     if not data.get("ok"):
         return data
 
     combined = data["combined"]
     ticker_meta = data["ticker_meta"]
-    rs_now = data["rs_now"]
-    rs_7 = data["rs_7"]
-    ticker_signal = data["ticker_signal"]
+    rs_now = data.get("rs_now")
+    rs_7 = data.get("rs_7")
+    ticker_signal = data.get("ticker_signal")
 
-    # ป้องกันกรณี pipeline ไม่สามารถคำนวณ RS ได้
     if rs_now is None: rs_now = pd.Series(dtype=float)
     if rs_7 is None: rs_7 = pd.Series(dtype=float)
+    if ticker_signal is None: ticker_signal = {}
 
     all_stocks = []
     for ticker, df in combined.items():
-        if len(df) < 50: continue
+        if df is None or len(df) < 50: continue
         meta = ticker_meta.get(ticker, {})
         last = df.iloc[-1]
 
@@ -112,9 +103,8 @@ def build_leadership_board(mode: str) -> dict:
         accum_data = _calc_accumulation(df)
         vol_data = _calc_volatility(df)
 
-        # ใช้ HIGH_52W ที่อาจมีอยู่ใน df ก่อน ถ้าไม่มีให้ใช้ rolling max
-        high_52w = last.get("HIGH_52W", df['High'].tail(252).max() if len(df) >= 252 else last['High'])
-        prox_52w = (last["Close"] / high_52w - 1) * 100 if high_52w else 0.0
+        high_52w = last.get("HIGH_52W", df['High'].tail(252).max() if len(df) >= 252 else df['High'].max())
+        prox_52w = (last["Close"] / high_52w - 1) * 100 if high_52w and high_52w > 0 else 0.0
 
         drawdown_pct = eng.current_drawdown_from_peak(df["Close"])
 
@@ -127,17 +117,16 @@ def build_leadership_board(mode: str) -> dict:
         ls_accum = min(1, max(0, accum_data["accum_score"] / 0.5)) * 100 * 0.15
         ls_tight = max(0, 100 - vol_data["base_tight"] * 2) * 0.10
         ls_drs7 = min(100, max(0, drs7_val * 5)) * 0.08
-        ls_vol = min(100, max(0, (vol_data["vol_ratio"] -1) * 50)) * 0.07 # ปรับการคำนวณ vol score ให้สมเหตุสมผลขึ้น
+        ls_vol = min(100, max(0, (vol_data["vol_ratio"] - 1) * 50)) * 0.07
         ls_total = int(ls_rs + ls_trend + ls_prox + ls_accum + ls_tight + ls_drs7 + ls_vol)
 
         signals = ticker_signal.get(ticker, {})
 
-        # ✅ FIXED: แก้ไขการเรียกใช้ฟังก์ชันจาก eng._pct_change เป็น eng.pct_change
         all_stocks.append({
             "ticker": ticker, "symbol": meta.get("name", ticker).split(".")[0], "name": meta.get("name", ""),
             "theme": meta.get("theme", ""), "market": meta.get("market", ""), "ls": ls_total,
             "rs": rs_val, "drs7": drs7_val, **trend_data, **accum_data, **vol_data,
-            "prox_52w": abs(round(prox_52w, 1)), "drawdown_pct": round(drawdown_pct,1),
+            "prox_52w": abs(round(prox_52w, 1)), "drawdown_pct": round(drawdown_pct, 1),
             "r1d": eng.pct_change(df['Close'], 1),
             "r1m": eng.pct_change(df['Close'], 21),
             "r3m": eng.pct_change(df['Close'], 63),
@@ -147,7 +136,6 @@ def build_leadership_board(mode: str) -> dict:
             "is_near_52w": signals.get("rolled", {}).get("52W", False),
         })
 
-    # --- ส่วนที่เหลือของฟังก์ชันเหมือนเดิมทุกประการ ไม่ต้องแก้ไข ---
     overall = sorted(all_stocks, key=lambda x: x["ls"], reverse=True)[:LB_TOP_N * 2]
     top_rs = sorted([s for s in all_stocks if s["rs"] >= 90], key=lambda x: x["rs"], reverse=True)[:LB_TOP_N]
     top_momentum = sorted([s for s in all_stocks if s["drs7"] > 0], key=lambda x: x["drs7"], reverse=True)[:LB_TOP_N]
