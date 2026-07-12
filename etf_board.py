@@ -167,6 +167,7 @@ def fetch_etf_board() -> dict:
         cat_rows = [r for r in rows if r["cat"] == cat]
 
         # ✨ FIX: เพิ่ม Guard clause ป้องกัน Division by Zero
+        # หากไม่มี ETF ใน Category นี้ ให้ข้ามไปเลย
         if not cat_rows:
             continue
 
