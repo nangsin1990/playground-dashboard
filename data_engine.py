@@ -75,6 +75,32 @@ def rs_rating_table(close_df: pd.DataFrame, period: int) -> pd.Series:
     """Placeholder: คืนค่า RS เป็น 50 สำหรับทุกตัว"""
     return pd.Series(50, index=close_df.columns)
 
+# --- ฟังก์ชันสำหรับ Technical Analysis (ถูกเรียกจาก technical_analysis.py) ---
+
+def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """Placeholder for complex indicators called by technical_analysis.py"""
+    df_copy = df.copy()
+    df_copy['VWAP'] = (df_copy['Close'] * df_copy['Volume']).cumsum() / df_copy['Volume'].cumsum()
+    rolling_20 = df_copy['Close'].rolling(window=20)
+    df_copy['BB_MID'] = rolling_20.mean()
+    df_copy['BB_STD'] = rolling_20.std()
+    df_copy['BB_UPPER'] = df_copy['BB_MID'] + (df_copy['BB_STD'] * 2)
+    df_copy['BB_LOWER'] = df_copy['BB_MID'] - (df_copy['BB_STD'] * 2)
+    return df_copy
+
+def tech_snapshot(df: pd.DataFrame):
+    """Placeholder for technical analysis snapshot"""
+    return {}
+
+def rs_vs_benchmark(stock_close: pd.Series, benchmark_close: pd.Series):
+    """Placeholder for Relative Strength vs Benchmark calculation"""
+    return {}
+
+def sector_relative_strength(stock_close: pd.Series, sector_close: pd.Series):
+    """Placeholder for Relative Strength vs Sector calculation"""
+    return {}
+
+
 # --- Single Source of Truth for RRG ---
 
 def calculate_rrg_metrics(
@@ -136,6 +162,45 @@ def calculate_rrg_metrics(
 
     return results
 
-def tech_snapshot(df: pd.DataFrame):
-    """Placeholder for technical analysis snapshot"""
-    return {}
+# --- Single Source of Truth for Correlation Matrix ---
+# ✨ NEW: เพิ่มฟังก์ชันที่ขาดหายไปนี้เข้ามา
+
+def compute_correlation_matrix(combined: dict[str, pd.DataFrame], tickers: list[str], days: int) -> dict:
+    """
+    Computes a pairwise correlation matrix for the given tickers over a specific period.
+    Called by correlation.py
+    """
+    try:
+        # 1. สร้าง DataFrame ของราคาปิดจาก tickers ที่ระบุ
+        close_df = pd.DataFrame({
+            t: data['Close']
+            for t, data in combined.items()
+            if t in tickers and data is not None and not data.empty and len(data) >= days
+        })
+
+        if close_df.empty or len(close_df.columns) < 2:
+            return {"ok": False, "error": "Not enough valid historical data to compute correlation."}
+
+        # 2. Trim ข้อมูลให้เหลือเฉพาะช่วงเวลาที่ต้องการ และคำนวณ daily returns
+        returns = close_df.tail(days).pct_change().dropna(how='all')
+
+        if len(returns) < 2:
+            return {"ok": False, "error": "Not enough return data points for correlation."}
+
+        # 3. คำนวณ Correlation Matrix
+        corr_matrix_df = returns.corr(method='pearson')
+
+        # 4. แปลง NaN เป็น None เพื่อให้ JSON serializable
+        corr_matrix_df = corr_matrix_df.where(pd.notnull(corr_matrix_df), None)
+
+        # 5. จัดรูปแบบผลลัพธ์
+        matrix_list = corr_matrix_df.values.tolist()
+        labels = corr_matrix_df.columns.tolist()
+
+        return {
+            "ok": True,
+            "labels": labels,
+            "matrix": matrix_list,
+        }
+    except Exception as e:
+        return {"ok": False, "error": f"An error occurred in compute_correlation_matrix: {e}"}
