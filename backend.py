@@ -1,15 +1,15 @@
-# FILE: backend.py
-# (โค้ดทั้งหมดของคุณตั้งแต่ต้นจนเกือบสุดท้ายยังอยู่เหมือนเดิมทุกประการ)
-
 from __future__ import annotations
+
 import logging
+import os
 from datetime import datetime
-from pathlib import Path
-from typing import Optional, Callable
-from fastapi import FastAPI, Query, HTTPException, Request, Depends
+from typing import Callable, Optional
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+
 try:
     from cache_utils import ttl_cache
 except Exception:
@@ -21,7 +21,20 @@ try:
 except Exception:
     CACHE_TTL_DATA = 300
 try:
-    import data_io, pipeline, global_market as gm, etf_board as eb, market_regime as mr, leadership as lb, thematic_matrix as tm, rotation_rrg as rrg, economic_calendar as ec, correlation as corr, screener as scr, technical_analysis as ta, data_engine as eng, pandas as pd
+    import correlation as corr
+    import data_engine as eng
+    import data_io
+    import economic_calendar as ec
+    import etf_board as eb
+    import global_market as gm
+    import leadership as lb
+    import market_regime as mr
+    import pandas as pd
+    import pipeline
+    import rotation_rrg as rrg
+    import screener as scr
+    import technical_analysis as ta
+    import thematic_matrix as tm
 except Exception as e:
     print("IMPORT WARNING:", e)
 
@@ -112,7 +125,9 @@ def rotation_api(mode: str = Query("core"), market: str = Query("GLOBAL"), _: No
 
 @app.get("/api/screener")
 def screener_api(request: Request, mode: str = Query("core"), _: None = Depends(get_cache_clearer(scr._get_all_rows.cache_clear))):
-    params, sort_by, sort_desc = dict(request.query_params), params.get("sort_by", "ls"), params.get("sort_desc", "true").lower() == "true"
+    params = dict(request.query_params)
+    sort_by = params.get("sort_by", "ls")
+    sort_desc = params.get("sort_desc", "true").lower() == "true"
     return _resp(scr.fetch_screener(mode=mode, params=params, sort_by=sort_by, sort_desc=sort_desc))
 
 @app.get("/api/thematic")
@@ -133,50 +148,22 @@ def dividends_api(ticker: str, _: None = Depends(get_cache_clearer(ta.fetch_divi
 @app.get("/api/options_iv")
 def options_iv_api(ticker: str, _: None = Depends(get_cache_clearer(ta.fetch_options_iv.cache_clear))): return _resp(ta.fetch_options_iv(ticker=ticker))
 
-# =============================================================================
-#  HTML & STATIC FILE SERVING (REFACTORED)
-#  ปรับปรุงใหม่ให้ชัดเจนและแก้ปัญหา 404
-# =============================================================================
-
-# --- 1. Static Files Mount (คงเดิม) ---
-# Mount โฟลเดอร์ 'static' เพื่อให้เข้าถึงไฟล์ CSS, JS ผ่าน path /static/
-# จุดนี้ทำงานถูกต้องและเป็นมาตรฐานอยู่แล้ว
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-
-# --- 2. HTML Page-Specific Routes (ส่วนที่แก้ไข) ---
-# [🔥 REMOVED] ลบ mount แบบ catch-all ที่เป็นต้นตอของปัญหาทิ้งไป
-# app.mount("/", StaticFiles(directory=".", html=True), name="app")
-
-# [✨ ADDED] เพิ่ม Route สำหรับเสิร์ฟหน้า index.html โดยเฉพาะ
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def serve_index_page(request: Request):
-    """
-    เสิร์ฟหน้าหลัก 'index.html' เมื่อผู้ใช้เข้าถึง URL ราก (/)
-    """
     log.info(f"Serving index.html for request: {request.url.path}")
     return FileResponse("index.html")
 
-# [✨ ADDED] เพิ่ม Route สำหรับเสิร์ฟไฟล์ .html อื่นๆ ตามชื่อ
-@app.get("/{page_name}.html", response_class=HTMLResponse)
+@app.get("/{page_name}.html", response_class=HTMLResponse, include_in_schema=False)
 async def serve_html_page(request: Request, page_name: str):
-    """
-    เสิร์ฟไฟล์ .html อื่นๆ ตามชื่อที่ร้องขอ
-    ตัวอย่าง: การเรียก /rotation.html จะเสิร์ฟไฟล์ rotation.html
-    """
-    # Basic security: ป้องกันการเข้าถึงไฟล์นอก directory
     if ".." in page_name or "/" in page_name:
-        return HTMLResponse(content="404 Not Found", status_code=404)
+        raise HTTPException(status_code=404, detail="Not Found")
 
     file_path = f"{page_name}.html"
-    log.info(f"Attempting to serve: {file_path}")
     if os.path.exists(file_path):
+        log.info(f"Serving HTML page: {file_path}")
         return FileResponse(file_path)
     else:
         log.error(f"HTML file not found: {file_path}")
-        return HTMLResponse(content=f"404 Page Not Found: {file_path}", status_code=404)
-
-# เพิ่มการ import ที่จำเป็นสำหรับโค้ดใหม่
-from fastapi.responses import HTMLResponse, FileResponse
-import os
-# หมายเหตุ: คุณอาจจะต้องย้าย import เหล่านี้ไปไว้ด้านบนของไฟล์เพื่อให้เป็นระเบียบ
+        raise HTTPException(status_code=404, detail=f"Page not found: {page_name}.html")
