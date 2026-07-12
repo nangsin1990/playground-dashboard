@@ -227,6 +227,29 @@ def theme_returns(close_df: pd.DataFrame, theme_map: dict, ticker_meta: dict, rs
         }
     return pd.DataFrame.from_dict(theme_data, orient='index').reset_index().rename(columns={'index': 'theme'})
 
+# --- Correlation Matrix Engine ---
+
+def compute_correlation_matrix(data: dict, tickers: list, days: int) -> dict:
+    close_df = pd.DataFrame({t: df['Close'] for t, df in data.items() if df is not None and not df.empty}).tail(days + 1)
+    if len(close_df) < days + 1:
+        return {"ok": False, "error": f"Not enough data ({len(close_df)} days) for correlation"}
+
+    returns = close_df.pct_change().dropna()
+    corr_matrix = returns.corr()
+
+    # Get final valid tickers from the correlation matrix itself
+    final_tickers = corr_matrix.columns.tolist()
+
+    matrix_list = []
+    for i in range(len(final_tickers)):
+        row = []
+        for j in range(len(final_tickers)):
+            val = corr_matrix.iloc[i, j]
+            row.append(round(float(val), 3) if pd.notna(val) else None)
+        matrix_list.append(row)
+
+    return {"ok": True, "labels": final_tickers, "matrix": matrix_list}
+
 # --- Technical Analysis Engine (for Stock Deep Dive) ---
 
 def tech_snapshot(df: pd.DataFrame):
@@ -276,21 +299,3 @@ def rs_vs_benchmark(stock_close: pd.Series, bench_close: pd.Series):
 
 def sector_relative_strength(stock_close: pd.Series, sector_close: pd.Series):
     return rs_vs_benchmark(stock_close, sector_close)
-
-def compute_correlation_matrix(data: dict, tickers: list, days: int) -> dict:
-    close_df = pd.DataFrame({t: df['Close'] for t, df in data.items()}).tail(days + 1)
-    if len(close_df) < days:
-        return {"ok": False, "error": f"Not enough data ({len(close_df)} days) for correlation"}
-
-    returns = close_df.pct_change().dropna()
-    corr_matrix = returns.corr()
-
-    matrix_list = []
-    for i in range(len(corr_matrix)):
-        row = []
-        for j in range(len(corr_matrix)):
-            val = corr_matrix.iloc[i, j]
-            row.append(round(float(val), 3) if pd.notna(val) else None)
-        matrix_list.append(row)
-
-    return {"ok": True, "labels": corr_matrix.columns.tolist(), "matrix": matrix_list}
