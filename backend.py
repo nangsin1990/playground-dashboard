@@ -133,21 +133,50 @@ def dividends_api(ticker: str, _: None = Depends(get_cache_clearer(ta.fetch_divi
 @app.get("/api/options_iv")
 def options_iv_api(ticker: str, _: None = Depends(get_cache_clearer(ta.fetch_options_iv.cache_clear))): return _resp(ta.fetch_options_iv(ticker=ticker))
 
+# =============================================================================
+#  HTML & STATIC FILE SERVING (REFACTORED)
+#  ปรับปรุงใหม่ให้ชัดเจนและแก้ปัญหา 404
+# =============================================================================
 
-# ============================[ 🚨 การเปลี่ยนแปลงสำคัญ 🚨 ]============================
-#
-# เราจะตั้งค่า "เสาอากาศ" 2 อันให้ FastAPI ครับ
-# ลำดับสำคัญมาก: เราต้องตั้งค่าอันที่เฉพาะเจาะจงกว่าก่อน
-
-# 1. เสาอากาศสำหรับ JS/CSS:
-#    บอก FastAPI ว่า "ถ้ามีใครขอไฟล์ที่ขึ้นต้นด้วย /static/... ให้ไปหาจากโฟลเดอร์ที่ชื่อ 'static' นะ"
-#    นี่คือการทำให้ JavaScript, CSS, รูปภาพต่างๆ โหลดได้ครับ
+# --- 1. Static Files Mount (คงเดิม) ---
+# Mount โฟลเดอร์ 'static' เพื่อให้เข้าถึงไฟล์ CSS, JS ผ่าน path /static/
+# จุดนี้ทำงานถูกต้องและเป็นมาตรฐานอยู่แล้ว
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# 2. เสาอากาศสำหรับ HTML (ตัวหลัก):
-#    บอก FastAPI ว่า "สำหรับคำขออื่นๆ ที่เหลือทั้งหมด (เช่น / หรือ /correlation) ให้ไปหาไฟล์ .html
-#    จากโฟลเดอร์ปัจจุบัน (.) นะ"
-#    ตัวนี้ต้องอยู่ล่างสุดเสมอ เพราะมันเป็นตัวรับทุกอย่างที่เสาอากาศตัวบนไม่รับ
-app.mount("/", StaticFiles(directory=".", html=True), name="app")
-#
-# ====================================================================================
+
+# --- 2. HTML Page-Specific Routes (ส่วนที่แก้ไข) ---
+# [🔥 REMOVED] ลบ mount แบบ catch-all ที่เป็นต้นตอของปัญหาทิ้งไป
+# app.mount("/", StaticFiles(directory=".", html=True), name="app")
+
+# [✨ ADDED] เพิ่ม Route สำหรับเสิร์ฟหน้า index.html โดยเฉพาะ
+@app.get("/", response_class=HTMLResponse)
+async def serve_index_page(request: Request):
+    """
+    เสิร์ฟหน้าหลัก 'index.html' เมื่อผู้ใช้เข้าถึง URL ราก (/)
+    """
+    log.info(f"Serving index.html for request: {request.url.path}")
+    return FileResponse("index.html")
+
+# [✨ ADDED] เพิ่ม Route สำหรับเสิร์ฟไฟล์ .html อื่นๆ ตามชื่อ
+@app.get("/{page_name}.html", response_class=HTMLResponse)
+async def serve_html_page(request: Request, page_name: str):
+    """
+    เสิร์ฟไฟล์ .html อื่นๆ ตามชื่อที่ร้องขอ
+    ตัวอย่าง: การเรียก /rotation.html จะเสิร์ฟไฟล์ rotation.html
+    """
+    # Basic security: ป้องกันการเข้าถึงไฟล์นอก directory
+    if ".." in page_name or "/" in page_name:
+        return HTMLResponse(content="404 Not Found", status_code=404)
+
+    file_path = f"{page_name}.html"
+    log.info(f"Attempting to serve: {file_path}")
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    else:
+        log.error(f"HTML file not found: {file_path}")
+        return HTMLResponse(content=f"404 Page Not Found: {file_path}", status_code=404)
+
+# เพิ่มการ import ที่จำเป็นสำหรับโค้ดใหม่
+from fastapi.responses import HTMLResponse, FileResponse
+import os
+# หมายเหตุ: คุณอาจจะต้องย้าย import เหล่านี้ไปไว้ด้านบนของไฟล์เพื่อให้เป็นระเบียบ
