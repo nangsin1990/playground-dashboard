@@ -256,14 +256,9 @@ tr:hover td { background: var(--panel2); }
 
 /* ── Responsive rules ──────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  /* Show hamburger, hide nav-links in topnav */
-  .nav-hamburger          { display: flex; }
-  .topnav .nav-links      { display: none; }
-  .topnav .nav-right      { display: none; }
-  .topnav .brand-text     { display: none; }   /* keep icon only */
-
-  /* index.html sidebar */
-  .sidebar                { display: none !important; }
-  .layout                 { flex-direction: column; }
-  .main-content           { overflow: auto; }
+  /* mobile menu ถูกยกเลิก — เมนูหลักยังโชว์และเลื่อนแนวนอนได้ */
+  .nav-hamburger          { display: none !important; }
+  .nav-overlay, .nav-drawer { display: none !important; }
+  .topnav .nav-links      { display: flex; overflow-x: auto; }
+  .sidebar                { display: flex !important; }
 }

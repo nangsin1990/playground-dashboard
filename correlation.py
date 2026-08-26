@@ -24,7 +24,7 @@ CORR_GROUPS = {
     "XLK":  "Sector","XLF":  "Sector","XLE":  "Sector","XLV":  "Sector",
     "TLT":  "Bonds", "IEF":  "Bonds", "HYG":  "Bonds",
     "GLD":  "Cmdty", "SLV":  "Cmdty", "USO":  "Cmdty",
-    "DXY":  "FX",    "UUP":  "FX",
+    "DX-Y.NYB": "FX", "UUP":  "FX",
     "VXX":  "Vol",
 }
 

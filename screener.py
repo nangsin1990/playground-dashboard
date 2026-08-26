@@ -51,11 +51,65 @@ def _get_all_rows(mode: str) -> list[dict]:
     return rows
 
 def apply_filters(rows: list[dict], params: dict) -> list[dict]:
-    # ... (function body is unchanged) ...
     def n(key, default=None):
         v = params.get(key)
-        return float(v) if v is not None and v != "" else default
-    # ...
+        if v is None or v == "":
+            return default
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return default
+
+    rs_min = n("rs_min")
+    rs_max = n("rs_max")
+    trend_min = n("trend_min")
+    accum_min = n("accum_min")
+    vol_min = n("vol_min")
+    prox_max = n("prox_max")
+    ls_min = n("ls_min")
+    r1m_min = n("r1m_min")
+    r3m_min = n("r3m_min")
+    drs7_min = n("drs7_min")
+    market = (params.get("market") or "").strip()
+    theme = (params.get("theme") or "").strip().lower()
+    signal = (params.get("signal") or "").strip().upper()
+
+    signal_flag = {
+        "VDU": "is_vdu",
+        "PPBP": "is_pocket",
+        "BGU": "is_bgu",
+        "52W": "is_near_52w",
+    }.get(signal)
+
+    out = []
+    for r in rows:
+        if rs_min is not None and (r.get("rs") or 0) < rs_min:
+            continue
+        if rs_max is not None and (r.get("rs") or 0) > rs_max:
+            continue
+        if trend_min is not None and (r.get("trend_score") or 0) < trend_min:
+            continue
+        if accum_min is not None and (r.get("accum_score") or 0) < accum_min:
+            continue
+        if vol_min is not None and (r.get("vol_ratio") or 0) < vol_min:
+            continue
+        if prox_max is not None and (r.get("prox_52w") or 0) > prox_max:
+            continue
+        if ls_min is not None and (r.get("ls") or 0) < ls_min:
+            continue
+        if r1m_min is not None and (r.get("r1m") if r.get("r1m") is not None else -9999) < r1m_min:
+            continue
+        if r3m_min is not None and (r.get("r3m") if r.get("r3m") is not None else -9999) < r3m_min:
+            continue
+        if drs7_min is not None and (r.get("drs7") or 0) < drs7_min:
+            continue
+        if market and r.get("market") != market:
+            continue
+        if theme and theme not in (r.get("theme") or "").lower():
+            continue
+        if signal_flag and not r.get(signal_flag):
+            continue
+        out.append(r)
     return out
 
 def fetch_screener(mode: str, params: dict, sort_by: str = "ls",

@@ -103,7 +103,7 @@ CORR_TICKERS = [
     "XLK", "XLF", "XLE", "XLV",
     "TLT", "IEF", "HYG",
     "GLD", "SLV", "USO",
-    "DXY", "UUP",
+    "DX-Y.NYB", "UUP",
     "VXX",
 ]
 CORR_PERIOD_DAYS = 63
