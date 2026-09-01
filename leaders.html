@@ -459,13 +459,7 @@ async function load(){
     const json = await res.json();
     if(!json.ok) throw new Error(json.error||"API error");
     data = json;
-    pool = json.universe || [];
-    if(pool.length){
-      const take = (arr,n=80)=>arr.slice(0,n);
-      const byMkt = r => marketFilter==="ALL" || r.market===marketFilter;
-      // keep server lists; client still filters by market in renderTable
-      data.universe = pool;
-    }
+    pool = [];
     document.getElementById("updTime").textContent = "Updated: " + json.updated;
     renderStats();
     renderTable();
