@@ -12,10 +12,16 @@ echo "║     สนามเด็กเล่น Playground · PLAYGROUND DASH
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 
-# 1. Python deps
-if ! python3 -c "import fastapi,uvicorn,yfinance,pandas,numpy,aiofiles" 2>/dev/null; then
+# 1. Python deps in a local venv (do not touch system packages)
+if [ ! -d .venv ]; then
+  echo "📦  Creating virtualenv..."
+  python3 -m venv .venv
+fi
+# shellcheck disable=SC1091
+source .venv/bin/activate
+if ! python -c "import fastapi,uvicorn,yfinance,pandas,numpy,aiofiles" 2>/dev/null; then
   echo "📦  Installing Python dependencies..."
-  pip install -r requirements.txt --break-system-packages -q
+  python -m pip install -r requirements.txt -q
 fi
 
 # 2. ngrok check
@@ -28,10 +34,11 @@ fi
 
 # 3. Pick port
 PORT=${PORT:-8000}
+HOST=${HOST:-0.0.0.0}
 
 # 4. Start uvicorn in background
 echo "🚀  Starting backend on port $PORT..."
-uvicorn backend:app --host 0.0.0.0 --port "$PORT" &
+uvicorn backend:app --host "$HOST" --port "$PORT" &
 UVICORN_PID=$!
 sleep 2
 
@@ -57,9 +64,10 @@ fi
 
 echo ""
 echo "  API endpoints:"
-echo "  GET /api/status                   — health check"
-echo "  GET /api/dashboard?mode=core|full — full payload (cached 15 min)"
-echo "  GET /api/search?q=<keyword>       — search confluence watchlist"
+echo "  GET  /api/health/live|/ready|/data"
+echo "  GET  /api/dashboard?mode=core|full"
+echo "  POST /api/admin/refresh           — ล้าง cache (มี cooldown)"
+echo "  GET  /api/search?q=<keyword>"
 echo ""
 echo "  Ctrl+C เพื่อหยุด"
 echo ""

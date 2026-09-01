@@ -225,7 +225,8 @@ async function loadData(forceRefresh=false) {
   document.getElementById('errorBox').style.display='none';
 
   try {
-    const res = await fetch(`/api/calendar${forceRefresh?'?refresh=1':''}`);
+    if(forceRefresh){ try{ await requestCacheRefresh(); }catch(e){} }
+    const res = await fetch('/api/calendar');
     const data = await res.json();
     if (!data.ok) throw new Error(data.error||'API error');
 
@@ -241,7 +242,7 @@ async function loadData(forceRefresh=false) {
       <span class="conn-pill ${data.yf_earnings_connected?'conn-ok':'conn-warn'}">${data.yf_earnings_connected?'✓':'⚠'} yfinance</span>`;
 
     document.getElementById('statusText').textContent =
-      `อัปเดต ${data.updated} · ${data.total} events · FRED ${data.fred_connected?'connected':'fallback (static)'} · yfinance ${data.yf_earnings_connected?'connected':'unavailable'}`;
+      `อัปเดต ${data.updated} · ${data.total} events · source ${data.source_status|| (data.fred_connected?'live':'fallback')} · yfinance ${data.yf_earnings_connected?'connected':'unavailable'}${data.warning?' · '+data.warning:''}`;
 
     applyFilter();
     document.getElementById('loader').style.display='none';

@@ -332,7 +332,7 @@ async function runScreen(refresh=false){
 
   const t0 = Date.now();
   const params = collectParams();
-  if(refresh) params.set("refresh","1");
+  if(refresh){ try{ await requestCacheRefresh(); }catch(e){} }
 
   try {
     const r = await fetch("/api/screener?" + params.toString());

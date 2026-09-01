@@ -155,7 +155,8 @@ async function loadData(refresh = false) {
   document.getElementById("error").style.display   = "none";
 
   try {
-    const url = "/api/correlation" + (refresh ? "?refresh=1" : "");
+    if(refresh){ try{ await requestCacheRefresh(); }catch(e){} }
+    const url = "/api/correlation";
     const r   = await fetch(url);
     const d   = await r.json();
     if (!d.ok) throw new Error(d.error || "API error");

@@ -296,7 +296,8 @@ async function load(refresh=false) {
   document.getElementById("errBanner").style.display = "none";
   document.getElementById("btnRefresh").disabled = true;
   try {
-    const res = await fetch(`/api/global${refresh ? "?refresh=1" : ""}`);
+    if(refresh){ try{ await requestCacheRefresh(); }catch(e){} }
+    const res = await fetch("/api/global");
     const d = await res.json();
     if (!d.ok) throw new Error(d.error || "API error");
 

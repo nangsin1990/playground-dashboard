@@ -339,7 +339,8 @@ async function loadData(forceRefresh=false) {
   document.getElementById('statusBar').style.display='none';
 
   try {
-    const url = `/api/thematic?mode=${mode}${forceRefresh?'&refresh=1':''}`;
+    if(forceRefresh){ try{ await requestCacheRefresh(); }catch(e){} }
+    const url = `/api/thematic?mode=${mode}`;
     const res = await fetch(url);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'API error');

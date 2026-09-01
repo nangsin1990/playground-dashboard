@@ -1,316 +1,142 @@
-# 🛝 Playground — Market Dashboard
+# Playground Dashboard
 
-Quantitative Market Breadth + Confluence Scanner  
-**Real data from Yahoo Finance · FastAPI backend · ngrok tunnel**
+แดชบอร์ดดูภาพรวมตลาดหลายประเทศ ใช้ข้อมูลหลักจาก Yahoo Finance (`yfinance`)
+มี FastAPI เป็น backend และหน้า HTML/JS แยกตามหน้าที่
 
-Universe: S&P500 + Nasdaq100 + ETF100 · SET100 · HSI · Nikkei225 · KOSPI200 · CSI300 (~913 tickers)
-
-A lightweight market intelligence dashboard for systematic investors.
-
-Playground Dashboard combines global market breadth, quantitative stock screening, leadership analysis, thematic investing, ETF monitoring, and sector rotation into a single web application powered primarily by Yahoo Finance data.
-
-The goal is simple:
-> 💡 Understand the market, discover opportunities, manage risk, and make better investment decisions.
----
-
-## ▶️ Run as Google Colab (Simple way)
-
-Open > notebook in Colab already:
-
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nangsin1990/stock-homework-dashboard/blob/main/Stock_Homework_Dashboard.ipynb)
+สถานะ: ใช้ศึกษา/วิจัยได้ แต่ยังไม่ควรเปิด public โดยไม่ใส่ API key + reverse proxy
 
 ---
 
-## 🚀 Work instruction
+## สิ่งที่มีจริงในแพ็กเกจนี้
 
-### OGoogle Colab + ngrok (recommend) ###
+- Market breadth / regime
+- Leadership + Laggards
+- Screener
+- Theme matrix
+- Rotation (RRG)
+- ETF board
+- Global market
+- Economic calendar (FRED ถ้ามี key, ไม่มีแล้วใช้ fallback ที่ติดป้ายชัด)
+- Earnings board / event impact
+- Technicals รายตัว, sector RS, dividends, options IV
+- Personal watchlist
 
-1. Open [colab.research.google.com](https://colab.research.google.com)
-2. File → Open notebook → GitHub → input `nangsin1990/playground-dashboard`
-3. Open `playground-dashboard.ipynb`
-4. ใส่ ngrok token ใน Cell 2
-5. Runtime → Run all → Open URL
-
----
-
-## ✨ Features
-
-### 📈 Market Overview
-
-Monitor overall market health across multiple countries.
-
-* 🌐 Market Breadth
-    * 📈 % Above MA50
-    * 📉 % Above MA200
-    * 📊 Advance / Decline
-    * 🆕 New High / New Low
-* 🔍 Market Regime Detection
-* 📥 Signal Accumulation
-* 🏥 Market Health Indicators
+สิ่งที่ README เก่าพูดถึงแต่ยังไม่มีโมดูลในซอร์สชุดนี้:
+- Portfolio Analytics
+- Risk Dashboard
+- Trading Journal
+- Smart Alerts
 
 ---
 
-### 🌍 Global Market
+## โครงสร้างไฟล์จริง
 
-Track major global asset classes.
-
-* 🇺🇸 Equity Markets
-    * 🇺🇸 United States
-    * 🇹🇭 Thailand
-    * 🇯🇵 Japan
-    * 🇭🇰 Hong Kong
-    * 🇨🇳 China
-    * 🇰🇷 South Korea
-* 📦 ETFs
-* 📊 Major Indices
-* 🏆 Market Performance Rankings
-
----
-
-### ⚡ Quant Scanner
-
-Find high-quality stock setups automatically.
-
-Supported scans include:
-
-* 💧 Volume Dry-Up (VDU)
-* 🎯 Pocket Pivot
-* 🚀 Buyable Gap-Up (BGU)
-* 🔝 Near 52-Week High
-* 💪 Relative Strength Ranking
-* 📈 Trend-Based Screening
-
----
-
-### 👑 Leadership Board
-
-Identify market leaders.
-
-* 🥇 Top Relative Strength Stocks
-* 🔥 Momentum Leaders
-* 💥 Breakout Candidates
-* 🐳 Volume Expansion Leaders
-
----
-
-### 🌌 Theme Matrix
-
-Monitor capital flows across investment themes.
-
-Examples:
-
-* 🤖 Artificial Intelligence
-* 🔌 Semiconductors
-* ☁️ Cloud Computing
-* 🛡️ Cybersecurity
-* 🍃 Clean Energy
-* 🦾 Robotics
-
-Features:
-
-* 🏅 Theme Ranking
-* 📊 Theme Performance
-* 🔄 Theme Rotation
-* 👥 Theme Leaders
-
----
-
-### 🌀 Rotation Chart
-
-Analyze sector and theme rotation.
-
-* 🗺️ Relative Rotation Graph (RRG)
-* ⚖️ Relative Strength Ratio
-* 🏎️ Relative Momentum
-* 🌊 Capital Flow Visualization
-
----
-
-### 📂 ETF Board
-
-Track major ETFs across multiple asset classes.
-
-* 📌 Index ETFs
-* 🏭 Sector ETFs
-* 🪙 Commodity ETFs
-* 🗺️ International ETFs
-
----
-
-### 📅 Economic Calendar
-
-Monitor upcoming macroeconomic events.
-
-Examples:
-
-* 🦅 FOMC Meetings
-* 🏷️ CPI Releases
-* 💼 Employment Reports
-* 📦 GDP Announcements
-
----
-
-### ⭐ Watchlist
-
-Create and monitor personalized stock lists.
-
-* ❤️ Favorite Stocks
-* 📡 Signal Tracking
-* 🎯 Relative Strength Monitoring
-
----
-
-### 💼 Portfolio Analytics
-
-Monitor portfolio exposure and allocation.
-
-* 📝 Holdings Overview
-* 🍕 Position Allocation
-* 🏭 Sector Exposure
-* 🗺️ Country Exposure
-
----
-
-### 🛡️ Risk Dashboard
-
-Measure portfolio risk.
-
-* 📉 Max Drawdown
-* 🌊 Volatility
-* 📊 Sharpe Ratio
-* 🎯 Portfolio Concentration
-* ⚠️ Risk Exposure
-
----
-
-### 📖 Trading Journal
-
-Track and evaluate trading performance.
-
-* 📝 Trade Log
-* 🎯 Setup Tracking
-* 🎯 Win Rate
-* ⚖️ Risk/Reward Analysis
-* 📊 Performance Statistics
-
----
-
-### 🔔 Smart Alerts
-
-Receive notifications for important market events.
-
-* 💥 Breakouts
-* 📡 Scanner Signals
-* 🔄 Watchlist Updates
-* ⚡ Relative Strength Changes
-
----
-
-## 🔌 Data Sources
-
-Primary Data Source:
-
-* 🟢 Yahoo Finance (yfinance)
-
-Optional Sources:
-
-* 🏛️ FRED Economic Data
-* 📊 Trading Economics
-* 📅 Custom Economic Calendar Feeds
-
----
-
-## 🗺️ Supported Markets
-
-* 🇺🇸 United States
-* 🇹🇭 Thailand
-* 🇯🇵 Japan
-* 🇭🇰 Hong Kong
-* 🇨🇳 China
-* 🇰🇷 South Korea
-
----
-
-## 🛠️ Technology Stack
-
-**Backend**
-* 🐍 Python
-* ⚡ FastAPI
-* 🐼 Pandas
-* 🔢 NumPy
-* 🟢 yfinance
-
-**Frontend**
-* 🌐 HTML
-* 🎨 CSS
-* 💛 Vanilla JavaScript
-
-**Deployment**
-* 🚂 Railway
-* ☁️ Render
-* 🚀 Google Colab
-
----
-
-## 📁 Project Structure
-
-text
-playground-dashboard/
-│
-├── ⚙️ backend.py
-
-📱 NS: ├── ⚙️ pipeline.py
-├── ⚙️ data_io.py
-├── ⚙️ data_engine.py
-├── ⚙️ cache_utils.py
-├── ⚙️ universe.py
-│
-├── 🧠 economic_calendar.py
-├── 🧠 leadership_board.py
-├── 🧠 rotation_rrg.py
-├── 🧠 thematic_matrix.py
-├── 🧠 portfolio_engine.py
-├── 🧠 risk_engine.py
-├── 🧠 watchlist_engine.py
-├── 🧠 alert_engine.py
-├── 🧠 journal_engine.py
-│
-├── 📄 requirements.txt
-├── 📄 Procfile
-├── 📄 runtime.txt
-│
-├── 📂 static/
-│   ├── 🌐 index.html
-│   ├── 💛 app.js
-│   ├── 🎨 styles.css
-│   └── 📂 pages/
-│
-└── 📓 Playground_Dashboard.ipynb
-
-## 🛣️ API Endpoints
-| Method | Endpoint | Description |
-|---|---|---|
-| 🌐 | / | Dashboard UI |
-| 💓 | /api/status | System health check |
-| 📊 | /api/dashboard | Dashboard snapshot |
-| 🎯 | /api/dashboard?mode=core | Core universe |
-| 📦 | /api/dashboard?mode=full | Full universe |
-| 🔍 | /api/scanner | Quant scanner |
-| 👑 | /api/leadership | Leadership board |
-| 🌌 | /api/themes | Theme matrix |
-| 🌀 | /api/rotation | Rotation chart |
-| 🌍 | /api/global | Global market data |
-| 📅 | /api/calendar | Economic calendar |
-| 🔎 | /api/search?q=NVDA | Symbol search |
-## 🧠 Philosophy
-Playground is designed as an investment operating system rather than a traditional stock screener.
-The platform focuses on answering five critical questions:
- 1. 🏥 Is the market healthy?
- 2. 🌊 Where is capital flowing?
- 3. 👑 Which stocks are leading?
- 4. ⚡ What opportunities exist today?
- 5. 🛡️ How much risk should I take?
-## ⚠️ Disclaimer
-This project is intended for educational and research purposes only.
-Nothing in this project should be considered financial advice. Users are responsible for conducting their own research and making their own investment decisions.
 ```
+playground-dashboard-main/
+├── backend.py
+├── security.py
+├── pipeline.py
+├── data_io.py
+├── data_engine.py
+├── cache_utils.py
+├── universe.py
+├── constants.py
+├── market_regime.py
+├── leadership.py
+├── screener.py
+├── global_market.py
+├── economic_calendar.py
+├── earnings_board.py
+├── event_impact.py
+├── rotation_rrg.py
+├── thematic_matrix.py
+├── correlation.py
+├── etf_board.py
+├── etf_meta.py
+├── technical_analysis.py
+├── personal_watchlist.py
+├── index.html / stock.html / global.html / etf.html
+├── leaders.html / laggards.html / thematic.html / rotation.html
+├── screener.html / correlation.html / calendar.html
+├── earnings.html / events.html
+├── style.css
+├── nav.js
+├── requirements.txt
+├── requirements-colab.txt
+├── Procfile
+├── runtime.txt
+├── run.sh
+└── colab_start.py
+```
+
+---
+
+## รันบนเครื่อง
+
+```bash
+cd playground-dashboard-main
+bash run.sh
+```
+
+สคริปต์จะสร้าง `.venv` แล้วเปิดที่ `http://localhost:8000`
+
+ถ้าจะเปิดออกเน็ต ให้ตั้งค่าอย่างน้อย:
+
+```bash
+export DASHBOARD_API_KEY="ใส่คีย์ยาวๆ"
+export DASHBOARD_ADMIN_KEY="คีย์แยกสำหรับล้าง cache"
+export DASHBOARD_CORS_ORIGINS="https://your-domain.example"
+export DASHBOARD_ALLOW_TUNNELS=0
+export DASHBOARD_CACHE_SECRET="สุ่มยาวๆ"
+export FRED_API_KEY="ถ้ามี"
+```
+
+---
+
+## Google Colab
+
+ใช้ `colab_start.py` และติดตั้งจาก `requirements-colab.txt` (มี `pyngrok`)
+ใส่ `NGROK_TOKEN` ในเซลล์ อย่า commit token ขึ้น GitHub
+แนะนำใส่ basic auth ของ ngrok ด้วย เพราะ API แพงต่อการดึง Yahoo
+
+---
+
+## API ที่ใช้จริง
+
+| Method | Endpoint | หมายเหตุ |
+|---|---|---|
+| GET | `/` | หน้า dashboard |
+| GET | `/api/health/live` | process ยังอยู่ |
+| GET | `/api/health/ready` | พร้อมรับ request |
+| GET | `/api/health/data` | คุณภาพข้อมูล / coverage |
+| GET | `/api/status` | boot + cache + fetch stage |
+| GET | `/api/dashboard?mode=core\|full` | ชุดหลัก |
+| GET | `/api/progress` | progress แยกตามตลาด |
+| GET | `/api/regime` | market regime |
+| GET | `/api/search?q=` | ค้นใน watchlist |
+| GET | `/api/screener` | ไม่ใช่ `/api/scanner` |
+| GET | `/api/thematic` | ไม่ใช่ `/api/themes` |
+| GET | `/api/leadership` `/api/laggards` | |
+| GET | `/api/rotation` `/api/global` `/api/etf` | |
+| GET | `/api/calendar` `/api/earnings_board` `/api/event_impact` | |
+| GET | `/api/correlation` `/api/my_watchlist` | |
+| GET | `/api/technicals?ticker=` | rate-limit เข้มกว่า |
+| GET | `/api/sector_rs` `/api/earnings` `/api/dividends` `/api/options_iv` | |
+| POST | `/api/admin/refresh` | ล้าง cache — มี cooldown ไม่ใช้ GET |
+
+`?refresh=1` บน GET ถูกตัดแล้ว เพราะเป็นการเปลี่ยนสถานะระบบ
+
+---
+
+## คุณภาพข้อมูล
+
+ระบบไม่ขึ้นว่า Yahoo OK ถ้าโหลดจักรวาลได้ไม่ครบ
+ดูที่ `feed_status.yahoo_status` = `ok | partial | down` และ `data_quality`
+
+ปฏิทินเศรษฐกิจถ้าไม่มี FRED จะติด `source_status=fallback` และ `is_fallback=true`
+
+---
+
+## Disclaimer
+
+ใช้เพื่อการศึกษา ไม่ใช่คำแนะนำการลงทุน

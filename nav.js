@@ -64,6 +64,30 @@ function fmtPctNav(v, digits = 2) {
   return `<span class="${cls}">${s}${Number(v).toFixed(digits)}%</span>`;
 }
 
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"'`]/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+    "`": "&#96;",
+  }[c]));
+}
+
+async function requestCacheRefresh() {
+  const headers = {"Content-Type": "application/json"};
+  if (window.DASHBOARD_ADMIN_KEY) headers["X-Admin-Key"] = window.DASHBOARD_ADMIN_KEY;
+  else if (window.DASHBOARD_API_KEY) headers["X-API-Key"] = window.DASHBOARD_API_KEY;
+  const res = await fetch("/api/admin/refresh", {method: "POST", headers});
+  if (res.status === 429) {
+    console.warn("refresh cooldown");
+    return {ok: false, cooldown: true};
+  }
+  if (!res.ok) return {ok: false};
+  return res.json();
+}
+
 /** Colored RS badge */
 function rsBadge(rs) {
   const c = rs >= 80 ? "#10b981" : rs >= 60 ? "#f59e0b" : rs >= 40 ? "#6b7280" : "#ef4444";

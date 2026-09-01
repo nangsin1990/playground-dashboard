@@ -227,7 +227,8 @@ async function loadData(market = 'GLOBAL', btn = null, forceRefresh = false) {
 
   try {
     // CHANGE 3: เพิ่ม market parameter ใน URL
-    const url = `/api/rotation?mode=${mode}&market=${market}${forceRefresh ? '&refresh=1' : ''}`;
+    if(forceRefresh){ try{ await requestCacheRefresh(); }catch(e){} }
+    const url = `/api/rotation?mode=${mode}&market=${market}`;
     const res = await fetch(url);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'API error');

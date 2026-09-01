@@ -394,7 +394,8 @@ async function load(refresh=false) {
   document.getElementById("errBanner").style.display = "none";
   document.getElementById("btnRefresh").disabled = true;
   try {
-    const res  = await fetch(`/api/etf${refresh?"?refresh=1":""}`);
+    if(refresh){ try{ await requestCacheRefresh(); }catch(e){} }
+    const res  = await fetch("/api/etf");
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || "API error");
     fullData = data;
