@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earnings Gap | Playground</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav class="topnav">
+  <div class="brand"><div class="brand-icon">🛝</div><div class="brand-text">Playground</div></div>
+  <div class="nav-links">
+    <a class="nav-link" href="/">📊 Overview</a>
+    <a class="nav-link" href="/global.html">🌐 Global</a>
+    <a class="nav-link" href="/etf.html">📦 ETF</a>
+    <a class="nav-link" href="/leaders.html">🏆 Leadership</a>
+    <a class="nav-link" href="/laggards.html">📉 Laggards</a>
+    <a class="nav-link" href="/thematic.html">🧩 Thematic</a>
+    <a class="nav-link" href="/rotation.html">🔄 Rotation</a>
+    <a class="nav-link" href="/screener.html">🔍 Screener</a>
+    <a class="nav-link" href="/correlation.html">📈 Correlations</a>
+    <a class="nav-link" href="/calendar.html">📅 Calendar</a>
+    <a class="nav-link active" href="/earnings.html">🧾 Earnings</a>
+    <a class="nav-link" href="/events.html">⚡ Events</a>
+    <a class="nav-link" href="/stock.html">🔬 Stock</a>
+  </div>
+</nav>
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">🧾 Earnings Gap + Technical</div>
+    <div class="page-sub">หุ้นใกล้ประกาศงบ · gap เฉลี่ย/สูงสุดในอดีต · คะแนนเทคนิคกับงบ สรุป BUY/HOLD</div>
+  </div>
+  <div class="data-lag-banner" id="note">กำลังโหลด...</div>
+  <div class="tabs" style="margin:12px 0">
+    <button class="tab-btn active" onclick="setView('combo',this)">มุมเทคนิค</button>
+    <button class="tab-btn" onclick="setView('gap',this)">สถิติ GAP</button>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead id="head"></thead>
+      <tbody id="body"><tr><td>กำลังดึงงบจาก Yahoo...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<script>
+let DATA=null, VIEW='combo';
+function setView(v,btn){ VIEW=v; document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); render(); }
+function tag(t){ return t==='BUY' ? '<span class="badge-green">BUY</span>' : '<span class="badge-muted">HOLD</span>'; }
+function pct(v){ if(v==null) return '—'; const c=v>=0?'var(--green)':'var(--red)'; return `<span style="color:${c};font-weight:700">${v>=0?'+':''}${v.toFixed(2)}%</span>`; }
+function render(){
+  if(!DATA||!DATA.ok){ document.getElementById('body').innerHTML=`<tr><td>${DATA&&DATA.error||'โหลดไม่สำเร็จ'}</td></tr>`; return; }
+  document.getElementById('note').textContent = DATA.note || '';
+  const combo = VIEW==='combo';
+  document.getElementById('head').innerHTML = combo
+    ? '<tr><th>หุ้น</th><th>ประกาศ</th><th>มุมมอง</th><th>สัญญาณ</th></tr>'
+    : '<tr><th>หุ้น</th><th>ประกาศ</th><th>Gap วันนี้</th><th>Gap เฉลี่ย</th><th>สูงสุด</th><th>วันสูงสุด</th><th>Beat</th></tr>';
+  document.getElementById('body').innerHTML = (DATA.rows||[]).map(r=> combo ? `
+    <tr>
+      <td><a href="/stock.html?t=${r.ticker}"><b>${r.ticker}</b></a><div style="font-size:11px;color:var(--muted)">${r.price??''}</div></td>
+      <td>${r.next_date||'—'}<div style="font-size:11px;color:var(--muted)">${r.days_away==null?'':('อีก '+r.days_away+' วัน')}</div></td>
+      <td style="font-size:12px">${r.notes||'—'}</td>
+      <td>${tag(r.tag)}<div style="font-size:11px;color:var(--muted);margin-top:4px">เทคนิค +${r.tech_pts} · งบ +${r.earn_pts}</div></td>
+    </tr>` : `
+    <tr>
+      <td><a href="/stock.html?t=${r.ticker}"><b>${r.ticker}</b></a></td>
+      <td>${r.next_date||'—'}</td>
+      <td>${pct(r.today_gap)}</td>
+      <td>${pct(r.avg_gap)}</td>
+      <td>${pct(r.max_gap)}</td>
+      <td>${r.max_gap_date||'—'}</td>
+      <td>${r.beat_rate!=null?r.beat_rate+'%':'—'}</td>
+    </tr>`).join('');
+}
+fetch('/api/earnings_board').then(r=>r.json()).then(d=>{DATA=d;render();}).catch(e=>{document.getElementById('body').innerHTML=`<tr><td>${e.message}</td></tr>`;});
+</script>
+</body>
+</html>
