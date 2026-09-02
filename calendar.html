@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Economic Calendar | Playground</title>
+<style>
+:root{
+  --purple:#a855f7;--pink:#ec4899;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI','Noto Sans Thai',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);font-size:13px;-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+
+/* ── TOP NAV ── */
+.btn-refresh{background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);color:#4338ca;
+  padding:5px 12px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;transition:.12s}
+.btn-refresh:hover{background:rgba(99,102,241,.22)}
+
+/* ── LAYOUT ── */
+.main{padding:20px 24px;max-width:1200px;margin:0 auto}
+.page-header{margin-bottom:20px}
+.page-title{font-size:20px;font-weight:700;margin-bottom:4px}
+.page-sub{color:var(--muted2);font-size:12px}
+
+/* ── LOADING ── */
+.loader{text-align:center;padding:80px 20px;color:var(--muted2)}
+.loader-spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--indigo);
+  border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-box{background:#fef2f2;border:1px solid #7f1d1d;border-radius:10px;padding:20px;color:#fca5a5;text-align:center}
+
+/* ── NEXT FOMC HERO ── */
+.fomc-hero{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(99,102,241,.04));
+  border:1px solid rgba(99,102,241,.3);border-radius:12px;padding:20px 24px;
+  margin-bottom:20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.fomc-countdown{text-align:center;min-width:80px}
+.fomc-days{font-size:42px;font-weight:800;color:#c7d2fe;line-height:1}
+.fomc-days-label{font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.fomc-divider{width:1px;height:60px;background:var(--border);flex-shrink:0}
+.fomc-info{flex:1}
+.fomc-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,.15);
+  border:1px solid rgba(99,102,241,.3);border-radius:6px;padding:3px 10px;
+  font-size:10px;font-weight:700;color:#4338ca;margin-bottom:8px}
+.fomc-title{font-size:16px;font-weight:700;margin-bottom:4px}
+.fomc-sub{font-size:12px;color:var(--muted2)}
+.fomc-date-badge{background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);
+  border-radius:8px;padding:10px 16px;text-align:center;min-width:110px}
+.fomc-date-big{font-size:18px;font-weight:700;color:#c7d2fe}
+.fomc-date-sub{font-size:10px;color:var(--muted2);margin-top:2px}
+
+/* ── CONTROLS ── */
+.controls{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.filter-group{display:flex;gap:4px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:3px}
+.filter-btn{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;
+  background:transparent;color:var(--muted2);transition:.12s}
+.filter-btn.active{background:rgba(99,102,241,.2);color:#c7d2fe}
+.filter-btn:hover:not(.active){background:rgba(255,255,255,.04);color:var(--text)}
+.source-badges{display:flex;gap:6px;margin-left:auto}
+.src-badge{font-size:10px;padding:3px 8px;border-radius:5px;font-weight:600;border:1px solid}
+
+/* ── TIMELINE ── */
+.timeline{display:flex;flex-direction:column;gap:0}
+.day-group{margin-bottom:4px}
+.day-header{display:flex;align-items:center;gap:10px;padding:10px 0 6px;position:sticky;top:52px;
+  background:var(--bg);z-index:5;border-bottom:1px solid rgba(42,51,68,.4);margin-bottom:8px}
+.day-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0}
+.day-label{font-size:11px;font-weight:700;color:var(--muted2)}
+.day-label.today{color:#c7d2fe}
+.day-ago{font-size:10px;color:var(--muted);margin-left:4px}
+.day-count{font-size:10px;color:var(--muted);margin-left:auto;
+  background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
+
+/* ── EVENT CARD ── */
+.event-list{display:flex;flex-direction:column;gap:6px;padding-left:18px}
+.event-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;display:flex;align-items:flex-start;gap:12px;
+  position:relative;overflow:hidden;transition:.12s}
+.event-card:hover{border-color:rgba(15,23,42,.08);background:#f8fafc}
+.event-card.is-today{border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.04)}
+.event-card.is-past{opacity:.55}
+.event-card::before{content:'';position:absolute;left:0;top:0;width:3px;height:100%;background:var(--cat-color,#6b7280)}
+.event-icon{font-size:20px;flex-shrink:0;margin-top:1px}
+.event-body{flex:1;min-width:0}
+.event-header{display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap}
+.event-title{font-size:13px;font-weight:700}
+.event-sub{font-size:11px;color:var(--muted2);margin-top:1px}
+.importance-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;flex-shrink:0}
+.imp-high{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.25)}
+.imp-medium{background:rgba(245,158,11,.1);color:var(--orange);border:1px solid rgba(245,158,11,.2)}
+.today-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;
+  background:rgba(99,102,241,.2);color:#c7d2fe;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.event-tickers{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.ticker-chip{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;
+  background:rgba(45,212,191,.08);color:var(--teal);border:1px solid rgba(45,212,191,.2)}
+.event-meta{text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.event-src{font-size:9px;color:var(--muted);background:rgba(255,255,255,.03);
+  border:1px solid var(--border);border-radius:4px;padding:2px 6px}
+.event-days{font-size:10px;font-weight:600}
+.event-days.future{color:var(--muted2)}
+.event-days.today{color:#c7d2fe}
+.event-days.past{color:var(--muted)}
+.cat-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:40px;color:var(--muted2)}
+
+/* ── STATUS BAR ── */
+.status-bar{display:flex;align-items:center;gap:12px;font-size:10px;color:var(--muted2);
+  padding:12px 0;border-top:1px solid var(--border);margin-top:20px;flex-wrap:wrap}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.conn-pill{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
+.conn-ok{background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+.conn-warn{background:rgba(245,158,11,.1);color:var(--orange);border:1px solid rgba(245,158,11,.2)}
+</style>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="brand">
+    <div class="brand-icon">🛝</div>
+    <div class="brand-text">Playground</div>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link" href="/">📊 Overview</a>
+    <a class="nav-link" href="/global.html">🌐 Global</a>
+    <a class="nav-link" href="/etf.html">📦 ETF</a>
+    <a class="nav-link" href="/leaders.html">🏆 Leadership</a>
+    <a class="nav-link" href="/laggards.html">📉 Laggards</a>
+    <a class="nav-link" href="/thematic.html">🧩 Thematic</a>
+    <a class="nav-link" href="/rotation.html">🔄 Rotation</a>
+    <a class="nav-link" href="/screener.html">🔍 Screener</a>
+    <a class="nav-link" href="/correlation.html">📈 Correlations</a>
+    <a class="nav-link active" href="/calendar.html">📅 Calendar</a>
+    <a class="nav-link" href="/earnings.html">🧾 Earnings</a>
+    <a class="nav-link" href="/events.html">⚡ Events</a>
+    <a class="nav-link" href="/stock.html">🔬 Stock</a>
+    <a class="nav-link" href="/gold.html">🥇 Gold</a>
+  </div>
+  <div class="nav-right">
+    <span id="nav-updated" style="font-size:11px;color:#6b7280;white-space:nowrap"></span>
+    <button id="btnRefresh" class="btn-refresh" style="margin-left:8px" onclick="loadData(true)">↻ Refresh</button>
+    <span id="nav-loading" style="display:none">⏳</span>
+  </div>
+</nav>
+
+    <!-- LOADER / ERROR / FOMC HERO (required by JS) -->
+    <div id="loader" style="text-align:center;padding:60px 20px;color:#64748b;">
+      <div class="loader-spin" style="width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px"></div>
+      <div>กำลังโหลด Economic Calendar...</div>
+    </div>
+    <div id="errorBox" style="display:none;background:#fef2f2;border:1px solid #7f1d1d;border-radius:10px;padding:20px;color:#fca5a5;text-align:center;margin-bottom:16px">
+      <span id="errorMsg"></span>
+    </div>
+
+    <!-- FOMC HERO -->
+    <div id="fomcHero" class="fomc-hero" style="display:none">
+      <div class="fomc-countdown">
+        <div class="fomc-days" id="fomcDays">–</div>
+        <div class="fomc-days-label">วัน</div>
+      </div>
+      <div class="fomc-divider"></div>
+      <div class="fomc-info">
+        <div class="fomc-badge">🏦 FOMC</div>
+        <div class="fomc-title" id="fomcTitle">–</div>
+        <div class="fomc-sub" id="fomcSub">–</div>
+      </div>
+      <div class="fomc-date-badge">
+        <div class="fomc-date-big" id="fomcDateBig">–</div>
+        <div class="fomc-date-sub" id="fomcDateSub">–</div>
+      </div>
+    </div>
+
+    <div id="mainContent" style="display:none">
+
+    <!-- CONTROLS -->
+    <div class="controls">
+      <div class="filter-group" id="catFilter">
+        <button class="filter-btn active" data-cat="ALL" onclick="setFilter('ALL',this)">All</button>
+        <button class="filter-btn" data-cat="FOMC" onclick="setFilter('FOMC',this)">🏦 Fed</button>
+        <button class="filter-btn" data-cat="CPI" onclick="setFilter('CPI',this)">📊 CPI</button>
+        <button class="filter-btn" data-cat="NFP" onclick="setFilter('NFP',this)">👷 NFP</button>
+        <button class="filter-btn" data-cat="GDP" onclick="setFilter('GDP',this)">📈 GDP</button>
+        <button class="filter-btn" data-cat="PCE" onclick="setFilter('PCE',this)">💳 PCE</button>
+        <button class="filter-btn" data-cat="EARNINGS" onclick="setFilter('EARNINGS',this)">💰 Earnings</button>
+      </div>
+      <div class="source-badges" id="sourceBadges"></div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="timeline" id="timeline"></div>
+
+    <!-- STATUS -->
+    </div><!-- /mainContent -->
+
+    <div class="status-bar" id="statusBar">
+      <span class="status-dot"></span>
+      <span id="statusText">—</span>
+    </div>
+  </div>
+</div>
+
+<script src="/nav.js"></script>
+<script>
+let allEvents = [];
+let currentFilter = 'ALL';
+
+const CAT_COLORS = {
+  FOMC:'#6366f1', MINUTES:'#8b5cf6', CPI:'#f59e0b', NFP:'#10b981',
+  GDP:'#3b82f6', PPI:'#64748b', RETAIL:'#ec4899', PCE:'#f97316', EARNINGS:'#2dd4bf',
+};
+const CAT_LABELS = {
+  FOMC:'FOMC', MINUTES:'MINUTES', CPI:'CPI', NFP:'NFP',
+  GDP:'GDP', PPI:'PPI', RETAIL:'RETAIL', PCE:'PCE', EARNINGS:'EARN',
+};
+
+// ── Fetch ──
+async function loadData(forceRefresh=false) {
+  document.getElementById('loader').style.display='block';
+  document.getElementById('mainContent').style.display='none';
+  document.getElementById('errorBox').style.display='none';
+
+  try {
+    const res = await fetch(`/api/calendar${forceRefresh?'?refresh=1':''}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error||'API error');
+
+    allEvents = data.events || [];
+
+    // FOMC hero
+    if (data.next_fomc) renderFomcHero(data.next_fomc);
+
+    // Source badges
+    const sb = document.getElementById('sourceBadges');
+    sb.innerHTML = `
+      <span class="conn-pill ${data.fred_connected?'conn-ok':'conn-warn'}">${data.fred_connected?'✓':'⚠'} FRED</span>
+      <span class="conn-pill ${data.yf_earnings_connected?'conn-ok':'conn-warn'}">${data.yf_earnings_connected?'✓':'⚠'} yfinance</span>`;
+
+    document.getElementById('statusText').textContent =
+      `อัปเดต ${data.updated} · ${data.total} events · FRED ${data.fred_connected?'connected':'fallback (static)'} · yfinance ${data.yf_earnings_connected?'connected':'unavailable'}`;
+
+    applyFilter();
+    document.getElementById('loader').style.display='none';
+    document.getElementById('mainContent').style.display='block';
+  } catch(e) {
+    document.getElementById('loader').style.display='none';
+    document.getElementById('errorBox').style.display='block';
+    document.getElementById('errorMsg').textContent = `Error: ${e.message}`;
+  }
+}
+
+// ── FOMC Hero ──
+function renderFomcHero(ev) {
+  const hero = document.getElementById('fomcHero');
+  hero.style.display='flex';
+  document.getElementById('fomcDays').textContent = ev.days_away;
+  document.getElementById('fomcTitle').textContent = ev.title;
+  document.getElementById('fomcSub').textContent = ev.subtitle;
+  const d = new Date(ev.date);
+  document.getElementById('fomcDateBig').textContent =
+    d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('fomcDateSub').textContent = ev.weekday_en;
+}
+
+// ── Filter ──
+function setFilter(cat, btn) {
+  currentFilter = cat;
+  document.querySelectorAll('#catFilter .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilter();
+}
+
+function applyFilter() {
+  const fd = currentFilter==='ALL' ? allEvents
+    : currentFilter==='FOMC' ? allEvents.filter(e=>e.category==='FOMC'||e.category==='MINUTES')
+    : allEvents.filter(e=>e.category===currentFilter);
+  renderTimeline(fd);
+}
+
+// ── Timeline render ──
+function renderTimeline(events) {
+  const timeline = document.getElementById('timeline');
+  if (!events.length) {
+    timeline.innerHTML = '<div class="empty">No events in this category</div>';
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  events.forEach(e=>{
+    if(!byDate[e.date]) byDate[e.date]=[];
+    byDate[e.date].push(e);
+  });
+
+  let html = '';
+  const today = new Date().toISOString().slice(0,10);
+
+  Object.entries(byDate).sort((a,b)=>a[0]<b[0]?-1:1).forEach(([dateStr, evs])=>{
+    const d = new Date(dateStr + 'T12:00:00');
+    const isToday = dateStr === today;
+    const isPast = dateStr < today;
+    const daysAway = evs[0].days_away;
+
+    const dayLabel = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    let agoLabel = '';
+    if(isToday) agoLabel = '· TODAY';
+    else if(isPast) agoLabel = `· ${Math.abs(daysAway)} days ago`;
+    else agoLabel = `· in ${daysAway} days`;
+
+    html += `<div class="day-group">
+      <div class="day-header">
+        <div class="day-dot" style="background:${isToday?'var(--indigo)':isPast?'var(--muted)':'var(--border)'}"></div>
+        <div class="day-label ${isToday?'today':''}">${dayLabel}</div>
+        <div class="day-ago">${agoLabel}</div>
+        <div class="day-count">${evs.length}</div>
+      </div>
+      <div class="event-list">`;
+
+    evs.forEach(ev=>{
+      const color = CAT_COLORS[ev.category]||'#6b7280';
+      const catLabel = CAT_LABELS[ev.category]||ev.category;
+      const daysLabel = isToday ? 'TODAY'
+        : isPast ? `${Math.abs(ev.days_away)}d ago`
+        : `in ${ev.days_away}d`;
+      const daysClass = isToday?'today':isPast?'past':'future';
+
+      const tickerChips = (ev.tickers||[]).slice(0,8)
+        .map(t=>`<span class="ticker-chip">${t}</span>`).join('');
+
+      html += `<div class="event-card ${ev.is_today?'is-today':''} ${ev.is_past?'is-past':''}"
+        style="--cat-color:${color}">
+        <div class="event-icon">${ev.icon}</div>
+        <div class="event-body">
+          <div class="event-header">
+            <div class="event-title">${ev.title}</div>
+            <span class="cat-badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${catLabel}</span>
+            <span class="importance-badge ${ev.importance==='HIGH'?'imp-high':'imp-medium'}">${ev.importance}</span>
+            ${ev.is_today?'<span class="today-badge">🔴 TODAY</span>':''}
+          </div>
+          <div class="event-sub">${ev.subtitle}</div>
+          ${tickerChips?`<div class="event-tickers">${tickerChips}</div>`:''}
+        </div>
+        <div class="event-meta">
+          <span class="event-src">${ev.source}</span>
+          <span class="event-days ${daysClass}">${daysLabel}</span>
+        </div>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  timeline.innerHTML = html;
+}
+
+// ── Init ──
+loadData();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,3 @@
+-r requirements.txt
+pyngrok>=7.0
+ipython>=8.0
