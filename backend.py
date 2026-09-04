@@ -5,6 +5,7 @@ import math
 import os
 import threading
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, Callable, Optional
 
@@ -13,9 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
 
-from cache_utils import ttl_cache
-from constants import CACHE_TTL_DATA, PREWARM_INTERVAL_SEC, PREWARM_MODES
+from constants import PREWARM_INTERVAL_SEC, PREWARM_MODES
 import preset_store
 import correlation as corr
 import earnings_board as eg
@@ -32,27 +33,17 @@ import screener as scr
 import technical_analysis as ta
 import thematic_matrix as tm
 import fundamentals as fund
-import stock_check as sck
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("playground")
 
-app = FastAPI(title="Playground Dashboard API", version="6.1")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 _boot_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
-
-# ── Cache pre-warm scheduler ────────────────────────────────────────────────
-# ยิง load_market_pack() ล่วงหน้าเป็นระยะ (ก่อน TTL 15 นาทีหมดอายุ) เพื่อไม่ให้
-# user คนแรกที่เปิด dashboard หลัง cache หมดอายุต้องรอ cold-load เอง
-# (โดยเฉพาะ mode=full ~913 ticker ที่โหลดนานสุด)
 _prewarm_stop = threading.Event()
 
 
 def _prewarm_loop():
-    # รอบแรกยิงทันทีตอน server เริ่ม กัน cold-start
     while not _prewarm_stop.is_set():
         for mode in PREWARM_MODES:
             if _prewarm_stop.is_set():
@@ -66,11 +57,29 @@ def _prewarm_loop():
         _prewarm_stop.wait(PREWARM_INTERVAL_SEC)
 
 
-@app.on_event("startup")
-def _start_prewarm():
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
     thread = threading.Thread(target=_prewarm_loop, daemon=True, name="cache-prewarm")
     thread.start()
     log.info("cache pre-warm scheduler started (interval=%ds, modes=%s)", PREWARM_INTERVAL_SEC, PREWARM_MODES)
+    yield
+    _prewarm_stop.set()
+
+
+app = FastAPI(title="Playground Dashboard API", version="6.2", lifespan=_lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+
+class _SecurityHeaders(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        return response
+
+
+app.add_middleware(_SecurityHeaders)
 
 
 def _jsonable(obj: Any) -> Any:
@@ -110,7 +119,7 @@ def _jsonable(obj: Any) -> Any:
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     log.exception("Unhandled exception at URL: %s", request.url)
-    return JSONResponse(status_code=500, content={"ok": False, "error": str(exc)})
+    return JSONResponse(status_code=500, content={"ok": False, "error": "Internal server error"})
 
 
 def _resp(data: dict):
@@ -163,7 +172,14 @@ def status():
         cache_info = cache_status()
     except Exception as e:
         cache_info = {"error": str(e)}
-    return {"status": "ok", "booted": _boot_time, "now": datetime.now().isoformat(), "preset_store": preset_info, "cache": cache_info}
+    return {
+        "status": "ok",
+        "booted": _boot_time,
+        "now": datetime.now().isoformat(),
+        "version": "6.2",
+        "preset_store": preset_info,
+        "cache": cache_info,
+    }
 
 
 @app.get("/api/dashboard")
@@ -246,6 +262,8 @@ def search(q: str, mode: str = "core"):
     if not meta and not dash.get("ok"):
         return _resp({"ok": False, "results": [], "error": "Dashboard data not available"})
     rs_now = dash.get("rs_now")
+    combined = pack.get("combined") or {}
+    sigs = dash.get("ticker_signal") or {}
     matches = []
     for t, m in meta.items():
         m = m or {}
@@ -263,6 +281,19 @@ def search(q: str, mode: str = "core"):
             rs_val = int(raw_rs) if raw_rs is not None and raw_rs == raw_rs else None
         except (TypeError, ValueError):
             rs_val = None
+        price = pct1d = None
+        df = combined.get(t)
+        try:
+            import data_engine as eng
+            if df is not None and "Close" in getattr(df, "columns", []):
+                close = eng.as_close(df["Close"])
+                if close is not None and len(close.dropna()):
+                    px = float(close.dropna().iloc[-1])
+                    price = round(px, 4 if px < 1 else 2)
+                    pct1d = eng.pct_change(close, 1)
+        except Exception:
+            pass
+        rolled = ((sigs.get(t) or {}).get("rolled") or {}) if isinstance(sigs, dict) else {}
         matches.append({
             "ticker": t.split(".")[0],
             "full_ticker": t,
@@ -270,9 +301,9 @@ def search(q: str, mode: str = "core"):
             "theme": m.get("theme", ""),
             "market": m.get("market", ""),
             "rs": rs_val,
-            "patterns": [],
-            "pct1d": None,
-            "price": None,
+            "patterns": [k for k, v in rolled.items() if v],
+            "pct1d": pct1d,
+            "price": price,
         })
         if len(matches) >= 20:
             break
@@ -376,9 +407,9 @@ class PresetSaveBody(BaseModel):
 def screener_presets_list():
     try:
         return _resp({"ok": True, "presets": preset_store.list_presets()})
-    except Exception as e:
+    except Exception:
         log.exception("screener_presets_list failed")
-        return _resp({"ok": False, "error": str(e)})
+        return _resp({"ok": False, "error": "Could not read presets"})
 
 
 @app.post("/api/screener/presets")
@@ -388,9 +419,9 @@ def screener_presets_save(body: PresetSaveBody):
         return _resp({"ok": True, "presets": data})
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+    except Exception:
         log.exception("screener_presets_save failed")
-        return _resp({"ok": False, "error": str(e)})
+        return _resp({"ok": False, "error": "Could not save preset"})
 
 
 @app.delete("/api/screener/presets/{name}")
@@ -398,14 +429,39 @@ def screener_presets_delete(name: str):
     try:
         data = preset_store.delete_preset(name)
         return _resp({"ok": True, "presets": data})
-    except Exception as e:
+    except Exception:
         log.exception("screener_presets_delete failed")
-        return _resp({"ok": False, "error": str(e)})
+        return _resp({"ok": False, "error": "Could not delete preset"})
+
+
+def _clear_thematic_and_pack():
+    try:
+        tm.fetch_thematic.cache_clear()
+    except Exception:
+        pass
+    _clear_price_and_pack()
 
 
 @app.get("/api/thematic")
-def thematic_api(mode: str = Query("core"), _: None = Depends(get_cache_clearer(_clear_price_and_pack))):
+def thematic_api(mode: str = Query("core"), _: None = Depends(get_cache_clearer(_clear_thematic_and_pack))):
     return _resp(tm.fetch_thematic(mode=mode))
+
+
+@app.post("/api/admin/refresh")
+def admin_refresh(scope: str = Query("data")):
+    if scope in ("gold", "all"):
+        try:
+            gd.fetch_gold.cache_clear()
+        except Exception:
+            pass
+    if scope in ("data", "all"):
+        _clear_price_and_pack()
+        try:
+            lb.build_leadership_board.cache_clear()
+            lb.build_laggards_board.cache_clear()
+        except Exception:
+            pass
+    return _resp({"ok": True, "scope": scope})
 
 
 @app.get("/api/technicals")
@@ -437,9 +493,6 @@ def dividends_api(ticker: str, _: None = Depends(get_cache_clearer(ta.fetch_divi
 def options_iv_api(ticker: str, _: None = Depends(get_cache_clearer(ta.fetch_options_iv.cache_clear))):
     return _resp(ta.fetch_options_iv(ticker=ticker))
 
-@app.get("/api/stock_check")
-def stock_check_api(ticker: str, _: None = Depends(get_cache_clearer(sck.clear_cache))):
-    return _resp(sck.fetch_stock_check(ticker))
 
 def _serve_root_file(name: str):
     path = os.path.join(ROOT, name)
