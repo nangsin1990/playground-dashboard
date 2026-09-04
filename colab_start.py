@@ -3,10 +3,10 @@
 # 1) แก้แค่ตรงนี้
 # ==============================================================================
 # ใส่ ngrok token ของคุณเอง ห้าม commit token ขึ้น GitHub
-NGROK_TOKEN = ""
+NGROK_TOKEN = "3EFiI4bmbKbzeO6A71kGqYIEkeA_r5WKYcmEx6DZys8G7iFG"
 
 # ไม่บังคับ
-FRED_API_KEY = ""
+FRED_API_KEY = "ea7bacc8b83ce8b795b7562141b460c4"
 
 REPO_URL = "https://github.com/nangsin1990/playground-dashboard.git"
 REPO_NAME = "playground-dashboard"
