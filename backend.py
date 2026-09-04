@@ -32,6 +32,7 @@ import screener as scr
 import technical_analysis as ta
 import thematic_matrix as tm
 import fundamentals as fund
+import stock_check as sck
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("playground")
@@ -436,6 +437,9 @@ def dividends_api(ticker: str, _: None = Depends(get_cache_clearer(ta.fetch_divi
 def options_iv_api(ticker: str, _: None = Depends(get_cache_clearer(ta.fetch_options_iv.cache_clear))):
     return _resp(ta.fetch_options_iv(ticker=ticker))
 
+@app.get("/api/stock_check")
+def stock_check_api(ticker: str, _: None = Depends(get_cache_clearer(sck.clear_cache))):
+    return _resp(sck.fetch_stock_check(ticker))
 
 def _serve_root_file(name: str):
     path = os.path.join(ROOT, name)
