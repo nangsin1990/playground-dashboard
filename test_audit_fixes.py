@@ -71,3 +71,20 @@ def test_breadth_missing_ticker_not_bearish():
     # 3 of 3 available names above MA50 → ~100, not 3/4=75
     assert us["ma50"] >= 99.0, us
     assert "coverage_pct" in us
+
+
+def test_universe_listed_counts():
+    from universe import LISTED_CORE, LISTED_FULL, LISTED_BY_MARKET, LISTED_US_ETF, LISTED_US_STOCK
+    from constants import CORE_N
+    from universe import UNIVERSE
+    assert LISTED_FULL == 1071
+    assert LISTED_CORE == 142
+    assert LISTED_BY_MARKET["US"] == 754
+    assert LISTED_US_STOCK == 619
+    assert LISTED_US_ETF == 135
+    assert sum(LISTED_BY_MARKET.values()) == 1071
+    assert sum(min(CORE_N[m], LISTED_BY_MARKET[m]) for m in CORE_N) == 142
+    us = list(UNIVERSE["US"])
+    for name in ("RKLB", "IBIT", "IWO", "WSO"):
+        assert name in UNIVERSE["US"]
+        assert us.index(name) >= CORE_N["US"]
