@@ -73,6 +73,69 @@ def test_breadth_missing_ticker_not_bearish():
     assert "coverage_pct" in us
 
 
+def test_stock_check_refresh_uses_shared_gate():
+    from pathlib import Path
+    src = Path(__file__).with_name("backend.py").read_text(encoding="utf-8")
+    marker = "@app.get(\"/api/stock_check\")"
+    i = src.find(marker)
+    assert i >= 0
+    chunk = src[i:i + 500]
+    assert "get_cache_clearer" in chunk
+    assert "sck.clear_cache" in chunk
+    assert "def stock_check_api" in chunk
+
+
+def test_ttl_cache_timeout_does_not_steal_inflight():
+    import threading
+    import time
+    from cache_utils import ttl_cache
+
+    started = threading.Event()
+    release = threading.Event()
+
+    @ttl_cache(ttl_seconds=60, flight_wait=0.15)
+    def slow(x):
+        started.set()
+        release.wait(timeout=8)
+        return f"owner-{x}"
+
+    def _cell(name):
+        names = slow.__code__.co_freevars
+        idx = names.index(name)
+        return slow.__closure__[idx].cell_contents
+
+    owner_result = []
+
+    def run_owner():
+        owner_result.append(slow("k"))
+
+    t0 = threading.Thread(target=run_owner, name="owner")
+    t0.start()
+    assert started.wait(timeout=2)
+
+    inflight = _cell("inflight")
+    owner_ev = next(iter(inflight.values()))
+    assert isinstance(owner_ev, threading.Event)
+
+    def run_waiter():
+        slow("k")
+
+    t1 = threading.Thread(target=run_waiter, name="waiter")
+    t1.start()
+    time.sleep(0.35)  # past flight_wait; waiter is in fallback compute
+    # waiter timed out and fell back; owner slot must still be present
+    inflight = _cell("inflight")
+    assert inflight, inflight
+    assert next(iter(inflight.values())) is owner_ev
+
+    release.set()
+    t0.join(timeout=3)
+    t1.join(timeout=3)
+    assert owner_result == ["owner-k"]
+    # owner finished and cleared its own slot
+    assert not _cell("inflight")
+
+
 def test_universe_listed_counts():
     from universe import LISTED_CORE, LISTED_FULL, LISTED_BY_MARKET, LISTED_US_ETF, LISTED_US_STOCK
     from constants import CORE_N

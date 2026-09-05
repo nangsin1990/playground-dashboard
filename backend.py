@@ -601,19 +601,9 @@ def news_api(ticker: str, _: None = Depends(get_cache_clearer(spf.fetch_news.cac
 
 @app.get("/api/stock_check")
 def stock_check_api(
-    request: Request,
     ticker: str = Query(...),
-    refresh: bool = False,
-    key: Optional[str] = Query(None),
+    _: None = Depends(get_cache_clearer(sck.clear_cache)),
 ):
-    if refresh:
-        if not _admin_authorized(request, key):
-            log.info("stock_check refresh ignored (no admin key) ticker=%s", ticker)
-        else:
-            try:
-                sck.clear_cache()
-            except Exception:
-                pass
     try:
         data = sck.fetch_stock_check(ticker)
     except Exception as exc:

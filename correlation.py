@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 
 import data_io
-import data_engine as eng
 from cache_utils import ttl_cache
 from constants import CACHE_TTL_DATA, CORR_TICKERS, CORR_PERIOD_DAYS, CORR_BENCHMARK
 

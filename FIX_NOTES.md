@@ -27,6 +27,12 @@
 - colab_start ใช้โฟลเดอร์ local ที่มี `backend.py` ก่อน clone GitHub
 - vcp_metrics ค่าว่างใช้ `None` เมื่อคำนวณไม่ได้
 
+## Follow-up 2026-09-05 (SEC-03 / PERF-01b / cleanup)
+
+- SEC-03 `/api/stock_check` ใช้ `get_cache_clearer(sck.clear_cache)` เหมือน endpoint อื่น — มีทั้ง admin-key และ `_refresh_rate_ok`
+- PERF-01b `ttl_cache` single-flight: เฉพาะ owner ของ `inflight[key]` ที่ pop ได้; waiter ที่ timeout compute เองได้แต่ไม่แย่ง lock
+- Dead code: ลบ `pct` ที่ไม่ใช้ใน `market_regime`, `prev_d1_close` ใน `gold.py`, unused imports (`numpy` ใน data_io/etf_board/event_impact/market_regime/mws scanner และตัวอื่นที่สแกนเจอ)
+
 ## ทดสอบ
 `pytest -q` จาก root ต้องผ่าน (รวม test_audit_fixes)
 

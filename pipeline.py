@@ -18,7 +18,7 @@ from constants import (
     BREADTH_HISTORY_DAYS, BREADTH_BEAR_THRESHOLD, BREADTH_BEAR_FALL, BREADTH_BEAR_MIN_MKT,
     WATCHLIST_TOP_N, THEME_TOP_N, RS_MOVERS_TOP_N, DIP_WATCH_TOP_N,
     LB_RS_LEADER_MIN,
-    TRADING_DAYS_MONTH, TRADING_DAYS_QUARTER, FETCH_RATE_DELAY,
+    FETCH_RATE_DELAY,
 )
 from leadership_core import snapshot_from_df, is_leader_pause, is_confluence_study
 from personal_watchlist import PERSONAL_META, PERSONAL_TICKERS

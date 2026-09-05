@@ -147,7 +147,7 @@ def _disk_delete(path: Path) -> None:
 
 
 # ── Decorator ─────────────────────────────────────────────────────────────────
-def ttl_cache(ttl_seconds: float):
+def ttl_cache(ttl_seconds: float, flight_wait: float | None = None):
     """
     Thread-safe TTL cache with Google Drive persistence.
 
@@ -156,7 +156,13 @@ def ttl_cache(ttl_seconds: float):
 
     .cache_clear()     — clear in-memory + delete all disk files for this func
     .cache_clear_key() — clear one specific key
+
+    flight_wait: seconds a waiter blocks for the owner compute.
+    Default max(30, ttl_seconds). A timed-out waiter may compute locally
+    but must not pop the owner's inflight slot.
     """
+    wait_s = max(30.0, float(ttl_seconds)) if flight_wait is None else max(0.0, float(flight_wait))
+
     def decorator(func):
         mem_store: dict[tuple, tuple[float, Any]] = {}
         lock      = threading.Lock()
@@ -184,7 +190,8 @@ def ttl_cache(ttl_seconds: float):
                 log.info("cache HIT (disk) → %s", func_name)
                 return val
 
-            # ── Single-flight: only one caller computes a given key ──
+            # ── Single-flight: only the owner of inflight[key] may pop it ──
+            owner_ev = None
             waiter = None
             with lock:
                 hit = mem_store.get(key)
@@ -194,18 +201,32 @@ def ttl_cache(ttl_seconds: float):
                 if ev is None:
                     ev = threading.Event()
                     inflight[key] = ev
+                    owner_ev = ev
                 else:
                     waiter = ev
             if waiter is not None:
-                waiter.wait(timeout=max(30.0, ttl_seconds))
+                waiter.wait(timeout=wait_s)
                 with lock:
                     hit = mem_store.get(key)
                     if hit is not None:
                         return hit[1]
                 ok, val = _disk_load(disk_path, ttl_seconds)
                 if ok:
+                    with lock:
+                        mem_store[key] = (time.time(), val)
                     return val
-                log.warning("single-flight wait ended without value for %s", func_name)
+                log.warning(
+                    "single-flight wait ended without value for %s; fallback compute without taking inflight",
+                    func_name,
+                )
+                val = func(*args, **kwargs)
+                ts = time.time()
+                with lock:
+                    existing = mem_store.get(key)
+                    if existing is None or (ts - existing[0]) >= ttl_seconds:
+                        mem_store[key] = (ts, val)
+                _disk_save(disk_path, val)
+                return val
 
             log.info("cache MISS → computing %s ...", func_name)
             try:
@@ -217,9 +238,10 @@ def ttl_cache(ttl_seconds: float):
                 return val
             finally:
                 with lock:
-                    done = inflight.pop(key, None)
-                if done is not None:
-                    done.set()
+                    if owner_ev is not None and inflight.get(key) is owner_ev:
+                        inflight.pop(key, None)
+                if owner_ev is not None:
+                    owner_ev.set()
 
         # ── cache_clear: wipe memory + disk files for this function ──
         def _cache_clear():

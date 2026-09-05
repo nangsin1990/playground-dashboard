@@ -1,7 +1,6 @@
 # FILE: earnings_board.py
 from __future__ import annotations
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 
 import numpy as np
 import pandas as pd

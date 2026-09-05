@@ -27,7 +27,6 @@ Output:
 
 from __future__ import annotations
 from datetime import datetime
-import numpy as np
 import pandas as pd
 import yfinance as yf
 
@@ -351,7 +350,6 @@ def compute_market_regime(
     for (score, category, label, value, direction), w in zip(signals_raw, weights):
         contribution = score * w
         composite += contribution
-        pct = round(score / max_score_per_signal * 100)  # normalize -100..+100
         signal_table.append({
             "category":  category,
             "label":     label,

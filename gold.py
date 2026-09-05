@@ -10,7 +10,7 @@ yfinance is delayed ~15 min and is not an execution feed.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, date
+from datetime import datetime
 from typing import Optional
 
 import numpy as np
@@ -715,7 +715,6 @@ def _compute_gold() -> dict:
             return {"ok": False, "error": "Gold data temporarily unavailable (no spot price)"}
         atr = _safe_float(snap.get("atr")) or (current_price * 0.01)
         gold_chg_pct = snap_live.get("change_pct")
-        prev_d1_close = _safe_float(snap.get("prev_close")) or _safe_float(snap_live.get("prev_close"))
 
         quotes = gm.batch_quotes([DXY, USDTHB, TNX, VIX, GLD, GDX, SILVER, COPPER, FUT]) or {}
 
