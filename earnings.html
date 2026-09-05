@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earnings Gap | Playground</title>
+<link rel="stylesheet" href="/style.css">
+<script src="/nav.js" defer></script>
+<style>
+.near td{background:#eef2ff}
+.owned-mark{color:#d97706;font-weight:800}
+.spark{display:flex;align-items:flex-end;gap:2px;height:28px}
+.spark i{display:block;width:6px;border-radius:2px 2px 0 0}
+.th-sort{cursor:pointer}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="brand"><div class="brand-icon">🛝</div><div class="brand-text">Playground</div></div>
+  <div class="nav-links">
+    <a class="nav-link" href="/">📊 Overview</a>
+    <a class="nav-link" href="/global.html">🌐 Global</a>
+    <a class="nav-link" href="/etf.html">📦 ETF</a>
+    <a class="nav-link" href="/leaders.html">🏆 Leadership</a>
+    <a class="nav-link" href="/laggards.html">📉 Laggards</a>
+    <a class="nav-link" href="/thematic.html">🧩 Thematic</a>
+    <a class="nav-link" href="/rotation.html">🔄 Rotation</a>
+    <a class="nav-link" href="/screener.html">🔍 Screener</a>
+    <a class="nav-link" href="/correlation.html">📈 Correlations</a>
+    <a class="nav-link" href="/calendar.html">📅 Calendar</a>
+    <a class="nav-link active" href="/earnings.html">🧾 Earnings</a>
+    <a class="nav-link" href="/events.html">⚡ Events</a>
+    <a class="nav-link" href="/stock.html">🔬 Stock</a>
+    <a class="nav-link" href="/gold.html">🥇 Gold</a>
+  </div>
+</nav>
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">🧾 Earnings Gap + Technical</div>
+    <div class="page-sub">หุ้นใกล้ประกาศงบ · แยก BMO/AMC ตอนคิดช่องว่าง · กดหัวตารางเพื่อเรียง</div>
+    <button class="btn-refresh" type="button" onclick="loadBoard(true)">↻ Refresh</button>
+  </div>
+  <div class="data-lag-banner" id="note">กำลังโหลด...</div>
+  <div class="tabs" style="margin:12px 0">
+    <button class="tab-btn active" onclick="setView('combo',this)">มุมเทคนิค</button>
+    <button class="tab-btn" onclick="setView('gap',this)">สถิติ GAP</button>
+    <button class="tab-btn" onclick="onlyOwned=!onlyOwned;this.classList.toggle('active');render()">เฉพาะที่ถือ</button>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead id="head"></thead>
+      <tbody id="body"><tr><td>กำลังดึงงบจาก Yahoo...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<script>
+let DATA=null, VIEW='combo', SORT='days_away', DIR=1, onlyOwned=false;
+function setView(v,btn){ VIEW=v; document.querySelectorAll('.tabs .tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); render(); }
+function tag(t){ return t==='BUY' ? '<span class="badge-green">BUY</span>' : '<span class="badge-muted">HOLD</span>'; }
+function pct(v){ if(v==null) return '—'; const c=v>=0?'var(--green)':'var(--red)'; return `<span style="color:${c};font-weight:700">${v>=0?'+':''}${Number(v).toFixed(2)}%</span>`; }
+function spark(gaps){
+  if(!gaps||!gaps.length) return '—';
+  const max=Math.max(...gaps.map(g=>Math.abs(g.gap||0)),1);
+  return `<div class="spark">${gaps.map(g=>{
+    const h=Math.max(3, Math.abs(g.gap||0)/max*28);
+    const c=(g.gap||0)>=0?'#10b981':'#ef4444';
+    return `<i title="${g.date} ${g.gap}" style="height:${h}px;background:${c}"></i>`;
+  }).join('')}</div>`;
+}
+function sortBy(k){ if(SORT===k) DIR*=-1; else {SORT=k; DIR=1;} render(); }
+function rows(){
+  let list=[...(DATA.rows||[])];
+  if(onlyOwned) list=list.filter(r=>r.owned);
+  list.sort((a,b)=>{
+    const av=a[SORT], bv=b[SORT];
+    if(av==null) return 1; if(bv==null) return -1;
+    if(av<bv) return -1*DIR; if(av>bv) return 1*DIR; return 0;
+  });
+  return list;
+}
+function th(label,key){ return `<th class="th-sort" onclick="sortBy('${key}')">${label}</th>`; }
+function render(){
+  if(!DATA||!DATA.ok){ document.getElementById('body').innerHTML=`<tr><td>${DATA&&DATA.error||'โหลดไม่สำเร็จ'}</td></tr>`; return; }
+  document.getElementById('note').textContent = DATA.note || '';
+  const combo = VIEW==='combo';
+  document.getElementById('head').innerHTML = combo
+    ? `<tr>${th('หุ้น','ticker')}${th('ประกาศ','days_away')}${th('ช่วง','timing')}<th>มุมมอง</th><th>สัญญาณ</th></tr>`
+    : `<tr>${th('หุ้น','ticker')}${th('ประกาศ','days_away')}${th('ช่วง','timing')}${th('Gap วันนี้','today_gap')}${th('เฉลี่ย','avg_gap')}${th('สูงสุด','max_gap')}<th>ประวัติ</th>${th('ตลาดคาด','implied_move')}${th('Beat','beat_rate')}</tr>`;
+  document.getElementById('body').innerHTML = rows().map(r=>{
+    const near = r.days_away!=null && r.days_away<=2 && r.days_away>=0;
+    const own = r.owned ? ' <span class="owned-mark">ถือ</span>' : '';
+    return combo ? `
+    <tr class="${near?'near':''}">
+      <td><a href="/stock.html?t=${encodeURIComponent(r.ticker)}"><b>${r.ticker}</b></a>${own}<div style="font-size:11px;color:var(--muted)">${r.price??''}</div></td>
+      <td>${r.next_date||'—'}<div style="font-size:11px;color:var(--muted)">${r.days_away==null?'':('อีก '+r.days_away+' วัน')}</div></td>
+      <td>${r.timing||'—'}</td>
+      <td style="font-size:12px">${r.notes||'—'}</td>
+      <td>${tag(r.tag)}<div style="font-size:11px;color:var(--muted);margin-top:4px">เทคนิค +${r.tech_pts} · งบ +${r.earn_pts}</div></td>
+    </tr>` : `
+    <tr class="${near?'near':''}">
+      <td><a href="/stock.html?t=${encodeURIComponent(r.ticker)}"><b>${r.ticker}</b></a>${own}</td>
+      <td>${r.next_date||'—'}</td>
+      <td>${r.timing||'—'}</td>
+      <td>${pct(r.today_gap)}</td>
+      <td>${pct(r.avg_gap)}</td>
+      <td>${pct(r.max_gap)}</td>
+      <td>${spark(r.gaps)}</td>
+      <td>${r.implied_move!=null?r.implied_move+'%':'—'}</td>
+      <td>${r.beat_rate!=null?r.beat_rate+'%':'—'}</td>
+    </tr>`;
+  }).join('') || '<tr><td>ไม่มีแถว</td></tr>';
+}
+function loadBoard(refresh=false){
+  document.getElementById('body').innerHTML = '<tr><td>กำลังดึงงบจาก Yahoo...</td></tr>';
+  const url = '/api/earnings_board' + (refresh ? '?refresh=1' : '');
+  fetch(url).then(r=>r.json()).then(d=>{DATA=d;render();}).catch(e=>{
+    document.getElementById('body').innerHTML=`<tr><td>${e.message}</td></tr>`;
+  });
+}
+loadBoard();
+</script>
+</body>
+</html>
