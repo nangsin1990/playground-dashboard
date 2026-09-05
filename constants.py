@@ -56,7 +56,7 @@ GOLD_FLAT_PCT    = 0.05         # |return| below this → FLAT in driver decompo
 # ── Data Fetch ────────────────────────────────────────────────────────────────
 FETCH_PERIOD        = "18mo"   # yfinance history period
 FETCH_TIMEOUT       = 30       # seconds per batch
-FETCH_CHUNK_SIZE    = 20       # ← v5.2: 60→20 (Yahoo จัดการได้ดีขึ้น)
+FETCH_CHUNK_SIZE    = 25       # source of truth สำหรับ batch ฝั่ง fetch + pipeline
 FETCH_MIN_ROWS      = 60
 FETCH_RATE_DELAY    = 0.3      # ← v5.2: 0.5→0.3s (batch เล็กลงแล้ว ลด delay ได้)
 FETCH_RETRY_MAX     = 3
@@ -105,7 +105,8 @@ CAL_MAX_EVENTS      = 50
 # v5.4: 10→25 — batch 10 ทำให้ full universe (~913 ticker) แตกเป็น ~90 batches/คิว
 # ช้าจาก round-trip overhead สะสม ไม่ใช่จาก Yahoo throttle โดยตรง (Incident Report Fix #5
 # แก้ปัญหา timeout ที่ 60 ไปแล้ว 25 ยังอยู่ในโซนปลอดภัยแต่ลดจำนวน batch ลง ~60%)
-PIPELINE_BATCH_SIZE = 25
+PIPELINE_BATCH_SIZE = FETCH_CHUNK_SIZE  # ห้ามนิยามคนละค่ากับ FETCH_CHUNK_SIZE
+DOWNLOAD_MAX_WORKERS = 8              # Yahoo download pool — ต้องสอดคล้องกับจำนวน market thread
 CORE_N = {"US": 40, "TH": 16, "HK": 16, "JP": 16, "KR": 12, "CN": 12, "DE": 10, "FR": 10, "GB": 10}
 
 # ── Pre-warm scheduler ────────────────────────────────────────────────────────

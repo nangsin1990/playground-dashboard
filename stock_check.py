@@ -13,7 +13,11 @@ from typing import Any, Dict, Optional
 
 log = logging.getLogger("playground.stock_check")
 
-_MWS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mws")
+_ROOT = os.path.dirname(os.path.abspath(__file__))
+_MWS_DIR = os.path.join(_ROOT, "mws")
+# Prefer package import (mws.engine). Keep mws/ on path as fallback for scripts.
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 if _MWS_DIR not in sys.path:
     sys.path.insert(0, _MWS_DIR)
 
@@ -105,7 +109,10 @@ def _hollow(raw: Any) -> bool:
 
 
 def _scan_cached(ticker: str, bucket: int) -> Dict[str, Any]:
-    from engine import run_scan
+    try:
+        from mws.engine import run_scan
+    except ImportError:
+        from engine import run_scan
 
     key = (ticker, bucket)
     hit = _SCAN_MEM.get(key)

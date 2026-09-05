@@ -480,7 +480,12 @@ def _as_naive_dates(idx) -> pd.DatetimeIndex:
 
 
 def _compute_breadth(combined, ticker_meta):
-    """% above MA50/MA200 on a shared calendar. Missing that day counts as not-above, divisor stays universe_used."""
+    """% above MA50/MA200 on a shared calendar.
+
+    Missing that day is excluded from both numerator and denominator
+    (not treated as 'below MA'). Days with coverage < 50% of usable names
+    are dropped so a data hole cannot flip bear_override.
+    """
     breadth_rows = []
     breadth_history_all = {}
     bear_markets = 0
@@ -509,8 +514,10 @@ def _compute_breadth(combined, ticker_meta):
         for df in usable:
             close, s50, s200 = df["Close"], df["SMA50"], df["SMA200"]
             idx = _as_naive_dates(df.index)
-            a50 = (close > s50).astype("float")
-            a200 = (close > s200).astype("float")
+            valid50 = close.notna() & s50.notna()
+            valid200 = close.notna() & s200.notna()
+            a50 = (close > s50).astype("float").where(valid50)
+            a200 = (close > s200).astype("float").where(valid200)
             a50.index = idx
             a200.index = idx
             a50 = a50[~a50.index.duplicated(keep="last")]
@@ -523,13 +530,19 @@ def _compute_breadth(combined, ticker_meta):
         coverage = wide50.notna().sum(axis=1)
         min_cov = max(1, int(n_used * 0.5))
         eligible = coverage[coverage >= min_cov].index[-BREADTH_HISTORY_DAYS:]
-        hist50 = (wide50.reindex(eligible).fillna(0.0).sum(axis=1) / n_used) * 100
-        hist200 = (wide200.reindex(eligible).fillna(0.0).sum(axis=1) / n_used) * 100
-        if hist50.empty:
+        cov_e = coverage.reindex(eligible).replace(0, pd.NA)
+        hist50 = (wide50.reindex(eligible).sum(axis=1, min_count=1) / cov_e) * 100
+        cov200 = wide200.notna().sum(axis=1).reindex(eligible).replace(0, pd.NA)
+        hist200 = (wide200.reindex(eligible).sum(axis=1, min_count=1) / cov200) * 100
+        if hist50.dropna().empty:
             continue
-        pct50 = float(hist50.iloc[-1])
-        pct200 = float(hist200.iloc[-1]) if len(hist200) else 0.0
-        chg = float(hist50.iloc[-1] - hist50.iloc[-2]) if len(hist50) > 1 else 0.0
+        pct50 = float(hist50.dropna().iloc[-1])
+        hist200_valid = hist200.dropna()
+        pct200 = float(hist200_valid.iloc[-1]) if len(hist200_valid) else 0.0
+        hist50_valid = hist50.dropna()
+        chg = float(hist50_valid.iloc[-1] - hist50_valid.iloc[-2]) if len(hist50_valid) > 1 else 0.0
+        cov_last = float(coverage.reindex(eligible).iloc[-1]) if len(eligible) else 0.0
+        coverage_pct = (cov_last / n_used * 100.0) if n_used else 0.0
         if pct50 < BREADTH_BEAR_THRESHOLD and chg < BREADTH_BEAR_FALL:
             bear_markets += 1
 
@@ -538,13 +551,16 @@ def _compute_breadth(combined, ticker_meta):
             "ma50": round(float(pct50), 2), "ma200": round(float(pct200), 2),
             "chg": round(float(chg), 2),
             "universe": len(tickers), "universe_used": n_used,
+            "coverage_pct": round(float(coverage_pct), 1),
         })
         breadth_history_all[mkt] = {
             "dates": [pd.Timestamp(d).strftime("%Y-%m-%d") for d in hist50.index],
-            "ma50": [round(float(v), 2) for v in hist50.tolist()],
-            "ma200": [round(float(v), 2) for v in hist200.tolist()],
+            "ma50": [None if pd.isna(v) else round(float(v), 2) for v in hist50.tolist()],
+            "ma200": [None if pd.isna(v) else round(float(v), 2) for v in hist200.tolist()],
+            "coverage": [int(c) if pd.notna(c) else 0 for c in coverage.reindex(eligible).tolist()],
             "universe": len(tickers),
             "universe_used": n_used,
+            "coverage_pct": round(float(coverage_pct), 1),
         }
 
     bear_override = bear_markets >= BREADTH_BEAR_MIN_MKT

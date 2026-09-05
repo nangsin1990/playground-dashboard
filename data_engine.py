@@ -176,11 +176,10 @@ def _vcp_frame(df: pd.DataFrame) -> dict | None:
     hi20 = close.rolling(20, min_periods=10).max()
     tight = (hi20 - lo20) / lo20.replace(0, np.nan) * 100
     def _band(s, rules):
-        out = pd.Series(0, index=df.index, dtype="float64")
-        s = s.reindex(df.index)
-        for cond, pts in rules:
-            out = out.where(~cond.reindex(df.index).fillna(False), pts)
-        return out
+        """First matching rule wins. Pass rules strongest → weakest."""
+        conds = [cond.reindex(df.index).fillna(False) for cond, _pts in rules]
+        vals = [pts for _cond, pts in rules]
+        return pd.Series(np.select(conds, vals, default=0.0), index=df.index, dtype="float64")
     score = (
         _band(days_dry, [(days_dry >= 10, 30), (days_dry >= 5, 18), (days_dry >= 3, 8)])
         + _band(dry_ratio, [(dry_ratio < 20, 25), (dry_ratio < 50, 16), (dry_ratio < 80, 8)])
@@ -208,7 +207,7 @@ def vcp_signal_series(df: pd.DataFrame) -> pd.Series:
 
 def vcp_metrics(df: pd.DataFrame) -> dict:
     empty = {
-        "vcp_ready": 0, "vcp_days_dry": 0, "vcp_dry_ratio": None,
+        "vcp_ready": None, "vcp_days_dry": None, "vcp_dry_ratio": None,
         "vcp_off_peak": None, "vcp_target": None, "vcp_zone": "—", "is_vcp": False,
     }
     frame = _vcp_frame(df)
@@ -272,15 +271,21 @@ def _get_market_groups(ticker_meta: dict) -> dict[str, list[str]]:
             market_groups.setdefault(market, []).append(ticker)
     return market_groups
 
-def rs_rating_asof(combined: dict, ticker_meta: dict, lag_days: int = 0) -> pd.Series:
-    """RS สูตรเดียวกับปัจจุบัน ถ้า lag_days > 0 ให้ตัดแท่งท้ายออกแล้วนับใหม่."""
-    if not lag_days:
+def rs_rating_asof(combined: dict, ticker_meta: dict, lag_bars: int = 0, lag_days: int | None = None) -> pd.Series:
+    """RS สูตรเดียวกับปัจจุบัน ถ้า lag_bars > 0 ให้ตัดแท่งท้ายออกแล้วนับใหม่.
+
+    lag_bars = จำนวนแท่ง (trading sessions) ไม่ใช่วันปฏิทิน
+    lag_days ยังรับได้เพื่อไม่ให้ caller เก่าพัง แต่ความหมายคือ lag_bars
+    """
+    if lag_days is not None and not lag_bars:
+        lag_bars = int(lag_days)
+    if not lag_bars:
         return rs_rating_per_market(combined, ticker_meta)
     lagged = {}
     for ticker, df in (combined or {}).items():
-        if df is None or len(df) <= lag_days + 40:
+        if df is None or len(df) <= lag_bars + 40:
             continue
-        lagged[ticker] = df.iloc[:-int(lag_days)]
+        lagged[ticker] = df.iloc[:-int(lag_bars)]
     return rs_rating_per_market(lagged, ticker_meta)
 
 
@@ -328,13 +333,11 @@ def rs_rating_per_market(combined: dict, ticker_meta: dict) -> pd.Series:
 
     if not all_blends:
         return pd.Series(dtype=float)
-    global_ranks = pd.Series(all_blends).rank(pct=True, method="average")
     for market, blended_returns in market_blends.items():
         s = pd.Series(blended_returns)
-        if len(s) < 8:
-            ranks = global_ranks.reindex(s.index)
-        else:
-            ranks = s.rank(pct=True, method="average")
+        # Market-local rank ทุกตลาด — ความหมายเดียวกันข้ามตลาด
+        # (อันดับในตลาดตัวเอง ไม่สลับไปใช้ global เมื่อตลาดเล็ก)
+        ranks = s.rank(pct=True, method="average")
         ratings = (ranks * 98 + 1).fillna(50).astype(int)
         all_rs_ratings.update(ratings.to_dict())
 

@@ -160,6 +160,7 @@ def ttl_cache(ttl_seconds: float):
     def decorator(func):
         mem_store: dict[tuple, tuple[float, Any]] = {}
         lock      = threading.Lock()
+        inflight: dict[tuple, threading.Event] = {}
         func_name = func.__name__
 
         @functools.wraps(func)
@@ -183,18 +184,42 @@ def ttl_cache(ttl_seconds: float):
                 log.info("cache HIT (disk) → %s", func_name)
                 return val
 
-            # ── Miss: compute ──
-            log.info("cache MISS → computing %s ...", func_name)
-            val = func(*args, **kwargs)
-            ts  = time.time()
-
+            # ── Single-flight: only one caller computes a given key ──
+            waiter = None
             with lock:
-                mem_store[key] = (ts, val)
+                hit = mem_store.get(key)
+                if hit is not None and (time.time() - hit[0]) < ttl_seconds:
+                    return hit[1]
+                ev = inflight.get(key)
+                if ev is None:
+                    ev = threading.Event()
+                    inflight[key] = ev
+                else:
+                    waiter = ev
+            if waiter is not None:
+                waiter.wait(timeout=max(30.0, ttl_seconds))
+                with lock:
+                    hit = mem_store.get(key)
+                    if hit is not None:
+                        return hit[1]
+                ok, val = _disk_load(disk_path, ttl_seconds)
+                if ok:
+                    return val
+                log.warning("single-flight wait ended without value for %s", func_name)
 
-            # Write to disk outside lock (slow I/O)
-            _disk_save(disk_path, val)
-
-            return val
+            log.info("cache MISS → computing %s ...", func_name)
+            try:
+                val = func(*args, **kwargs)
+                ts  = time.time()
+                with lock:
+                    mem_store[key] = (ts, val)
+                _disk_save(disk_path, val)
+                return val
+            finally:
+                with lock:
+                    done = inflight.pop(key, None)
+                if done is not None:
+                    done.set()
 
         # ── cache_clear: wipe memory + disk files for this function ──
         def _cache_clear():

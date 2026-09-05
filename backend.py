@@ -140,15 +140,78 @@ def _clear_price_and_pack():
         pass
 
 
+def _admin_key() -> str:
+    return (os.environ.get("DASHBOARD_ADMIN_KEY") or os.environ.get("ADMIN_API_KEY") or "").strip()
+
+
+_refresh_hits: dict[str, list[float]] = {}
+_refresh_lock = threading.Lock()
+
+
+def _client_ip(request: Request) -> str:
+    if request.client and request.client.host:
+        return request.client.host
+    return "?"
+
+
+def _refresh_rate_ok(ip: str, n: int = 8, window: float = 60.0) -> bool:
+    now = time.time()
+    with _refresh_lock:
+        hits = [t for t in _refresh_hits.get(ip, []) if now - t < window]
+        if len(hits) >= n:
+            _refresh_hits[ip] = hits
+            return False
+        hits.append(now)
+        _refresh_hits[ip] = hits
+        return True
+
+
+def _provided_admin_key(request: Request, key: Optional[str] = None) -> str:
+    if key:
+        return str(key).strip()
+    hdr = (request.headers.get("X-Admin-Key") or "").strip()
+    if hdr:
+        return hdr
+    auth = (request.headers.get("Authorization") or "").strip()
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+    return ""
+
+
+def _admin_authorized(request: Request, key: Optional[str] = None) -> bool:
+    expected = _admin_key()
+    if not expected:
+        return False
+    provided = _provided_admin_key(request, key)
+    if not provided:
+        return False
+    try:
+        import hmac as _hmac
+        return _hmac.compare_digest(provided, expected)
+    except Exception:
+        return provided == expected
+
+
 def get_cache_clearer(clear_func: Callable[[], None]):
-    def dependency(refresh: bool = False):
-        if refresh:
-            try:
-                name = getattr(clear_func, "__name__", "cache_clear")
-                log.info("Cache cleared for: %s", name)
-                clear_func()
-            except Exception:
-                log.warning("Could not clear cache for a function.")
+    """?refresh=1 ล้าง cache ได้เฉพาะเมื่อส่ง admin key ที่ตั้งใน DASHBOARD_ADMIN_KEY"""
+    def dependency(
+        request: Request,
+        refresh: bool = False,
+        key: Optional[str] = Query(None),
+    ):
+        if not refresh:
+            return
+        if not _admin_authorized(request, key):
+            log.info("refresh=1 ignored (missing/invalid admin key) path=%s", request.url.path)
+            return
+        if not _refresh_rate_ok(_client_ip(request)):
+            raise HTTPException(status_code=429, detail="Too many refresh requests")
+        try:
+            name = getattr(clear_func, "__name__", "cache_clear")
+            log.info("Cache cleared for: %s", name)
+            clear_func()
+        except Exception:
+            log.warning("Could not clear cache for a function.")
     return dependency
 
 
@@ -338,18 +401,8 @@ def global_api(_: None = Depends(get_cache_clearer(gm.fetch_global_market.cache_
     return _resp(gm.fetch_global_market())
 
 
-def _clear_gold_only(refresh: bool = False):
-    """Refresh Gold cache only — do not invalidate the stock pipeline."""
-    if refresh:
-        try:
-            gd.fetch_gold.cache_clear()
-            log.info("Cache cleared for: fetch_gold")
-        except Exception:
-            log.warning("Could not clear gold cache")
-
-
 @app.get("/api/gold")
-def gold_api(_: None = Depends(_clear_gold_only)):
+def gold_api(_: None = Depends(get_cache_clearer(gd.fetch_gold.cache_clear))):
     return _resp(gd.fetch_gold())
 
 
@@ -449,7 +502,17 @@ def thematic_api(mode: str = Query("core"), _: None = Depends(get_cache_clearer(
 
 
 @app.post("/api/admin/refresh")
-def admin_refresh(scope: str = Query("data")):
+def admin_refresh(
+    request: Request,
+    scope: str = Query("data"),
+    key: Optional[str] = Query(None),
+):
+    if not _admin_key():
+        raise HTTPException(status_code=503, detail="Set DASHBOARD_ADMIN_KEY to enable admin refresh")
+    if not _admin_authorized(request, key):
+        raise HTTPException(status_code=401, detail="Admin key required")
+    if not _refresh_rate_ok(_client_ip(request)):
+        raise HTTPException(status_code=429, detail="Too many refresh requests")
     if scope in ("gold", "all"):
         try:
             gd.fetch_gold.cache_clear()
@@ -496,12 +559,20 @@ def options_iv_api(ticker: str, _: None = Depends(get_cache_clearer(ta.fetch_opt
 
 
 @app.get("/api/stock_check")
-def stock_check_api(ticker: str = Query(...), refresh: bool = False):
+def stock_check_api(
+    request: Request,
+    ticker: str = Query(...),
+    refresh: bool = False,
+    key: Optional[str] = Query(None),
+):
     if refresh:
-        try:
-            sck.clear_cache()
-        except Exception:
-            pass
+        if not _admin_authorized(request, key):
+            log.info("stock_check refresh ignored (no admin key) ticker=%s", ticker)
+        else:
+            try:
+                sck.clear_cache()
+            except Exception:
+                pass
     try:
         data = sck.fetch_stock_check(ticker)
     except Exception as exc:

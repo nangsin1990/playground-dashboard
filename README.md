@@ -121,7 +121,7 @@ export FRED_API_KEY="ถ้ามี — ไม่มีก็ fallback ไป�
 | GET | `/` | หน้า dashboard |
 | GET | `/api/health` | เช็คว่า process ยังอยู่ (ไม่มี `/live` `/ready` `/data` แยก) |
 | GET | `/api/status` | boot time + เวลาปัจจุบัน |
-| GET | `/api/dashboard?mode=core\|full&refresh=1` | ชุดหลัก — `refresh=1` ล้าง cache ก่อนดึงใหม่ |
+| GET | `/api/dashboard?mode=core\|full` | ชุดหลัก. `refresh=1` ใช้ได้เฉพาะเมื่อส่ง admin key |
 | GET | `/api/my_watchlist?mode=core\|full` | watchlist ส่วนตัว (25 ticker ใน `personal_watchlist.py`) |
 | GET | `/api/progress` | progress แยกตามตลาด (ใช้ตอนกำลังโหลด full) |
 | GET | `/api/regime` | market regime |
@@ -135,9 +135,12 @@ export FRED_API_KEY="ถ้ามี — ไม่มีก็ fallback ไป�
 | GET | `/api/calendar` `/api/earnings_board` `/api/event_impact` `/api/correlation` | |
 | GET | `/api/technicals?ticker=` `/api/sector_rs?ticker=&theme=` `/api/earnings?ticker=` `/api/dividends?ticker=` `/api/options_iv?ticker=` | |
 
-**ไม่มี** `POST /api/admin/refresh` แยกต่างหาก — การล้าง cache ทำผ่าน query param
-`?refresh=1` บน endpoint GET ที่มี `Depends(get_cache_clearer(...))` แนบอยู่ (คนละแบบกับที่
-README เวอร์ชันก่อนบอกว่า "`?refresh=1` บน GET ถูกตัดแล้ว")
+`?refresh=1` บน GET **ไม่ล้าง cache** ถ้าไม่มี admin key — กันการยิง Yahoo ซ้ำจาก client สาธารณะ
+
+มี `POST /api/admin/refresh?scope=data|gold|all` สำหรับล้าง cache ฝั่ง admin
+ต้องตั้ง `DASHBOARD_ADMIN_KEY` แล้วส่งคีย์ทาง header `X-Admin-Key` หรือ query `key=`
+ถ้ายังไม่ตั้งคีย์ endpoint นี้คืน 503
+มี rate-limit ต่อ IP สำหรับ refresh
 
 ### Cache pre-warm (ใหม่)
 
@@ -145,7 +148,7 @@ README เวอร์ชันก่อนบอกว่า "`?refresh=1` บ�
 ยิง `pipeline.load_market_pack("core")` ล่วงหน้าทุก `PREWARM_INTERVAL_SEC`
 (ตั้งไว้ 14 นาที ใน `constants.py`, สั้นกว่า `CACHE_TTL_DATA` 15 นาทีเล็กน้อย)
 ไม่ pre-warm `full` เพราะกด Yahoo หนักถ้าเปิดค้างทั้งวัน
-มี `POST /api/admin/refresh?scope=data|gold|all` สำหรับล้าง cache แบบมีคีย์ admin
+`POST /api/admin/refresh?scope=data|gold|all` ใช้ได้เมื่อตั้ง `DASHBOARD_ADMIN_KEY` แล้วส่งคีย์มาด้วย
 
 ---
 

@@ -38,8 +38,21 @@ sh("pkill -f ngrok || true")
 print("ล้างของเก่าแล้ว")
 
 
-print("\n>>> [2/6] ดึงโค้ดล่าสุดจาก GitHub")
-if os.path.isdir(os.path.join(PROJECT_DIR, ".git")):
+print("\n>>> [2/6] หาโปรเจกต์ local ก่อน ถ้าไม่มีค่อย clone GitHub")
+_here = os.getcwd()
+_candidates = [
+    _here,
+    os.path.join(_here, "playground-dashboard-main"),
+    os.path.join(_here, "playground-dashboard"),
+    PROJECT_DIR,
+    "/content/playground-dashboard-main",
+    "/content/playground-dashboard",
+]
+_local = next((p for p in _candidates if os.path.isfile(os.path.join(p, "backend.py"))), None)
+if _local:
+    PROJECT_DIR = os.path.abspath(_local)
+    print("ใช้โปรเจกต์ที่มีอยู่แล้วที่", PROJECT_DIR, "(ไม่ต้องพึ่ง GitHub)")
+elif os.path.isdir(os.path.join(PROJECT_DIR, ".git")):
     sh(f"git -C {PROJECT_DIR} fetch --all --prune")
     sh(f"git -C {PROJECT_DIR} reset --hard origin/main")
     sh(f"git -C {PROJECT_DIR} pull --ff-only origin main")

@@ -214,8 +214,12 @@ WEEKDAYS_EN = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
 
 def _format_event(d: date, category: str, title: str, subtitle: str,
                   importance: str = "HIGH", source: str = "",
-                  tickers: list[str] | None = None) -> dict:
+                  tickers: list[str] | None = None,
+                  estimated: bool | None = None) -> dict:
     da = (d - date.today()).days
+    if estimated is None:
+        blob = f"{title} {subtitle}".lower()
+        estimated = "estimated" in blob
     return {
         "date":       d.isoformat(),
         "weekday_en": WEEKDAYS_EN[d.weekday()],
@@ -230,6 +234,8 @@ def _format_event(d: date, category: str, title: str, subtitle: str,
         "is_past":    da < 0,
         "is_today":   da == 0,
         "tickers":    tickers or [],
+        "estimated":  bool(estimated),
+        "status":     "estimated" if estimated else "confirmed",
     }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -422,5 +428,5 @@ def _static_fallback(cutoff_start: date, cutoff_end: date) -> list[dict]:
     for ds, cat, title, subtitle, importance, source in all_rows:
         d = date.fromisoformat(ds)
         if cutoff_start <= d <= cutoff_end:
-            out.append(_format_event(d, cat, title, subtitle, importance, source))
+            out.append(_format_event(d, cat, title, subtitle, importance, source, estimated=True))
     return out

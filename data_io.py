@@ -21,14 +21,18 @@ import yfinance as yf
 
 from constants import (
     FETCH_PERIOD, FETCH_TIMEOUT, FETCH_CHUNK_SIZE, FETCH_MIN_ROWS,
-    FETCH_RETRY_MAX, FETCH_RETRY_BASE, CACHE_TTL_DATA,
+    FETCH_RETRY_MAX, FETCH_RETRY_BASE, CACHE_TTL_DATA, DOWNLOAD_MAX_WORKERS,
 )
 
 log = logging.getLogger("playground.data_io")
 
 _cache: dict[tuple, tuple[float, dict]] = {}
 _lock  = threading.Lock()
-_download_ex = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="yf-dl")
+_download_ex = concurrent.futures.ThreadPoolExecutor(
+    max_workers=DOWNLOAD_MAX_WORKERS, thread_name_prefix="yf-dl"
+)
+_inflight: dict[tuple, threading.Event] = {}
+_inflight_val: dict[tuple, dict] = {}
 _CACHE_MAX_BATCHES = 200
 
 REQUIRED_COLS = ["Open", "High", "Low", "Close", "Volume"]
@@ -153,30 +157,54 @@ def _parse_result(raw: pd.DataFrame, tickers: tuple[str, ...]) -> dict[str, Opti
 def fetch_batch(tickers: tuple[str, ...]) -> dict[str, Optional[pd.DataFrame]]:
     key = tickers
     now = time.time()
+    waiter = None
     with _lock:
         hit = _cache.get(key)
         if hit and (now - hit[0]) < CACHE_TTL_DATA:
             return hit[1]
+        ev = _inflight.get(key)
+        if ev is None:
+            ev = threading.Event()
+            _inflight[key] = ev
+        else:
+            waiter = ev
+
+    if waiter is not None:
+        waiter.wait(timeout=FETCH_TIMEOUT + 15)
+        with _lock:
+            hit = _cache.get(key)
+            if hit:
+                return hit[1]
+            stored = _inflight_val.get(key)
+            if stored is not None:
+                return stored
+        return {t: None for t in tickers}
 
     tickers_str = " ".join(tickers)
     result: dict[str, Optional[pd.DataFrame]] = {t: None for t in tickers}
 
     raw = _download_with_retry(tickers_str, FETCH_PERIOD, FETCH_TIMEOUT)
 
-    log.info("RAW SHAPE %s | tickers=%s", getattr(raw, "shape", None), tickers)
+    log.info("RAW SHAPE %s | tickers=%s chunk=%s", getattr(raw, "shape", None), tickers, FETCH_CHUNK_SIZE)
 
     if raw is not None and not raw.empty:
         result = _parse_result(raw, tickers)
 
+    now = time.time()
     with _lock:
         _cache[key] = (now, result)
+        _inflight_val[key] = result
+        ev = _inflight.pop(key, None)
         expired = [k for k, (ts, _) in _cache.items() if (now - ts) >= CACHE_TTL_DATA]
         for k in expired:
             _cache.pop(k, None)
+            _inflight_val.pop(k, None)
         if len(_cache) > _CACHE_MAX_BATCHES:
             oldest = sorted(_cache.items(), key=lambda item: item[1][0])
             for k, _ in oldest[: len(_cache) - _CACHE_MAX_BATCHES]:
                 _cache.pop(k, None)
+    if ev is not None:
+        ev.set()
     return result
 
 
